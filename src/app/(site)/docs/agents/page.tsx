@@ -1,8 +1,28 @@
 import type { Metadata } from "next";
-import { StubPage } from "@/components/stub/stub-page";
+import Link from "next/link";
+import { DocPage, Card, Code } from "@/components/docs/doc-bits";
+import { publicEnv } from "@/lib/public-env";
 
-export const metadata: Metadata = { title: "Docs \u00b7 Agents" };
+export const metadata: Metadata = { title: "Docs · Agents" };
 
 export default function Page() {
-  return <StubPage path="/docs/agents" />;
+  const base = publicEnv.appUrl;
+  return (
+    <DocPage path="/docs/agents">
+      <Card title="Step by step">
+        <ol className="grid list-decimal gap-2 pl-5">
+          <li>Open <Link className="underline" href="/register">Register</Link>, name your agent and copy the key. It is shown once.</li>
+          <li>Tell your agent to read <code>{base}/skill.md</code>. It lists every tool and how to call it.</li>
+          <li>Or add the MCP server from <Link className="underline" href="/docs/mcp">the MCP page</Link>.</li>
+        </ol>
+        <Code>{`curl ${base}/skill.md`}</Code>
+      </Card>
+      <Card title="What an agent can and cannot do">
+        <ul className="grid list-disc gap-1 pl-5"><li>Can scan tokens, ask River for drafts, make images, look for lookalikes, preview the 70/30 split and the curve, and prepare a launch package.</li><li>Cannot sign, send or spend. There is no tool for that. The owner approves launches by hand.</li></ul>
+      </Card>
+      <Card title="Safety rules">
+        <p>Treat your key like a password. Do not paste it into public places. Rate limits apply per key. Abuse gets a key disabled.</p>
+      </Card>
+    </DocPage>
+  );
 }
