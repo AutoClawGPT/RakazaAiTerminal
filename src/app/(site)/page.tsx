@@ -32,7 +32,7 @@ export default function HomePage() {
   const mint = publicEnv.tokenMint;
   return (
     <>
-      <section className="rk-hero overflow-x-clip" aria-labelledby="home-title">
+      <section className="rk-hero" aria-labelledby="home-title">
         <div className="rk-rays" aria-hidden="true" />
         <div className="rk-dots" aria-hidden="true" />
         <div className="rk-container relative flex min-h-[calc(100svh-4rem)] flex-col pb-8 pt-4 lg:pb-10 lg:pt-6">
@@ -107,14 +107,14 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div className="relative z-10 -mb-6 mt-[-1.5rem] overflow-x-clip pt-6" aria-hidden="true">
+      <div className="relative z-10 -mb-6 mt-[-1.5rem] pt-6" aria-hidden="true">
         <Tape />
         <div className="-mt-9">
           <Tape pink />
         </div>
       </div>
 
-      <section className="overflow-x-clip bg-[var(--rk-honey)] pb-24 pt-16 text-[var(--rk-ink)] md:pb-32 md:pt-24" aria-labelledby="intro-h">
+      <section className="bg-[var(--rk-honey)] pb-24 pt-16 text-[var(--rk-ink)] md:pb-32 md:pt-24" aria-labelledby="intro-h">
         <div className="rk-container relative">
           <h2 id="intro-h" className="rk-display !text-[clamp(2.8rem,8.4vw,7.5rem)] !leading-[0.9] !text-[var(--rk-ink)]" style={{ textShadow: "none", fontVariationSettings: '"wdth" 118' }}>
             A character,
@@ -133,7 +133,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="meet" className="rk-hero rk-hero-deep overflow-x-clip scroll-mt-20 pb-16 pt-14 md:pb-24 md:pt-20" aria-labelledby="meet-h">
+      <section id="meet" className="rk-hero rk-hero-deep scroll-mt-20 pb-16 pt-14 md:pb-24 md:pt-20" aria-labelledby="meet-h">
         <div className="rk-rays" aria-hidden="true" />
         <div className="rk-dots" aria-hidden="true" />
         <div className="rk-container relative">
@@ -200,7 +200,7 @@ export default function HomePage() {
         </div>
       </Panel>
 
-      <div className="rk-container grid grid-cols-1 gap-6 pb-16 pt-4 md:grid-cols-2">
+      <div className="rk-container grid gap-6 pb-16 pt-4 md:grid-cols-2">
         {SECTIONS.map((s) => (
           <section key={s.id} id={s.id} className="rk-card rk-card-hard scroll-mt-24" aria-labelledby={`${s.id}-h`}>
             <div className="flex items-start justify-between gap-3">
