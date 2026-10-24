@@ -139,3 +139,8 @@ export function keyHealth(): Record<string, "ok" | "missing"> {
   ];
   return Object.fromEntries(names.map((n) => [n, e[n] ? "ok" : "missing"])) as Record<string, "ok" | "missing">;
 }
+
+/** Test helper: forget the cached env so a test can change process.env between checks. */
+export function resetEnvCacheForTests(): void {
+  cached = undefined;
+}

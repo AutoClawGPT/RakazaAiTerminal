@@ -27,6 +27,23 @@ export function ensureSchema(): Promise<void> {
       calls bigint NOT NULL DEFAULT 0,
       disabled boolean NOT NULL DEFAULT false
     )`;
+    await q`CREATE TABLE IF NOT EXISTS launches (
+      mint text PRIMARY KEY,
+      network text NOT NULL,
+      mode text NOT NULL,
+      name text NOT NULL,
+      symbol text NOT NULL,
+      uri text NOT NULL,
+      creator text NOT NULL,
+      dev_buy_sol numeric NOT NULL DEFAULT 0,
+      shareholders jsonb NOT NULL,
+      status text NOT NULL,
+      tx1 text,
+      tx2 text,
+      note text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )`;
   })().catch((e) => { migrated = null; throw e; });
   return migrated;
 }

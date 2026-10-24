@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import { Keypair } from "@solana/web3.js";
+import { resetEnvCacheForTests as reset } from "../src/lib/env";
+import { executeSponsoredLaunch, loadTreasurySigner } from "../src/lib/launch/execute";
+import { signApproval, type LaunchPlan } from "../src/lib/launch/approval";
+(async () => {
+  const mint = Keypair.generate();
+  const plan: LaunchPlan = { network: "devnet", mode: "sponsored", creator: Keypair.generate().publicKey.toBase58(), mint: mint.publicKey.toBase58(), name: "N", symbol: "NN", uri: "https://u.example/1", devBuySol: 0, shareholders: [{ address: "A", shareBps: 7000 }, { address: "B", shareBps: 3000 }] };
+  const ticket = signApproval(plan, process.env.SESSION_SECRET!);
+  delete process.env.EXECUTE_ENABLED; delete process.env.SPONSORED_ENABLED; reset();
+  await assert.rejects(executeSponsoredLaunch(plan, ticket, mint.secretKey), /EXECUTE_ENABLED/);
+  process.env.EXECUTE_ENABLED = "true"; reset();
+  await assert.rejects(executeSponsoredLaunch(plan, ticket, mint.secretKey), /SPONSORED_ENABLED/);
+  process.env.SPONSORED_ENABLED = "true"; reset();
+  await assert.rejects(executeSponsoredLaunch(plan, undefined, mint.secretKey), /No approval/);
+  await assert.rejects(executeSponsoredLaunch({ ...plan, devBuySol: 9 }, ticket, mint.secretKey), /changed after|over the per-launch|not valid/);
+  delete process.env.TREASURY_PRIVATE_KEY;
+  await assert.rejects(executeSponsoredLaunch(plan, ticket, mint.secretKey), /TREASURY_PRIVATE_KEY is not set/);
+  assert.throws(() => { process.env.TREASURY_PRIVATE_KEY = "not-a-key"; loadTreasurySigner(); }, /not valid|64 bytes/);
+  console.log("EXEC GATE TESTS PASSED (nothing signed, nothing sent)");
+})().catch((e) => { console.error("FAIL", e); process.exit(1); });

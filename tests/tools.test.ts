@@ -128,3 +128,24 @@ import { parseIntent } from "../src/lib/launch/intent";
   assert.equal(parseIntent("how are you").kind, "chat");
   console.log("INTENT TESTS PASSED");
 })();
+
+// ---- launch approval ticket ----
+import { signApproval, verifyApproval, checkCaps, type LaunchPlan } from "../src/lib/launch/approval";
+{
+  const S = "x".repeat(40);
+  const plan: LaunchPlan = { network: "devnet", mode: "sponsored", creator: "C", mint: "M", name: "N", symbol: "SY", uri: "https://u.example/1", devBuySol: 0.1, shareholders: [{ address: "A", shareBps: 7000 }, { address: "B", shareBps: 3000 }] };
+  const t = signApproval(plan, S, 1000);
+  assert.deepEqual(verifyApproval(t, plan, S, 2000), { ok: true });
+  assert.equal(verifyApproval(t, { ...plan, devBuySol: 5 }, S, 2000).ok, false, "plan change breaks ticket");
+  assert.equal(verifyApproval(t, { ...plan, shareholders: [{ address: "A", shareBps: 3000 }, { address: "B", shareBps: 7000 }] }, S, 2000).ok, false, "split change breaks ticket");
+  assert.equal(verifyApproval(t, plan, S, 1000 + 11 * 60 * 1000).ok, false, "expires");
+  assert.equal(verifyApproval(t, plan, "y".repeat(40), 2000).ok, false, "wrong secret");
+  assert.equal(verifyApproval(undefined, plan, S).ok, false);
+  assert.equal(verifyApproval("a.b", plan, S).ok, false);
+  const reordered = { ...plan, shareholders: [...plan.shareholders].reverse() };
+  assert.equal(verifyApproval(t, reordered, S, 2000).ok, true, "order of holders does not matter");
+  assert.equal(checkCaps(plan, { maxLaunchSol: 0.5, spentTodaySol: 0, maxDailySol: 1 }), null);
+  assert.ok(checkCaps({ ...plan, devBuySol: 1 }, { maxLaunchSol: 0.5, spentTodaySol: 0, maxDailySol: 1 }));
+  assert.ok(checkCaps(plan, { maxLaunchSol: 0.5, spentTodaySol: 0.95, maxDailySol: 1 }));
+  console.log("approval tests ok");
+}
