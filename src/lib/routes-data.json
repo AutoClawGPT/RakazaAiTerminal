@@ -829,6 +829,20 @@
     "AES-256-GCM, 310k rounds",
     "Backup, restore, erase"
    ]
+  },
+  {
+   "path": "/pool",
+   "title": "Grind pool",
+   "label": "Pool",
+   "group": "dash",
+   "access": "O",
+   "phase": 2,
+   "kicker": "Team vanity grinding",
+   "blurb": "Share one link. Friends grind in their browsers and send back sealed codes only you can open.",
+   "bullets": [
+    "No server needed",
+    "Sealed with libsodium"
+   ]
   }
  ]
 }

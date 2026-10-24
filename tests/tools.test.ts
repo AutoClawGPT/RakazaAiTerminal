@@ -85,3 +85,31 @@ import { open as vOpen, seal as vSeal, parseSealed, newEntry, passphraseProblem 
   await assert.rejects(() => vSeal(doc, "short"));
   console.log("VAULT CRYPTO TESTS PASSED");
 })();
+
+// pool
+import { makePoolKeypair, encodeLink, decodeLink, sealResult, openResult } from "../src/lib/tools/pool";
+import sodiumT from "libsodium-wrappers";
+import bs58T from "bs58";
+(async () => {
+  const bs = (bs58T as unknown as { default?: typeof bs58T }).default ?? bs58T;
+  await sodiumT.ready;
+  const kp = await makePoolKeypair();
+  const link = encodeLink({ v: 1, label: "team", pattern: { start: "ab", end: "", ignoreCase: false }, pk: kp.pk });
+  const back = decodeLink("#pool=" + link);
+  assert.equal(back.pattern.start, "ab"); assert.equal(back.pk, kp.pk);
+  assert.throws(() => decodeLink("garbage"));
+  assert.throws(() => decodeLink(encodeLink({ v: 1, label: "x", pattern: { start: "0O", end: "", ignoreCase: false }, pk: kp.pk })));
+  const seed = sodiumT.randombytes_buf(32);
+  const pub = sodiumT.crypto_sign_seed_keypair(seed).publicKey;
+  const addr = bs.encode(pub); const secret = bs.encode(Uint8Array.from([...seed, ...pub]));
+  const code = await sealResult(kp.pk, addr, secret, "alice");
+  assert.ok(code.startsWith("GH1.") && !code.includes(secret));
+  const o = await openResult(code, kp);
+  assert.equal(o.address, addr); assert.equal(o.secret, secret); assert.equal(o.note, "alice");
+  const other = await makePoolKeypair();
+  await assert.rejects(() => openResult(code, other));
+  await assert.rejects(() => openResult("nope", kp));
+  const bad = await sealResult(kp.pk, addr, bs.encode(Uint8Array.from([...sodiumT.randombytes_buf(32), ...pub])));
+  await assert.rejects(() => openResult(bad, kp));
+  console.log("POOL TESTS PASSED");
+})();
