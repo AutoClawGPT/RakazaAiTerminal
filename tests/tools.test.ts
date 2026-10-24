@@ -50,3 +50,17 @@ const th = buildThread(kit);
 assert.ok(th.ok && th.posts.length === 2 && th.lengths.every((n) => n <= 280), JSON.stringify(th.lengths));
 assert.equal(autoChecks(kit).meta, true); assert.equal(autoChecks(kit).image, false);
 console.log("KIT TESTS PASSED");
+
+// vanity
+import { closeness, expectedKeys, matcher, tierFor, validatePattern } from "../src/lib/tools/vanity";
+assert.equal(validatePattern({ start: "ab", end: "", ignoreCase: false }).ok, true);
+assert.equal(validatePattern({ start: "0O", end: "", ignoreCase: false }).ok, false);
+assert.equal(validatePattern({ start: "", end: "", ignoreCase: false }).ok, false);
+assert.equal(validatePattern({ start: "abcdefg", end: "abcdefg", ignoreCase: false }).ok, false);
+assert.equal(Math.round(expectedKeys({ start: "ab", end: "", ignoreCase: false })), 3364);
+assert.equal(Math.round(expectedKeys({ start: "ab", end: "", ignoreCase: true })), 841);
+assert.equal(matcher({ start: "Ab", end: "z", ignoreCase: true })("aBxxz"), true);
+assert.equal(matcher({ start: "Ab", end: "z", ignoreCase: false })("aBxxz"), false);
+assert.equal(closeness({ start: "ab", end: "yz", ignoreCase: false }, "abQQyz"), 1);
+assert.equal(tierFor(5), "Instant"); assert.equal(tierFor(1e7), "GPU only");
+console.log("VANITY TESTS PASSED");
