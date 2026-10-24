@@ -64,3 +64,24 @@ assert.equal(matcher({ start: "Ab", end: "z", ignoreCase: false })("aBxxz"), fal
 assert.equal(closeness({ start: "ab", end: "yz", ignoreCase: false }, "abQQyz"), 1);
 assert.equal(tierFor(5), "Instant"); assert.equal(tierFor(1e7), "GPU only");
 console.log("VANITY TESTS PASSED");
+
+// vault crypto
+import { open as vOpen, seal as vSeal, parseSealed, newEntry, passphraseProblem } from "../src/lib/tools/vaultcrypto";
+(async () => {
+  assert.ok(passphraseProblem("short"));
+  assert.equal(passphraseProblem("longenough"), null);
+  const doc = { entries: [newEntry("test", "Addr1", "SECRET1")] };
+  const s = await vSeal(doc, "correct horse");
+  assert.equal(s.v, 1);
+  assert.ok(!JSON.stringify(s).includes("SECRET1"));
+  const back = await vOpen(parseSealed(JSON.stringify(s)), "correct horse");
+  assert.equal(back.entries[0].secret, "SECRET1");
+  await assert.rejects(() => vOpen(s, "wrong passwd"));
+  const s2 = await vSeal(doc, "correct horse");
+  assert.notEqual(s.salt, s2.salt); assert.notEqual(s.data, s2.data);
+  const tampered = { ...s, data: s.data.slice(0, -4) + "AAAA" };
+  await assert.rejects(() => vOpen(tampered, "correct horse"));
+  assert.throws(() => parseSealed("{}"));
+  await assert.rejects(() => vSeal(doc, "short"));
+  console.log("VAULT CRYPTO TESTS PASSED");
+})();

@@ -160,6 +160,7 @@ export function VanityTool() {
             <button type="button" className="rk-btn rk-btn-white rk-btn-sm" onClick={() => setReveal((r) => !r)}>{reveal ? "Hide secret key" : "Show secret key"}</button>
             <button type="button" className="rk-btn rk-btn-mint rk-btn-sm" onClick={() => copy("addr", found.addr)}>{copied === "addr" ? "Copied" : "Copy address"}</button>
             <button type="button" className="rk-btn rk-btn-white rk-btn-sm" onClick={() => copy("sk", found.secret)}>{copied === "sk" ? "Copied" : "Copy secret key"}</button>
+            <a className="rk-btn rk-btn-honey rk-btn-sm" href="/keyvault" data-testid="to-vault" onClick={() => sessionStorage.setItem("rk.pending", JSON.stringify({ address: found.addr, secret: found.secret }))}>Save to key vault</a>
           </div>
           {reveal ? <pre className="mt-3 overflow-x-auto break-all whitespace-pre-wrap rounded-xl bg-[var(--rk-ink)] p-3 font-mono text-xs text-white" data-testid="vanity-secret">{found.secret}</pre> : null}
         </SlidePanel>

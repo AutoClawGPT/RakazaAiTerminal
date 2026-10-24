@@ -203,7 +203,7 @@
   },
   {
    "path": "/studio/explore",
-   "title": "Studio \u00b7 Explore",
+   "title": "Studio · Explore",
    "label": "Explore",
    "group": "studio",
    "access": "P",
@@ -217,7 +217,7 @@
   },
   {
    "path": "/studio/create",
-   "title": "Studio \u00b7 Create",
+   "title": "Studio · Create",
    "label": "Create",
    "group": "studio",
    "access": "P",
@@ -231,7 +231,7 @@
   },
   {
    "path": "/studio/me",
-   "title": "Studio \u00b7 My studio",
+   "title": "Studio · My studio",
    "label": "My studio",
    "group": "studio",
    "access": "P",
@@ -245,7 +245,7 @@
   },
   {
    "path": "/studio/help",
-   "title": "Studio \u00b7 Help",
+   "title": "Studio · Help",
    "label": "Help",
    "group": "studio",
    "access": "P",
@@ -259,7 +259,7 @@
   },
   {
    "path": "/studio/learn",
-   "title": "Studio \u00b7 How it works",
+   "title": "Studio · How it works",
    "label": "How it works",
    "group": "studio",
    "access": "P",
@@ -272,7 +272,7 @@
   },
   {
    "path": "/studio/i/demo",
-   "title": "Studio \u00b7 Character page",
+   "title": "Studio · Character page",
    "label": "Character page",
    "group": "studio",
    "access": "P",
@@ -286,7 +286,7 @@
   },
   {
    "path": "/studio/3d/demo",
-   "title": "Studio \u00b7 3D viewer",
+   "title": "Studio · 3D viewer",
    "label": "3D viewer",
    "group": "studio",
    "access": "P",
@@ -300,7 +300,7 @@
   },
   {
    "path": "/studio/owner",
-   "title": "Studio \u00b7 Owner tools",
+   "title": "Studio · Owner tools",
    "label": "Owner tools",
    "group": "studio",
    "access": "O",
@@ -313,7 +313,7 @@
   },
   {
    "path": "/studio/mod",
-   "title": "Studio \u00b7 Moderation",
+   "title": "Studio · Moderation",
    "label": "Moderation",
    "group": "studio",
    "access": "O",
@@ -341,7 +341,7 @@
   },
   {
    "path": "/docs/api",
-   "title": "Docs \u00b7 API",
+   "title": "Docs · API",
    "label": "API",
    "group": "docs",
    "access": "P",
@@ -355,7 +355,7 @@
   },
   {
    "path": "/docs/mcp",
-   "title": "Docs \u00b7 MCP",
+   "title": "Docs · MCP",
    "label": "MCP",
    "group": "docs",
    "access": "P",
@@ -369,7 +369,7 @@
   },
   {
    "path": "/docs/agents",
-   "title": "Docs \u00b7 Agents",
+   "title": "Docs · Agents",
    "label": "Agents",
    "group": "docs",
    "access": "P",
@@ -814,6 +814,20 @@
     "Metadata JSON",
     "280-character launch post",
     "Checklist"
+   ]
+  },
+  {
+   "path": "/keyvault",
+   "title": "Key vault",
+   "label": "Key vault",
+   "group": "dash",
+   "access": "O",
+   "phase": 2,
+   "kicker": "Encrypted in your browser",
+   "blurb": "Store grinder keys under a passphrase. Nothing is ever sent to a server.",
+   "bullets": [
+    "AES-256-GCM, 310k rounds",
+    "Backup, restore, erase"
    ]
   }
  ]
