@@ -537,7 +537,7 @@
    "label": "Splits",
    "group": "dash",
    "access": "OA",
-   "phase": 6,
+   "phase": 2,
    "kicker": "Creator fees",
    "blurb": "Decode and verify the on-chain fee-share config. The split is permanent once set.",
    "bullets": [
@@ -772,6 +772,34 @@
    ],
    "hidden": true,
    "dev": true
+  },
+  {
+   "path": "/shield",
+   "title": "Shield",
+   "label": "Shield",
+   "group": "dash",
+   "access": "O",
+   "phase": 2,
+   "kicker": "Clone cost",
+   "blurb": "See how cheap it is to fake your contract address, and compare any lookalike against it.",
+   "bullets": [
+    "Clone-cost score",
+    "Compare two addresses"
+   ]
+  },
+  {
+   "path": "/lab",
+   "title": "Launch Lab",
+   "label": "Lab",
+   "group": "dash",
+   "access": "O",
+   "phase": 2,
+   "kicker": "Simulator",
+   "blurb": "Test a launch on the bonding curve before you ship it.",
+   "bullets": [
+    "Dev buy and extra wallets",
+    "Ownership and market cap"
+   ]
   }
  ]
 }
