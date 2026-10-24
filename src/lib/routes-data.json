@@ -800,6 +800,21 @@
     "Dev buy and extra wallets",
     "Ownership and market cap"
    ]
+  },
+  {
+   "path": "/kit",
+   "title": "Launch Kit",
+   "label": "Kit",
+   "group": "dash",
+   "access": "O",
+   "phase": 2,
+   "kicker": "Ship it",
+   "blurb": "Fill the coin in once and get the metadata file, a launch post and a checklist.",
+   "bullets": [
+    "Metadata JSON",
+    "280-character launch post",
+    "Checklist"
+   ]
   }
  ]
 }

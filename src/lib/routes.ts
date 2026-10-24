@@ -74,7 +74,7 @@ export const dashMenu = (): { title: string; items: RouteDef[] }[] => {
   const vis = ROUTES.filter((r) => r.group === "dash" && !r.hidden);
   const pick = (paths: string[]) => paths.map((p) => vis.find((r) => r.path === p)).filter((r): r is RouteDef => Boolean(r));
   return [
-    { title: "Control room", items: pick(["/dash", "/launch", "/vanity", "/splits", "/shield", "/lab"]) },
+    { title: "Control room", items: pick(["/dash", "/launch", "/vanity", "/splits", "/shield", "/lab", "/kit"]) },
     { title: "Money", items: pick(["/vault", "/fees", "/trade", "/rewards", "/revenue", "/history"]) },
     { title: "Intelligence", items: pick(["/explore", "/scanner", "/dash/agents"]) },
     { title: "System", items: pick(["/infra", "/settings"]) },

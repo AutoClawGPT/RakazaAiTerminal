@@ -11,6 +11,7 @@ export function LabTool() {
   const [wallets, setWallets] = useState<number[]>([]);
   const [solUsd, setSolUsd] = useState(150);
 
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     try {
       const v = JSON.parse(localStorage.getItem(KEY) ?? "null");
@@ -21,12 +22,14 @@ export function LabTool() {
         if (typeof v.solUsd === "number") setSolUsd(v.solUsd);
       }
     } catch {}
+    setHydrated(true);
   }, []);
   useEffect(() => {
+    if (!hydrated) return;
     try {
       localStorage.setItem(KEY, JSON.stringify({ dev, wallets, solUsd }));
     } catch {}
-  }, [dev, wallets, solUsd]);
+  }, [hydrated, dev, wallets, solUsd]);
 
   const sim = useMemo(() => simulate([{ wallet: "Dev", sol: dev }, ...wallets.map((sol, i) => ({ wallet: `Wallet ${i + 1}`, sol }))], solUsd), [dev, wallets, solUsd]);
 

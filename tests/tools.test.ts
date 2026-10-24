@@ -39,3 +39,14 @@ assert.equal(g.graduated, true);
 assert.ok(g.sold <= 793_100_000);
 assert.equal(simulate([{ wallet: "Dev", sol: 0 }]).sold, 0);
 console.log("ALL TOOL TESTS PASSED");
+
+// kit
+import { buildMetadata, buildThread, cleanTicker, autoChecks, emptyKit, IMAGE_PLACEHOLDER } from "../src/lib/tools/kit";
+assert.equal(cleanTicker(" $rkz "), "RKZ");
+const kit = { ...emptyKit, name: "Rakaza", ticker: "$rkz", description: "x".repeat(400), ca: A };
+const md = buildMetadata(kit);
+assert.equal(md.symbol, "RKZ"); assert.equal(md.image, IMAGE_PLACEHOLDER); assert.ok(!("twitter" in md));
+const th = buildThread(kit);
+assert.ok(th.ok && th.posts.length === 2 && th.lengths.every((n) => n <= 280), JSON.stringify(th.lengths));
+assert.equal(autoChecks(kit).meta, true); assert.equal(autoChecks(kit).image, false);
+console.log("KIT TESTS PASSED");
