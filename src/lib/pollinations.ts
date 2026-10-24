@@ -1,6 +1,5 @@
 import "server-only";
 import { getEnv } from "./env";
-import { getSecret } from "./keys/secret-store";
 
 const BASE = "https://gen.pollinations.ai";
 
@@ -13,7 +12,7 @@ export async function generateImage(
   prompt: string,
   opts: { size?: "512x512" | "1024x1024"; keyOverride?: string; model?: string } = {},
 ): Promise<PollinationsResult> {
-  const key = opts.keyOverride ?? (await getSecret("POLLINATIONS_API_KEY"));
+  const key = opts.keyOverride ?? getEnv().POLLINATIONS_API_KEY;
   if (!key) return { ok: false, status: 0, error: "POLLINATIONS_API_KEY is not set" };
   const model = opts.model ?? getEnv().POLLINATIONS_IMAGE_MODEL;
   const t0 = Date.now();
@@ -40,7 +39,7 @@ export async function generateImage(
 
 /** Free key check: reads the account balance. */
 export async function checkBalance(keyOverride?: string): Promise<{ ok: true; balance: number } | { ok: false; error: string }> {
-  const key = keyOverride ?? (await getSecret("POLLINATIONS_API_KEY"));
+  const key = keyOverride ?? getEnv().POLLINATIONS_API_KEY;
   if (!key) return { ok: false, error: "POLLINATIONS_API_KEY is not set" };
   try {
     const res = await fetch(`${BASE}/account/balance`, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(15_000), cache: "no-store" });

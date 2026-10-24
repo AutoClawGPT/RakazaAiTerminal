@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { PollinationsCard } from "@/components/pages/pollinations-card";
-import { pollinationsStatus } from "./actions";
 import { keyHealth } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Integrations" };
@@ -27,7 +26,7 @@ const LINKS: Record<string, string> = {
 };
 
 export default async function Page() {
-  const [pol, health] = await Promise.all([pollinationsStatus(), Promise.resolve(keyHealth())]);
+  const health = keyHealth();
   const rows = Object.entries(health);
   return (
     <>
@@ -37,11 +36,11 @@ export default async function Page() {
         <div className="rk-container py-12 md:py-16">
           <p className="rk-kicker mb-4 text-white/85">SETTINGS · OWNER ONLY</p>
           <h1 className="rk-display text-[clamp(2.4rem,9.5vw,6.25rem)]">Integrations</h1>
-          <p className="rk-serif mt-5 text-[clamp(1.35rem,3.4vw,2.1rem)] text-white">Keys are tested, never shown.</p>
+          <p className="rk-serif mt-5 text-[clamp(1.35rem,3.4vw,2.1rem)] text-white">Owner status. Keys are never shown.</p>
         </div>
       </section>
       <section className="rk-container grid gap-6 py-10 md:grid-cols-2 md:py-14">
-        <PollinationsCard initialStatus={pol.message} />
+        <PollinationsCard />
         <div className="rk-card rk-card-hard" data-testid="key-health">
           <h2 className="rk-h2 text-2xl">Key status</h2>
           <p className="mt-2 text-sm text-muted-foreground">Only set or missing is shown. Values never leave the server.</p>
