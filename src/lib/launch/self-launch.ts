@@ -11,7 +11,7 @@ import { verifySplitOnChain, type SplitReport } from "./verify-split";
 /**
  * Self launch: the user's own wallet is the creator and pays. The server never holds their key.
  * Each step hands back a fresh unsigned transaction (a blockhash only lives about a minute), the browser signs it,
- * and the server checks it and forwards it. The 70/30 split is verified on-chain before the dev buy is offered.
+ * and the server checks it and forwards it. The fee split is verified on-chain before the dev buy is offered.
  */
 export type SelfStep = "create" | "split" | "buy";
 export class SelfLaunchError extends Error {}
@@ -32,7 +32,7 @@ export async function selfTx(plan: LaunchPlan, ticket: string | undefined, step:
   if (step === "buy") {
     if (plan.devBuySol <= 0) throw new SelfLaunchError("This plan has no dev buy.");
     const sp = await verifySplitOnChain(conn, plan.mint, plan.shareholders);
-    if (!sp.ok) throw new SelfLaunchError("The 70/30 split is not confirmed on-chain yet, so the dev buy is held back.");
+    if (!sp.ok) throw new SelfLaunchError("The fee split is not confirmed on-chain yet, so the dev buy is held back.");
     const d = await buildDevBuy(conn, creator, new PublicKey(plan.mint), plan.devBuySol);
     return { tx: Buffer.from(d.tx.serialize()).toString("base64"), bytes: d.bytes, blockhash: d.blockhash };
   }

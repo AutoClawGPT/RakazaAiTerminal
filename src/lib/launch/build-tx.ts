@@ -83,10 +83,14 @@ export const scratchMint = () => Keypair.generate().publicKey;
 export async function buildDevBuy(conn: Connection, creator: PublicKey, mint: PublicKey, devBuySol: number, slippagePct = 20): Promise<{ tx: VersionedTransaction; bytes: number; blockhash: string; lastValidBlockHeight: number }> {
   if (!(devBuySol > 0 && devBuySol <= 85)) throw new LaunchBuildError("Dev buy must be above 0 and at most 85 SOL.");
   const online = new OnlinePumpSdk(conn);
-  const [global, feeConfig, st] = await Promise.all([online.fetchGlobal(), online.fetchFeeConfig(), online.fetchBuyState(mint, creator)]);
+  // The token program comes from the mint account's owner on-chain. New pump.fun coins are Token-2022, so a fixed guess fails.
+  const mintInfo = await conn.getAccountInfo(mint, "confirmed");
+  if (!mintInfo) throw new LaunchBuildError("The token does not exist on-chain yet, so the dev buy cannot be built.");
+  const tokenProgram = mintInfo.owner;
+  const [global, feeConfig, st] = await Promise.all([online.fetchGlobal(), online.fetchFeeConfig(), online.fetchBuyState(mint, creator, tokenProgram)]);
   const solAmount = new BN(Math.round(devBuySol * 1e9));
   const amount = getBuyTokenAmountFromSolAmount({ global, feeConfig, mintSupply: null, bondingCurve: st.bondingCurve, amount: solAmount, quoteMint: NATIVE_MINT });
-  const buy = await PUMP_SDK.buyInstructions({ global, bondingCurveAccountInfo: st.bondingCurveAccountInfo, bondingCurve: st.bondingCurve, associatedUserAccountInfo: st.associatedUserAccountInfo, mint, user: creator, amount, solAmount, slippage: slippagePct, tokenProgram: TOKEN_PROGRAM_ID });
+  const buy = await PUMP_SDK.buyInstructions({ global, bondingCurveAccountInfo: st.bondingCurveAccountInfo, bondingCurve: st.bondingCurve, associatedUserAccountInfo: st.associatedUserAccountInfo, mint, user: creator, amount, solAmount, slippage: slippagePct, tokenProgram });
   const ixs = [ComputeBudgetProgram.setComputeUnitLimit({ units: 250_000 }), ComputeBudgetProgram.setComputeUnitPrice({ microLamports: PRIORITY_MICROLAMPORTS }), ...buy];
   const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash("confirmed");
   const tx = new VersionedTransaction(new TransactionMessage({ payerKey: creator, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message());

@@ -45,7 +45,7 @@ import { buildLaunch, simulateOnly, LaunchBuildError } from "@/lib/launch/build-
 import { signApproval, type LaunchPlan } from "@/lib/launch/approval";
 import { sealBytes, openBytes } from "@/lib/launch/seal";
 import { connectionFor, executeSponsoredLaunch, resumeSplit, LaunchExecError, type ExecResult } from "@/lib/launch/execute";
-import { platformSplit } from "@/lib/tools/splits";
+import { platformSplit, selfSplit } from "@/lib/tools/splits";
 
 export interface PrepareInput { name: string; ticker: string; description: string; imageDataUrl: string; links?: { website?: string; twitter?: string; telegram?: string }; feeWallet: string; mode: "sponsored" | "own"; devBuySol: number }
 export interface PrepareOut { plan: LaunchPlan; ticket: string; sealedMint: string; imageUrl: string; tx1Bytes: number; tx2Bytes: number; simulation: { ok: boolean; note: string }; ownWalletTx?: { tx1: string; tx2: string } }
@@ -105,7 +105,7 @@ import { selfTx, selfRelay, SelfLaunchError, type SelfStep } from "@/lib/launch/
 import { RelayError } from "@/lib/launch/relay";
 import type { SplitReport } from "@/lib/launch/verify-split";
 
-export interface SelfPrepareInput extends Omit<PrepareInput, "mode"> { wallet: string; mint: string }
+export interface SelfPrepareInput extends Omit<PrepareInput, "mode"> { wallet: string; mint: string; confirmSplit: boolean }
 
 const isPk = (s: unknown): s is string => { try { return typeof s === "string" && new PublicKey(s).toBase58() === s; } catch { return false; } };
 
@@ -121,7 +121,8 @@ export async function prepareSelfLaunchAction(input: SelfPrepareInput): Promise<
     if (!isPk(input.feeWallet)) return { ok: false, error: "The fee wallet address is not valid." };
     const m = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(input.imageDataUrl ?? "");
     if (!m) return { ok: false, error: "Make the image first." };
-    const shareholders = platformSplit(input.feeWallet, env.TREASURY_PUBKEY);
+    if (input.confirmSplit !== true) return { ok: false, error: "Confirm the fee split first: you keep 95% of creator fees and 5% sponsors the platform. It is permanent once set." };
+    const shareholders = selfSplit(input.feeWallet, env.TREASURY_PUBKEY);
     const img = await pinImage(Uint8Array.from(Buffer.from(m[2], "base64")), `${input.ticker.toLowerCase()}.${m[1].split("/")[1]}`, m[1]);
     const meta = await pinMetadata({ name: input.name, symbol: input.ticker, description: input.description, image: img.url, ...input.links });
     const plan: LaunchPlan = { network: env.NEXT_PUBLIC_SOLANA_NETWORK, mode: "own-wallet", creator: input.wallet, mint: input.mint, name: input.name, symbol: input.ticker, uri: meta.uri, devBuySol: Number(input.devBuySol) || 0, shareholders: shareholders.map((s) => ({ address: s.address, shareBps: s.shareBps })) };

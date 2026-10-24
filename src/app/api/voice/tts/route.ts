@@ -5,11 +5,11 @@ import { limiter } from "@/lib/upstash";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Rakaza's voice: a warm, smooth female Aura-2 voice (Selene). Override with RAKAZA_VOICE (e.g. aura-2-aurora-en). */
+/** Rakaza's voice: a warm, smooth female Aura-2 voice (Luna). Override with RAKAZA_VOICE (e.g. aura-2-aurora-en). */
 const FEMALE_VOICES = new Set(["luna", "aurora", "phoebe", "thalia", "amalthea", "iris", "asteria", "athena", "hera", "andromeda", "callista", "cora", "delia", "electra", "harmonia", "helena", "juno", "minerva", "ophelia", "pandora", "selene", "theia", "vesta", "celeste", "estrella"]);
 function pickVoice() {
   const m = /^aura-2-([a-z]+)-en$/.exec(process.env.RAKAZA_VOICE ?? "");
-  return m && FEMALE_VOICES.has(m[1]) ? `aura-2-${m[1]}-en` : "aura-2-selene-en";
+  return m && FEMALE_VOICES.has(m[1]) ? `aura-2-${m[1]}-en` : "aura-2-luna-en";
 }
 
 /** Text in, MP3 out (Deepgram Aura-2). Capped at 600 characters. */

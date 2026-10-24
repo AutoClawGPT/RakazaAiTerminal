@@ -6,7 +6,7 @@ export const AGENT_KNOWLEDGE = `# How Rakaza launches tokens
 
 ## Two launch types
 - Agent launch (free): the platform treasury is the creator and pays. The user only gives the wallet that should receive fees.
-- Self launch: the user connects their own wallet, which becomes the creator, signs every step and pays. The platform never holds that key.
+- Self launch: the user connects their own wallet, which becomes the creator, signs every step and pays. The platform never holds that key. The split is 95% to the launcher and 5% to the platform as a sponsorship, and the user must confirm it before anything is signed.
 
 ## On-chain steps (pump.fun SDK v4)
 - Create: createV2Instruction. The mint keypair co-signs. Creator is the treasury (agent launch) or the user's wallet (self launch).
@@ -23,6 +23,7 @@ export const AGENT_KNOWLEDGE = `# How Rakaza launches tokens
 ## Checking your work
 - verify_launch: live proof a token exists, has a curve, is in the ledger and its on-chain split matches the promise.
 - wallet_fees: what a wallet has been sent. wallet_balance: live SOL. jupiter_quote and jupiter_price: live market data. treasury_health: RPC, balance, signer, gates and caps.
+- Safety checks, all read-only. Run them before copying or launching: rugcheck_token (public risk score and named risks, mainnet only), token_authorities (mint and freeze authority, token program read from the chain), fee_destination (whether a coin's creator fees go to traders as cashback, to shareholders on a sharing config, or to the creator, and what can be paid out now), trust_check (is the fee wallet a normal wallet that can receive fees, plus its Said Protocol trust tier). Always run trust_check on the fee wallet before preparing an agent launch, and never launch to a wallet it flags.
 - Never say a launch succeeded without verify_launch passing.
 
 ## Safety rules

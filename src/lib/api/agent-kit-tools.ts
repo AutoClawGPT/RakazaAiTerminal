@@ -1,4 +1,5 @@
 import "server-only";
+import { simulationSigner } from "@/lib/launch/sim-signer";
 import { PublicKey } from "@solana/web3.js";
 import { OnlinePumpSdk, feeSharingConfigPda, creatorVaultPda } from "@pump-fun/pump-sdk";
 import { getEnv } from "@/lib/env";
@@ -47,7 +48,7 @@ export async function feeDestination(mint: string) {
   const cfg = await conn.getAccountInfo(feeSharingConfigPda(m), "confirmed");
   if (cfg) {
     let fees: { distributableLamports: number; minimumRequiredLamports: number; canDistribute: boolean } | undefined;
-    try { const r = await sdk.getMinimumDistributableFee(m); fees = { distributableLamports: Number(r.distributableFees.toString()), minimumRequiredLamports: Number(r.minimumRequired.toString()), canDistribute: r.canDistribute }; } catch { /* leave undefined */ }
+    try { const r = await sdk.getMinimumDistributableFee(m, simulationSigner()); fees = { distributableLamports: Number(r.distributableFees.toString()), minimumRequiredLamports: Number(r.minimumRequired.toString()), canDistribute: r.canDistribute }; } catch { /* leave undefined */ }
     return { ...base, destination: "sharing_config", detail: "Creator fees go to the shareholders on the coin's sharing config. Anyone can trigger the payout.", fees };
   }
   const vault = await conn.getBalance(creatorVaultPda(curve.creator), "confirmed");

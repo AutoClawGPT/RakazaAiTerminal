@@ -164,7 +164,7 @@ export function LaunchClient({ treasury, network, executeBlockedReason }: { trea
     if (!prep) return;
     setBusy("launch"); setLaunchMsg("");
     const r = await launchAction(prep.plan, prep.ticket, prep.sealedMint);
-    const msg = !r.ok ? r.error : r.result.ok ? `Launched. Create transaction ${r.result.tx1 ?? ""}, split transaction ${r.result.tx2 ?? "already set"}.` : `${r.result.error ?? "Stopped."}`;
+    const msg = !r.ok ? r.error : r.result.ok ? `Launched. Create transaction ${r.result.tx1 ?? ""}, split transaction ${r.result.tx2 ?? "already set"}.${r.result.devBuy ? ` Dev buy transaction ${r.result.devBuy}.` : ""}${r.result.error ? ` Warning: ${r.result.error}` : ""}` : `${r.result.error ?? "Stopped."}`;
     setLaunchMsg(msg); say(msg); setBusy("");
   };
   const runRetry = async () => {

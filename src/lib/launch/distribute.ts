@@ -1,4 +1,5 @@
 import "server-only";
+import { simulationSigner } from "@/lib/launch/sim-signer";
 import { ComputeBudgetProgram, Connection, PublicKey, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import { OnlinePumpSdk } from "@pump-fun/pump-sdk";
 import { getEnv } from "@/lib/env";
@@ -17,6 +18,8 @@ export interface DistributeResult { mint: string; ok: boolean; skipped?: string;
 
 interface L { mint: string; network: LaunchPlan["network"]; shareholders: { address: string; shareBps: number }[] }
 
+const MIN_PAYOUT_LAMPORTS = 20_000;
+
 export async function distributeOne(l: L, conn: Connection = connectionFor(l.network)): Promise<DistributeResult> {
   assertExecuteAllowed("distribute creator fees");
   const env = getEnv();
@@ -25,7 +28,9 @@ export async function distributeOne(l: L, conn: Connection = connectionFor(l.net
   const sp = await verifySplitOnChain(conn, l.mint, l.shareholders);
   if (!sp.ok) return { mint: l.mint, ok: false, skipped: `split not verified: ${sp.problems.join(" ")}` };
   const sdk = new OnlinePumpSdk(conn);
-  const min = await sdk.getMinimumDistributableFee(mint);
+  const min = await sdk.getMinimumDistributableFee(mint, simulationSigner());
+  // Below this the network fee eats the payout. The amount keeps building up and goes out later.
+  if (min.canDistribute && Number(min.distributableFees.toString()) < MIN_PAYOUT_LAMPORTS) return { mint: l.mint, ok: true, skipped: `too small to send yet (${Number(min.distributableFees.toString())} lamports)` };
   if (!min.canDistribute) return { mint: l.mint, ok: true, skipped: `nothing to send yet (${Number(min.distributableFees.toString())} of ${Number(min.minimumRequired.toString())} lamports needed)` };
   const treasury = loadTreasurySigner();
   const built = await sdk.buildDistributeCreatorFeesInstructions(mint, { payer: treasury.publicKey });

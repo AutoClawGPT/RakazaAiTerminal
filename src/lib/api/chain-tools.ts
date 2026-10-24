@@ -1,4 +1,5 @@
 import "server-only";
+import { simulationSigner } from "@/lib/launch/sim-signer";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { bondingCurvePda, feeSharingConfigPda } from "@pump-fun/pump-sdk";
 import { getEnv } from "@/lib/env";
@@ -56,12 +57,12 @@ export async function verifyLaunch(mint: string) {
   let fees: { distributableLamports: number; minimumRequiredLamports: number; canDistribute: boolean } | undefined;
   if (record) {
     split = await verifySplitOnChain(conn, mint, record.shareholders);
-    checks.push({ name: "70/30 split matches what was promised", ok: split.ok, detail: split.ok ? "Both wallets and shares match, and the config can no longer be changed." : split.problems.join(" ") });
+    checks.push({ name: "Fee split matches what was promised", ok: split.ok, detail: split.ok ? "Both wallets and shares match, and the config can no longer be changed." : split.problems.join(" ") });
   } else {
     checks.push({ name: "Fee sharing is configured", ok: !!cfgAcct, detail: cfgAcct ? "A sharing config exists. Not a platform launch, so it is not compared to a promised split." : "No sharing config." });
   }
   if (cfgAcct && (!record || split?.ok)) {
-    try { const r = await new OnlinePumpSdk(conn).getMinimumDistributableFee(m); fees = { distributableLamports: Number(r.distributableFees.toString()), minimumRequiredLamports: Number(r.minimumRequired.toString()), canDistribute: r.canDistribute }; } catch { /* leave fees undefined */ }
+    try { const r = await new OnlinePumpSdk(conn).getMinimumDistributableFee(m, simulationSigner()); fees = { distributableLamports: Number(r.distributableFees.toString()), minimumRequiredLamports: Number(r.minimumRequired.toString()), canDistribute: r.canDistribute }; } catch { /* leave fees undefined */ }
   }
   return { ok: checks.every((c) => c.ok), network: net(), mint, checks, onChainShareholders: split?.shareholders, fees, txs: { create: record?.tx1 ?? null, split: record?.tx2 ?? null } };
 }

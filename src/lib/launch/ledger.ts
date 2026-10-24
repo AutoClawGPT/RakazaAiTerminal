@@ -1,4 +1,5 @@
 import "server-only";
+import { simulationSigner } from "@/lib/launch/sim-signer";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { OnlinePumpSdk } from "@pump-fun/pump-sdk";
 import { ensureSchema, sql } from "@/lib/db";
@@ -30,7 +31,7 @@ async function onChain(conn: Connection, l: DbLaunch) {
     try { split = (await verifySplitOnChain(conn, l.mint, l.shareholders)).ok; } catch { split = null; }
     if (split) {
       try {
-        const r = await new OnlinePumpSdk(conn).getMinimumDistributableFee(new PublicKey(l.mint));
+        const r = await new OnlinePumpSdk(conn).getMinimumDistributableFee(new PublicKey(l.mint), simulationSigner());
         dist = Number(r.distributableFees.toString()); can = r.canDistribute;
       } catch { dist = null; }
     }
