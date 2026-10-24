@@ -8,6 +8,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { VRM, VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { readLevel } from "@/lib/stage/audio-bus";
+import { getMotion } from "@/lib/stage/motion-bus";
 
 export type StageVariant = "hero" | "bust" | "panel";
 export type StageHandle = { zoom: (dir: 1 | -1) => void; reset: () => void };
@@ -40,7 +41,8 @@ function Avatar({ src, onReady, onFail }: Pick<Props, "src" | "onReady" | "onFai
   const group = useRef<THREE.Group>(null);
   const vrmRef = useRef<VRM | null>(null);
   const [lookObj] = useState(() => new THREE.Object3D());
-  const state = useRef({ t: 0, nextBlink: 1.6, blink: -1, mouth: 0 });
+  const state = useRef({ t: 0, nextBlink: 1.6, blink: -1, mouth: 0, wDance: 0, wSing: 0, wBold: 0, wink: -1, nextWink: 4 });
+  const accent = useRef<THREE.PointLight>(null);
   const camera = useThree((s) => s.camera);
 
   useEffect(() => {
@@ -118,6 +120,67 @@ function Avatar({ src, onReady, onFail }: Pick<Props, "src" | "onReady" | "onFai
     if (lu) lu.rotation.z = 1.15 - Math.sin(t * 1.9 + 0.6) * 0.012;
     if (ru) ru.rotation.z = -1.15 + Math.sin(t * 1.9 + 0.6) * 0.012;
 
+    // ---- motion layer (additive on top of the idle above): sing / dance / 18+ style ----
+    const m = getMotion();
+    const ease = (cur: number, to: number, k: number) => cur + (to - cur) * Math.min(1, dt * k);
+    s.wDance = ease(s.wDance, m.motion === "dance" ? 1 : 0, 4);
+    s.wSing = ease(s.wSing, m.motion === "sing" ? 1 : 0, 4);
+    s.wBold = ease(s.wBold, m.bold ? 1 : 0, 2.5);
+    const wd = s.wDance;
+    const ws = s.wSing;
+    const wb = s.wBold;
+    const g = group.current;
+    const W = t * Math.PI * 2 * 1.9; // beat phase (about 114 bpm)
+    const sway = Math.sin(W / 2);
+    const bone2 = bone;
+    if (g) {
+      g.position.y = wd * Math.abs(Math.sin(W)) * 0.018 - wd * 0.01;
+      g.position.x = wd * sway * 0.045 + ws * Math.sin(t * 1.1) * 0.02;
+      g.rotation.y = wd * sway * 0.28 + ws * Math.sin(t * 0.9) * 0.12 + wb * Math.sin(t * 0.8) * 0.1;
+      g.rotation.z = wd * Math.sin(W / 2 + 0.6) * 0.03 + wb * 0.02;
+    }
+    if (spine) {
+      spine.rotation.z += wd * Math.sin(W / 2 + Math.PI) * 0.12 + wb * -0.07;
+      spine.rotation.y = wd * Math.sin(W / 2) * 0.18;
+    }
+    if (chest) {
+      chest.rotation.z = wd * Math.sin(W / 2) * 0.1 + wb * 0.05;
+      chest.rotation.x += wd * Math.max(0, Math.sin(W)) * 0.06 + ws * 0.05;
+    }
+    const hips = bone2("hips");
+    if (hips) hips.rotation.set(0, wd * sway * 0.2, wd * Math.sin(W / 2 + Math.PI) * 0.1 + wb * 0.06);
+    const lul = bone2("leftUpperLeg");
+    const rul = bone2("rightUpperLeg");
+    if (lul) lul.rotation.set(wd * Math.max(0, sway) * -0.22, 0, wd * 0.05 + wb * 0.03);
+    if (rul) rul.rotation.set(wd * Math.max(0, -sway) * -0.22, 0, wd * -0.05 + wb * -0.06);
+    const lll = bone2("leftLowerLeg");
+    const rll = bone2("rightLowerLeg");
+    if (lll) lll.rotation.x = wd * Math.max(0, sway) * 0.35;
+    if (rll) rll.rotation.x = wd * Math.max(0, -sway) * 0.35;
+    // arms
+    const lla = bone("leftLowerArm");
+    const rla = bone("rightLowerArm");
+    if (lu && ru) {
+      const upL = wd * (0.5 + 0.5 * Math.sin(W / 2)); // left arm lifts on one beat, right on the next
+      const upR = wd * (0.5 - 0.5 * Math.sin(W / 2));
+      lu.rotation.z = lu.rotation.z * (1 - upL) + (-1.05 + Math.sin(W) * 0.15) * upL;
+      ru.rotation.z = ru.rotation.z * (1 - upR) + (1.05 - Math.sin(W) * 0.15) * upR;
+      // singing: right hand comes up like holding a mic, left hand rests on chest
+      ru.rotation.z = ru.rotation.z * (1 - ws) + -0.6 * ws;
+      ru.rotation.y = -1.0 * ws;
+      lu.rotation.z = lu.rotation.z * (1 - ws * 0.6) + 0.75 * ws * 0.6;
+      // 18+ style: right hand on hip, left hand loose
+      ru.rotation.z = ru.rotation.z * (1 - wb * (1 - ws)) + -0.8 * wb * (1 - ws);
+      if (lla) lla.rotation.set(0, 0, 0.12 + upL * -0.5 + ws * 0.5);
+      if (rla) rla.rotation.set(0, wb * (1 - ws) * 1.5 + ws * -1.5, -0.12 + upR * 0.5);
+    }
+    if (head) {
+      head.rotation.x += wd * Math.sin(W) * 0.07 - ws * 0.1;
+      head.rotation.z += wd * Math.sin(W / 2) * 0.08 + ws * Math.sin(t * 1.3) * 0.08 + wb * 0.08;
+    }
+    // bold style: soft rose accent light fades in
+    if (accent.current) accent.current.intensity = wb * 2.2;
+
     // eyes follow the camera with a lazy offset
     lookObj.position.set(camera.position.x * 0.5 + Math.sin(t * 0.8) * 0.12, camera.position.y + Math.sin(t * 0.6) * 0.05, camera.position.z);
 
@@ -144,7 +207,25 @@ function Avatar({ src, onReady, onFail }: Pick<Props, "src" | "onReady" | "onFai
       em.setValue("aa", open * 0.9);
       em.setValue("oh", open * Math.max(0, Math.sin(t * 7)) * 0.35);
       em.setValue("ih", open * Math.max(0, Math.sin(t * 5 + 1.7)) * 0.25);
-      em.setValue("happy", 0.22 + (open > 0.05 ? 0.1 : 0));
+      // singing: open the mouth on a rolling vowel pattern even when no audio is playing
+      const sing = ws * (0.35 + 0.35 * Math.max(0, Math.sin(t * 5.2)));
+      em.setValue("aa", Math.min(1, open * 0.9 + sing));
+      em.setValue("happy", Math.min(1, 0.22 + (open > 0.05 ? 0.1 : 0) + wd * 0.55 + ws * 0.3 + wb * 0.35));
+      // 18+ style: an occasional playful wink
+      s.nextWink -= dt;
+      if (wb > 0.5 && s.nextWink <= 0 && s.wink < 0) {
+        s.wink = 0;
+        s.nextWink = 4 + Math.random() * 4;
+      }
+      let wk = 0;
+      if (s.wink >= 0) {
+        s.wink += dt;
+        const k = s.wink / 0.7;
+        wk = k < 0.2 ? k / 0.2 : k < 0.7 ? 1 : Math.max(0, 1 - (k - 0.7) / 0.3);
+        if (k >= 1) s.wink = -1;
+      }
+      em.setValue("blinkRight", wk);
+      em.setValue("relaxed", wb * 0.45);
     }
     vrm.update(dt);
   });
@@ -152,6 +233,7 @@ function Avatar({ src, onReady, onFail }: Pick<Props, "src" | "onReady" | "onFai
   return (
     <group ref={group}>
       <primitive object={lookObj} />
+      <pointLight ref={accent} position={[0.6, 1.4, 1]} intensity={0} color="#ff5fa8" distance={4} />
     </group>
   );
 }
@@ -191,6 +273,26 @@ function Rig({ variant, wheelZoom, handleRef }: Pick<Props, "variant" | "wheelZo
       handleRef.current = null;
     };
   }, [cfg, camera, handleRef, dist, min, max]);
+
+  // dance / sing pull the camera back so the whole body is in frame, then ease back (bust view only)
+  const pull = useRef({ k: 0 });
+  useFrame((_, dtRaw) => {
+    const c = ctl.current;
+    if (!c || variant !== "bust") return;
+    const m = getMotion().motion;
+    const want = m === "dance" ? 1 : m === "sing" ? 0.35 : 0;
+    const prev = pull.current.k;
+    const next = prev + (want - prev) * Math.min(1, Math.min(dtRaw, 0.05) * 3);
+    if (Math.abs(next - prev) < 1e-5) return;
+    pull.current.k = next;
+    const f = (1 + next * 1.35) / (1 + prev * 1.35);
+    c.maxDistance = max * 2.4;
+    const v = camera.position.clone().sub(c.target).multiplyScalar(f);
+    c.target.y += (next - prev) * -0.38;
+    camera.position.copy(c.target).add(v);
+    c.update();
+    if (next < 0.001) c.maxDistance = max;
+  });
 
   return (
     <OrbitControls
