@@ -1,8 +1,17 @@
 import "server-only";
-import { neon } from "@neondatabase/serverless";
+import { neon, neonConfig } from "@neondatabase/serverless";
 import { getEnv } from "./env";
 
 /** Neon over HTTPS (works from serverless and from networks that block port 5432). */
+// A dropped connection is retried a few times. Payout rows are unique per (signature, wallet), so a repeat can never double count.
+neonConfig.fetchFunction = async (input: RequestInfo | URL, init?: RequestInit) => {
+  let last: unknown;
+  for (let i = 0; i < 4; i++) {
+    try { return await fetch(input, init); } catch (e) { last = e; await new Promise((r) => setTimeout(r, 400 * (i + 1))); }
+  }
+  throw last;
+};
+
 let client: ReturnType<typeof neon> | null | undefined;
 export function sql() {
   if (client === undefined) {

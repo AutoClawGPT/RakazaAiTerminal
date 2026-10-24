@@ -94,13 +94,14 @@ export function LedgerView({ view, treasury }: { view: "history" | "fees"; treas
             <div className="grid gap-3 text-sm" data-testid="ledger-row">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${st.cls}`}>{st.label}</span>
-                {r.splitVerified === true ? <span className="rounded-full bg-emerald-400/90 px-2 py-0.5 text-[11px] font-bold text-black">70/30 verified on-chain</span> : r.splitVerified === false ? <span className="rounded-full bg-red-400 px-2 py-0.5 text-[11px] font-bold text-black">split not verified</span> : null}
+                {r.splitVerified === true ? <span className="rounded-full bg-emerald-400/90 px-2 py-0.5 text-[11px] font-bold text-black">{r.shares.map((x) => x.shareBps / 100).join("/")} split verified on-chain</span> : r.splitVerified === false ? <span className="rounded-full bg-red-400 px-2 py-0.5 text-[11px] font-bold text-black">split not verified</span> : null}
               </div>
               <p className="break-all">Token <a className="font-mono text-xs underline" href={acct(r.mint, r.network)} target="_blank" rel="noreferrer">{r.mint}</a></p>
               <p className="break-all">Creator <a className="font-mono text-xs underline" href={acct(r.creator, r.network)} target="_blank" rel="noreferrer">{r.creator}</a></p>
               <p className="flex flex-wrap gap-x-4">
                 {r.tx1 ? <a className="underline" href={tx(r.tx1, r.network)} target="_blank" rel="noreferrer">Create transaction</a> : <span className="opacity-70">No create transaction yet</span>}
                 {r.tx2 ? <a className="underline" href={tx(r.tx2, r.network)} target="_blank" rel="noreferrer">Split transaction</a> : <span className="opacity-70">No split transaction yet</span>}
+                {r.devBuyTx ? <a className="underline" href={tx(r.devBuyTx, r.network)} target="_blank" rel="noreferrer">Dev buy transaction</a> : null}
               </p>
               {r.note ? <p className="text-xs opacity-80 break-all">{r.note}</p> : null}
               <table className="w-full text-left text-sm"><thead><tr className="text-xs uppercase opacity-70"><th className="py-1 pr-3">Receives</th><th className="pr-3">Share</th><th className="pr-3">Waiting</th><th>Sent</th></tr></thead>

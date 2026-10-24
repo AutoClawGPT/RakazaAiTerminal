@@ -10,7 +10,7 @@ import { verifySplitOnChain } from "./verify-split";
 export interface LedgerShare { address: string; shareBps: number; pendingLamports: number; sentLamports: number }
 export interface LedgerRow {
   mint: string; network: LaunchPlan["network"]; mode: string; name: string; symbol: string; creator: string; status: string;
-  devBuySol: number; tx1?: string; tx2?: string; note?: string; createdAt: string;
+  devBuySol: number; tx1?: string; tx2?: string; devBuyTx?: string; note?: string; createdAt: string;
   splitVerified: boolean | null; distributableLamports: number | null; canDistribute: boolean | null;
   shares: LedgerShare[];
 }
@@ -29,6 +29,11 @@ async function onChain(conn: Connection, l: DbLaunch) {
   let split: boolean | null = null, dist: number | null = null, can: boolean | null = null;
   if (["live", "split_mismatch", "created_unsplit"].includes(l.status)) {
     try { split = (await verifySplitOnChain(conn, l.mint, l.shareholders)).ok; } catch { split = null; }
+    // The chain is the source of truth. If the split landed but the app never heard back (a dropped connection), fix the record.
+    if (split && l.status !== "live") {
+      const q = sql();
+      if (q) { try { await q`UPDATE launches SET status = 'live', note = COALESCE(note || ' | ', '') || 'status corrected: split verified on-chain', updated_at = now() WHERE mint = ${l.mint} AND status <> 'live'`; l.status = "live"; } catch { /* leave as is */ } }
+    }
     if (split) {
       try {
         const r = await new OnlinePumpSdk(conn).getMinimumDistributableFee(new PublicKey(l.mint), simulationSigner());
@@ -60,7 +65,8 @@ export async function buildLedger(limit = 25): Promise<Ledger | { ok: false; err
       pendingLamports: oc.dist == null ? 0 : Math.floor((oc.dist * s.shareBps) / 10000),
       sentLamports: sent.get(`${l.mint}:${s.address}`) ?? 0,
     }));
-    rows.push({ mint: l.mint, network: l.network, mode: l.mode, name: l.name, symbol: l.symbol, creator: l.creator, status: l.status, devBuySol: Number(l.dev_buy_sol), tx1: l.tx1 ?? undefined, tx2: l.tx2 ?? undefined, note: l.note ?? undefined, createdAt: new Date(l.created_at).toISOString(), splitVerified: oc.split, distributableLamports: oc.dist, canDistribute: oc.can, shares });
+    const devBuyTx = /dev buy ([1-9A-HJ-NP-Za-km-z]{60,100})/.exec(l.note ?? "")?.[1];
+    rows.push({ mint: l.mint, network: l.network, mode: l.mode, name: l.name, symbol: l.symbol, creator: l.creator, status: l.status, devBuySol: Number(l.dev_buy_sol), tx1: l.tx1 ?? undefined, tx2: l.tx2 ?? undefined, devBuyTx, note: l.note ?? undefined, createdAt: new Date(l.created_at).toISOString(), splitVerified: oc.split, distributableLamports: oc.dist, canDistribute: oc.can, shares });
   }
   const byWallet = new Map<string, WalletTotals>();
   for (const r of rows) for (const s of r.shares) {

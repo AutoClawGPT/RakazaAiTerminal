@@ -57,7 +57,8 @@ export async function readPayouts(conn: Connection, sig: string, wallets: string
   for (const w of wallets) {
     const i = keys.indexOf(w);
     if (i < 0) continue;
-    const d = t.meta.postBalances[i] - t.meta.preBalances[i];
+    // The fee payer's balance also dropped by the network fee. Add it back so the figure is exactly what the payout sent.
+    const d = t.meta.postBalances[i] - t.meta.preBalances[i] + (i === 0 ? t.meta.fee : 0);
     if (d > 0) out.push({ wallet: w, lamports: d });
   }
   return out;
