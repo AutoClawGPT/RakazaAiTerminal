@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
-import { ChevronDown, Globe, Maximize2, Minimize2, Phone, SendHorizontal, VolumeX, Volume2, X } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { ChevronDown, Globe, Maximize2, Minimize2, Mic, Phone, SendHorizontal, VolumeX, Volume2, X } from "lucide-react";
 import { RakazaMark } from "@/components/brand/logo";
 import { CharacterStage } from "@/components/stage/character-stage";
+import { useVoice } from "./use-voice";
 
 type Msg = { id: number; who: "her" | "me" | "sys"; text: string };
 const SUGGEST = ["hi Rakaza 💜", "rate my rizz", "wen moon?", "what do you do all day?"];
@@ -16,19 +17,40 @@ export function TalkClient() {
   const [draft, setDraft] = useState("");
   const [muted, setMuted] = useState(false);
   const [full, setFull] = useState(false);
+  const [thinking, setThinking] = useState(false);
   const stageBox = useRef<HTMLElement>(null);
   const idRef = useRef(2);
 
-  function send(text: string) {
+  const msgsRef = useRef(msgs);
+  msgsRef.current = msgs;
+  const busy = useRef(false);
+  const voiceRef = useRef<ReturnType<typeof useVoice> | null>(null);
+
+  const send = useCallback(async (text: string) => {
     const t = text.trim().slice(0, MAX);
-    if (!t) return;
-    setMsgs((m) => [
-      ...m,
-      { id: idRef.current++, who: "me", text: t },
-      { id: idRef.current++, who: "sys", text: "Preview only: her brain connects in Phase 3, so this message was not sent anywhere." },
-    ]);
+    if (!t || busy.current) return;
+    busy.current = true;
+    const mine: Msg = { id: idRef.current++, who: "me", text: t };
+    const history = [...msgsRef.current, mine].filter((m) => m.who !== "sys").map((m) => ({ role: m.who === "me" ? "user" : "assistant", content: m.text }));
+    setMsgs((m) => [...m, mine]);
     setDraft("");
-  }
+    setThinking(true);
+    try {
+      const res = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: history }) });
+      const data = (await res.json()) as { reply?: string; message?: string };
+      if (!res.ok || !data.reply) throw new Error(data.message ?? "She didn’t answer. Try again.");
+      const reply = data.reply;
+      setMsgs((m) => [...m, { id: idRef.current++, who: "her", text: reply }]);
+      void voiceRef.current?.speak(reply);
+    } catch (e) {
+      setMsgs((m) => [...m, { id: idRef.current++, who: "sys", text: e instanceof Error ? e.message : "Something went wrong." }]);
+    } finally {
+      busy.current = false;
+      setThinking(false);
+    }
+  }, []);
+  const voice = useVoice({ onFinalText: (t) => void send(t), muted });
+  voiceRef.current = voice;
   async function toggleFull() {
     const el = stageBox.current;
     if (!el) return;
@@ -49,7 +71,7 @@ export function TalkClient() {
           <div className="rk-rays" aria-hidden="true" />
           <CharacterStage variant="bust" controls="full" wheelZoom className="h-full" />
           <div className="absolute left-3 top-3 z-20 inline-flex items-center gap-1.5 rounded-full border-2 border-[var(--rk-ink)] bg-white px-3 py-1 font-mono text-[0.7rem] font-bold text-[var(--rk-ink)]">
-            <span className="size-1.5 rounded-full bg-[var(--rk-pink)]" aria-hidden="true" /> preview
+            <span className="size-1.5 rounded-full bg-[var(--rk-pink)]" aria-hidden="true" /> {voice.listening ? "live" : "online"}
           </div>
           <div className="absolute right-3 top-3 z-20 flex gap-2">
             <button type="button" className="rk-icon-btn !size-9" onClick={toggleFull} aria-label={full ? "Exit full screen" : "Full screen"}>
@@ -59,9 +81,19 @@ export function TalkClient() {
               <X className="size-4" />
             </Link>
           </div>
-          <button type="button" disabled className="rk-btn rk-btn-ink rk-btn-sm absolute bottom-3 right-3 z-20 hidden disabled:opacity-60 md:inline-flex" title="Voice calls arrive in Phase 3">
-            <Phone className="size-4" aria-hidden="true" /> Call
+          <button
+            type="button"
+            className="rk-btn rk-btn-ink rk-btn-sm absolute bottom-3 right-3 z-20"
+            aria-pressed={voice.listening}
+            onClick={() => (voice.listening ? voice.stopListening() : void voice.startListening())}
+          >
+            <Phone className="size-4" aria-hidden="true" /> {voice.listening ? "Hang up" : "Call"}
           </button>
+          {voice.listening || voice.error ? (
+            <p className="absolute bottom-14 right-3 z-20 max-w-[16rem] rounded-xl border-2 border-[var(--rk-ink)] bg-white px-3 py-1.5 text-xs text-[var(--rk-ink)]" role="status">
+              {voice.error ?? (voice.interim || (voice.speaking ? "Rakaza is talking…" : "Listening…"))}
+            </p>
+          ) : null}
         </div>
       </section>
 
@@ -78,7 +110,7 @@ export function TalkClient() {
             <Globe className="size-3.5" aria-hidden="true" /> EN <ChevronDown className="size-3" aria-hidden="true" />
           </button>
           <span className="inline-flex items-center gap-1 font-mono text-[0.68rem] text-muted-foreground">
-            <span className="size-1.5 rounded-full bg-amber-400" aria-hidden="true" /> preview
+            <span className="size-1.5 rounded-full bg-emerald-400" aria-hidden="true" /> {thinking ? "thinking…" : "online"}
           </span>
           <span className="ml-auto flex items-center gap-2">
             <span className="rounded-full border-2 border-[var(--rk-ink)] bg-[var(--rk-honey)] px-3 py-0.5 text-xs font-bold text-[var(--rk-ink)]">Stranger</span>
@@ -161,7 +193,10 @@ export function TalkClient() {
                   placeholder="Say something…"
                   className="max-h-28 min-h-9 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none"
                 />
-                <button type="submit" disabled={!draft.trim()} className="rk-btn rk-btn-honey rk-btn-sm disabled:opacity-50" aria-label="Send">
+                <button type="button" className="rk-icon-btn !size-9" aria-pressed={voice.listening} aria-label={voice.listening ? "Stop listening" : "Talk with your mic"} onClick={() => (voice.listening ? voice.stopListening() : void voice.startListening())}>
+                  <Mic className="size-4" aria-hidden="true" />
+                </button>
+                <button type="submit" disabled={!draft.trim() || thinking} className="rk-btn rk-btn-honey rk-btn-sm disabled:opacity-50" aria-label="Send">
                   <span className="hidden sm:inline">Send</span> <SendHorizontal className="size-4 sm:hidden" aria-hidden="true" />
                 </button>
               </form>
