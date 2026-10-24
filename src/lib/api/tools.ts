@@ -12,6 +12,7 @@ import { isSolanaAddress } from "@/lib/tools/address";
 import { buildMetadata, emptyKit } from "@/lib/tools/kit";
 import { publicEnv } from "@/lib/public-env";
 import { getEnv } from "@/lib/env";
+import { jupiterPrice, jupiterQuote, treasuryHealth, verifyLaunch, walletBalance, walletFees } from "./chain-tools";
 import type { Caller } from "@/lib/auth/agent-keys";
 
 const addr = z.string().refine(isSolanaAddress, "Not a valid Solana address");
@@ -127,6 +128,49 @@ export const TOOLS: Tool[] = [
       if (!check.ok) return { ok: false, error: check.errors[0] };
       return { ok: true, approvalRequired: true, executed: false, package: { network: publicEnv.network, metadata: buildMetadata({ ...emptyKit, name: i.name, ticker: i.ticker, description: i.description }), shareholders: split, devBuySol: i.devBuySol } };
     },
+  }),
+  tool({
+    name: "verify_launch",
+    title: "Verify a launch on-chain",
+    description: "Check a token end to end with live chain data: it exists, it has a pump.fun curve, our ledger knows it, and its 70/30 fee split on-chain matches what was promised and is locked. Returns every check with a plain reason.",
+    shape: { mint: addr },
+    heavy: true,
+    run: async ({ mint }) => verifyLaunch(mint),
+  }),
+  tool({
+    name: "wallet_fees",
+    title: "Fees for a wallet",
+    description: "Every token launched through the platform where this wallet receives fees, with its share and the SOL already sent to it.",
+    shape: { wallet: addr },
+    run: async ({ wallet }) => walletFees(wallet),
+  }),
+  tool({
+    name: "wallet_balance",
+    title: "Wallet SOL balance",
+    description: "Live SOL balance of any wallet on the platform's network, from Helius.",
+    shape: { wallet: addr },
+    run: async ({ wallet }) => walletBalance(wallet),
+  }),
+  tool({
+    name: "jupiter_quote",
+    title: "Jupiter swap quote",
+    description: "A live Jupiter quote for swapping one token for another. Amount is in the input token's smallest unit (lamports for SOL). Quote only, nothing is swapped.",
+    shape: { inputMint: addr, outputMint: addr, amount: z.string().regex(/^\d{1,20}$/), slippageBps: z.number().int().min(1).max(1000).default(50) },
+    run: async (i) => jupiterQuote(i),
+  }),
+  tool({
+    name: "jupiter_price",
+    title: "Jupiter token prices",
+    description: "Live USD price, liquidity and 24 hour change for up to 20 tokens from Jupiter.",
+    shape: { mints: z.array(addr).min(1).max(20) },
+    run: async ({ mints }) => jupiterPrice(mints),
+  }),
+  tool({
+    name: "treasury_health",
+    title: "Treasury and gate health",
+    description: "Live health of the platform treasury: network, RPC, SOL balance, whether the signing key is ready, whether launching is switched on, and the spend caps. Never shows a key.",
+    shape: {},
+    run: async () => treasuryHealth(),
   }),
   tool({
     name: "latest_diary",

@@ -1,0 +1,22 @@
+import assert from "node:assert/strict";
+import { callTool, TOOLS } from "../src/lib/api/tools";
+const owner = { kind: "owner" } as never;
+(async () => {
+  assert.ok(TOOLS.find((t) => t.name === "verify_launch"));
+  const th = await callTool("treasury_health", {}, owner) as { ok: boolean; result: Record<string, unknown> };
+  console.log("treasury_health:", JSON.stringify(th.result));
+  const wb = await callTool("wallet_balance", { wallet: "11111111111111111111111111111111" }, owner) as { result: { sol: number } };
+  console.log("wallet_balance:", JSON.stringify(wb));
+  const jq = await callTool("jupiter_quote", { inputMint: "So11111111111111111111111111111111111111112", outputMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", amount: "100000000" }, owner) as { result: { ok: boolean; outAmount: string } };
+  assert.ok(jq.result.ok && Number(jq.result.outAmount) > 0); console.log("jupiter_quote ok, out", jq.result.outAmount);
+  const jp = await callTool("jupiter_price", { mints: ["So11111111111111111111111111111111111111112"] }, owner) as { result: { ok: boolean; prices: { usd: number }[] } };
+  assert.ok(jp.result.ok && jp.result.prices[0].usd > 0); console.log("jupiter_price ok", jp.result.prices[0].usd);
+  const vl = await callTool("verify_launch", { mint: "So11111111111111111111111111111111111111112" }, owner) as { result: { ok: boolean; checks: { name: string; ok: boolean; detail: string }[] } };
+  console.log("verify_launch (wSOL, not a pump token):", JSON.stringify(vl.result.checks));
+  assert.equal(vl.result.ok, false);
+  const wf = await callTool("wallet_fees", { wallet: "11111111111111111111111111111111" }, owner) as { result: { ok: boolean } };
+  assert.ok(wf.result.ok); console.log("wallet_fees ok");
+  const bad = await callTool("jupiter_quote", { inputMint: "x", outputMint: "y", amount: "1" }, owner) as { ok: boolean };
+  assert.equal(bad.ok, false);
+  console.log("CHAIN TOOL TESTS PASSED");
+})().catch((e) => { console.error("FAIL", e); process.exit(1); });
