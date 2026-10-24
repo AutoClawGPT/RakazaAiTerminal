@@ -76,7 +76,8 @@ export async function walletFees(wallet: string) {
   return { ok: true, network: net(), wallet, tokens: launches.map((l) => ({ mint: l.mint, name: l.name, symbol: l.symbol, status: l.status, sharePercent: (l.shareholders.find((s) => s.address === wallet)?.shareBps ?? 0) / 100, sentSol: sol(sent.get(l.mint) ?? 0) })), totalSentSol: sol([...sent.values()].reduce((a, b) => a + b, 0)) };
 }
 
-export async function treasuryHealth() {
+export interface TreasuryHealth { ok: boolean; problems: string[]; network?: string; treasury?: string | null; executeEnabled?: boolean; sponsoredEnabled?: boolean; maxLaunchSol?: number; maxDailySpendSol?: number; balanceSol?: number; signerReady?: boolean; database?: boolean; rpc?: { ok: boolean } }
+export async function treasuryHealth(): Promise<TreasuryHealth> {
   const e = getEnv();
   const out: Record<string, unknown> = { network: e.NEXT_PUBLIC_SOLANA_NETWORK, treasury: e.TREASURY_PUBKEY ?? null, executeEnabled: isExecuteEnabled(), sponsoredEnabled: !!e.SPONSORED_ENABLED, maxLaunchSol: e.MAX_LAUNCH_SOL, maxDailySpendSol: e.MAX_DAILY_SPEND_SOL };
   const problems: string[] = [];
@@ -87,5 +88,5 @@ export async function treasuryHealth() {
   try { loadTreasurySigner(); out.signerReady = true; } catch (x) { out.signerReady = false; problems.push(x instanceof Error ? x.message : "Treasury key not ready."); }
   out.database = !!sql();
   if (!sql()) problems.push("DATABASE_URL is not set.");
-  return { ok: problems.length === 0, ...out, problems };
+  return { ok: problems.length === 0, ...(out as Omit<TreasuryHealth, "ok" | "problems">), problems };
 }

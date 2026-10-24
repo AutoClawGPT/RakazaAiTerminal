@@ -14,7 +14,8 @@ export interface LedgerRow {
   shares: LedgerShare[];
 }
 export interface WalletTotals { wallet: string; tokens: number; pendingLamports: number; sentLamports: number }
-export interface Ledger { ok: true; at: string; rows: LedgerRow[]; wallets: WalletTotals[]; totals: { launches: number; live: number; pendingLamports: number; sentLamports: number }; rpcNote?: string }
+export interface DayPayout { day: string; wallet: string; lamports: number }
+export interface Ledger { ok: true; at: string; rows: LedgerRow[]; wallets: WalletTotals[]; payoutsByDay: DayPayout[]; totals: { launches: number; live: number; pendingLamports: number; sentLamports: number }; rpcNote?: string }
 
 interface DbLaunch { mint: string; network: LaunchPlan["network"]; mode: string; name: string; symbol: string; creator: string; dev_buy_sol: string; shareholders: { address: string; shareBps: number }[]; status: string; tx1: string | null; tx2: string | null; note: string | null; created_at: string }
 
@@ -45,6 +46,7 @@ export async function buildLedger(limit = 25): Promise<Ledger | { ok: false; err
   await ensureSchema();
   const launches = (await q`SELECT mint, network, mode, name, symbol, creator, dev_buy_sol, shareholders, status, tx1, tx2, note, created_at FROM launches ORDER BY created_at DESC LIMIT ${limit}`) as unknown as DbLaunch[];
   const paid = (await q`SELECT mint, wallet, SUM(lamports)::text AS s FROM fee_payouts GROUP BY mint, wallet`) as unknown as { mint: string; wallet: string; s: string }[];
+  const daily = (await q`SELECT to_char(date_trunc('day', created_at), 'YYYY-MM-DD') AS day, wallet, SUM(lamports)::text AS s FROM fee_payouts WHERE created_at > now() - interval '30 days' GROUP BY 1, 2 ORDER BY 1 DESC`) as unknown as { day: string; wallet: string; s: string }[];
   const sent = new Map(paid.map((p) => [`${p.mint}:${p.wallet}`, Number(p.s)]));
   const conns: Partial<Record<LaunchPlan["network"], Connection>> = {};
   let rpcNote: string | undefined;
@@ -66,7 +68,7 @@ export async function buildLedger(limit = 25): Promise<Ledger | { ok: false; err
   }
   const wallets = [...byWallet.values()].sort((a, b) => b.pendingLamports + b.sentLamports - (a.pendingLamports + a.sentLamports));
   return {
-    ok: true, at: new Date().toISOString(), rows, wallets, rpcNote,
+    ok: true, at: new Date().toISOString(), rows, wallets, rpcNote, payoutsByDay: daily.map((d) => ({ day: d.day, wallet: d.wallet, lamports: Number(d.s) })),
     totals: { launches: rows.length, live: rows.filter((r) => r.status === "live").length, pendingLamports: wallets.reduce((a, w) => a + w.pendingLamports, 0), sentLamports: wallets.reduce((a, w) => a + w.sentLamports, 0) },
   };
 }
