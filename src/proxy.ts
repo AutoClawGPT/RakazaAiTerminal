@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { isProtectedPath } from "@/lib/routes";
+import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
 
 /**
  * Default-deny gate (Next 16 `proxy`, Node runtime).
@@ -39,9 +40,14 @@ function bearerOk(req: NextRequest): boolean {
   return timingSafeEqual(digest(m[1].trim()), digest(key));
 }
 
-/** Phase 5 replaces this with a signed-cookie check against SESSION_SECRET. */
-function ownerSessionOk(): boolean {
-  return false;
+function ownerSessionOk(req: NextRequest): boolean {
+  return verifySession(req.cookies.get(SESSION_COOKIE)?.value, process.env.SESSION_SECRET);
+}
+
+/** Routes that any registered agent key may call. The route itself checks the key (database lookup). */
+const AGENT_API = ["/api/v1/", "/mcp"];
+function hasBearer(req: NextRequest): boolean {
+  return /^Bearer\s+\S+/i.test(req.headers.get("authorization") ?? "");
 }
 
 function isApiLike(pathname: string): boolean {
@@ -56,7 +62,8 @@ export function proxy(req: NextRequest) {
     if (PUBLIC_API.some((p) => (p.endsWith("/") ? pathname.startsWith(p) : pathname === p || pathname.startsWith(p + "/")))) {
       return NextResponse.next();
     }
-    if (bearerOk(req) || ownerSessionOk()) return NextResponse.next();
+    if (bearerOk(req) || ownerSessionOk(req)) return NextResponse.next();
+    if (hasBearer(req) && AGENT_API.some((p) => (p.endsWith("/") ? pathname.startsWith(p) : pathname === p || pathname.startsWith(p + "/")))) return NextResponse.next();
     return NextResponse.json(
       { error: "unauthorized", message: "Owner session or bearer key required." },
       { status: 401, headers: { "WWW-Authenticate": 'Bearer realm="rakaza"', "Cache-Control": "no-store" } },
@@ -64,7 +71,7 @@ export function proxy(req: NextRequest) {
   }
 
   if (isProtectedPath(pathname)) {
-    if (ownerSessionOk() || bearerOk(req)) return NextResponse.next();
+    if (ownerSessionOk(req) || bearerOk(req)) return NextResponse.next();
     const hostName = (req.headers.get("host") ?? "").split(":")[0].toLowerCase();
     const loopback = hostName === "localhost" || hostName === "127.0.0.1" || hostName === "[::1]";
     const preview = process.env.NODE_ENV !== "production" && process.env.DEV_PREVIEW_OWNER_PAGES === "true" && loopback;

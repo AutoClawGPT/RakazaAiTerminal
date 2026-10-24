@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
+import { describeTool, TOOLS } from "@/lib/api/tools";
+import { gate, noStore } from "@/lib/api/gate";
 
-/** Reached only with a valid bearer key (src/proxy.ts). Implemented in Phase 5. */
-export function GET() {
-  return NextResponse.json({ error: "not_implemented", message: "Tools API arrives in Phase 5.", phase: 5 }, { status: 501, headers: { "Cache-Control": "no-store" } });
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function GET(req: Request) {
+  const g = await gate(req);
+  if ("response" in g) return g.response;
+  return NextResponse.json({ tools: TOOLS.map(describeTool) }, { headers: noStore });
 }
