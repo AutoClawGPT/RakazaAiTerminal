@@ -88,6 +88,8 @@ const schema = z.object({
   DEEPGRAM_API_KEY: optStr,
   BRAVE_SEARCH_API_KEY: optStr,
   FIRECRAWL_API_KEY: optStr,
+  POLLINATIONS_API_KEY: optStr,
+  POLLINATIONS_IMAGE_MODEL: z.string().trim().min(1).default("flux"),
 
   // Ops
   UPCLOUD_API_TOKEN: optStr,
@@ -132,7 +134,7 @@ export function keyHealth(): Record<string, "ok" | "missing"> {
   const names: (keyof Env)[] = [
     "HELIUS_MAINNET", "HELIUS_DEVNET", "JUPITER_API_KEY", "SOLANATRACKER_API_KEY", "PINATA_API_KEY",
     "PINATA_API_SECRET", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "UPSTASH_READONLY_TOKEN",
-    "RIVER_AGENT", "RIVER_RAKAZO", "DEEPGRAM_API_KEY", "BRAVE_SEARCH_API_KEY", "FIRECRAWL_API_KEY",
+    "RIVER_AGENT", "RIVER_RAKAZO", "DEEPGRAM_API_KEY", "BRAVE_SEARCH_API_KEY", "FIRECRAWL_API_KEY", "POLLINATIONS_API_KEY",
     "UPCLOUD_API_TOKEN", "PIMLICO_API_KEY", "DASHBOARD_PASSWORD", "API_SERVER_KEY", "TREASURY_PUBKEY",
   ];
   return Object.fromEntries(names.map((n) => [n, e[n] ? "ok" : "missing"])) as Record<string, "ok" | "missing">;
