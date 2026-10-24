@@ -99,3 +99,57 @@ export async function retrySplitAction(plan: LaunchPlan, ticket: string): Promis
   if (g) return g;
   try { return { ok: true, result: await resumeSplit(plan, ticket) }; } catch (e) { return { ok: false, error: e instanceof Error ? e.message : "Blocked." }; }
 }
+
+// ---------------- Self launch (the user's own wallet signs and pays) ----------------
+import { selfTx, selfRelay, SelfLaunchError, type SelfStep } from "@/lib/launch/self-launch";
+import { RelayError } from "@/lib/launch/relay";
+import type { SplitReport } from "@/lib/launch/verify-split";
+
+export interface SelfPrepareInput extends Omit<PrepareInput, "mode"> { wallet: string; mint: string }
+
+const isPk = (s: unknown): s is string => { try { return typeof s === "string" && new PublicKey(s).toBase58() === s; } catch { return false; } };
+
+/** Pins the image and metadata, then returns the plan and ticket. The browser generated the mint, so no mint secret reaches the server. */
+export async function prepareSelfLaunchAction(input: SelfPrepareInput): Promise<{ ok: true; plan: LaunchPlan; ticket: string; imageUrl: string } | Fail> {
+  const g = await guard();
+  if (g) return g;
+  try {
+    const env = getEnv();
+    if (!env.TREASURY_PUBKEY) return { ok: false, error: "The treasury address is not set (TREASURY_PUBKEY)." };
+    if (!isPk(input.wallet)) return { ok: false, error: "Connect a wallet first." };
+    if (!isPk(input.mint)) return { ok: false, error: "The mint address is not valid." };
+    if (!isPk(input.feeWallet)) return { ok: false, error: "The fee wallet address is not valid." };
+    const m = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(input.imageDataUrl ?? "");
+    if (!m) return { ok: false, error: "Make the image first." };
+    const shareholders = platformSplit(input.feeWallet, env.TREASURY_PUBKEY);
+    const img = await pinImage(Uint8Array.from(Buffer.from(m[2], "base64")), `${input.ticker.toLowerCase()}.${m[1].split("/")[1]}`, m[1]);
+    const meta = await pinMetadata({ name: input.name, symbol: input.ticker, description: input.description, image: img.url, ...input.links });
+    const plan: LaunchPlan = { network: env.NEXT_PUBLIC_SOLANA_NETWORK, mode: "own-wallet", creator: input.wallet, mint: input.mint, name: input.name, symbol: input.ticker, uri: meta.uri, devBuySol: Number(input.devBuySol) || 0, shareholders: shareholders.map((s) => ({ address: s.address, shareBps: s.shareBps })) };
+    // Dry-run the exact create transaction so a bad name or size is caught before the wallet pops up.
+    const built = await buildLaunch(connectionFor(plan.network), { creator: new PublicKey(plan.creator), mint: new PublicKey(plan.mint), name: plan.name, symbol: plan.symbol, uri: plan.uri, shareholders, devBuySol: 0 });
+    void built;
+    return { ok: true, plan, ticket: signApproval(plan, env.SESSION_SECRET), imageUrl: img.url };
+  } catch (e) {
+    if (e instanceof PinError || e instanceof LaunchBuildError || e instanceof LaunchExecError) return { ok: false, error: e.message };
+    console.error("prepareSelfLaunch failed:", e instanceof Error ? e.message : "unknown");
+    return { ok: false, error: "Could not prepare the launch. Check the Settings page for which key failed." };
+  }
+}
+
+export async function selfTxAction(plan: LaunchPlan, ticket: string, step: SelfStep): Promise<{ ok: true; tx: string; bytes: number } | Fail> {
+  const g = await guard();
+  if (g) return g;
+  try { const r = await selfTx(plan, ticket, step); return { ok: true, tx: r.tx, bytes: r.bytes }; }
+  catch (e) { return { ok: false, error: e instanceof Error ? e.message : "Blocked." }; }
+}
+
+export async function selfRelayAction(plan: LaunchPlan, ticket: string, step: SelfStep, signedTx: string): Promise<{ ok: true; sig: string; split?: SplitReport } | Fail> {
+  const g = await guard();
+  if (g) return g;
+  try { return { ok: true, ...(await selfRelay(plan, ticket, step, signedTx)) }; }
+  catch (e) {
+    if (e instanceof SelfLaunchError || e instanceof RelayError || e instanceof LaunchExecError) return { ok: false, error: e.message };
+    console.error("selfRelay failed:", e instanceof Error ? e.message : "unknown");
+    return { ok: false, error: e instanceof Error ? e.message.slice(0, 300) : "Blocked." };
+  }
+}

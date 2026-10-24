@@ -9,9 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default function Page() {
   const r = getRoute("/launch");
-  const reason = isExecuteEnabled()
-    ? "Execution is switched on, but the signing step is not built yet. It arrives with the devnet launch phase."
-    : "Execution is off on this server, so nothing can be signed or sent.";
+  const reason = isExecuteEnabled() ? "" : "Execution is off on this server, so nothing can be signed or sent.";
   return (
     <>
       <ToolHero kicker={r.kicker} title={r.title} blurb={r.blurb} />

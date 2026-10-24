@@ -42,7 +42,7 @@ async function spentToday(): Promise<number> {
   return Number(rows[0]?.s ?? 0);
 }
 
-async function record(plan: LaunchPlan, status: string, tx1?: string, tx2?: string, note?: string) {
+export async function record(plan: LaunchPlan, status: string, tx1?: string, tx2?: string, note?: string) {
   const q = sql(); if (!q) return;
   await ensureSchema();
   await q`INSERT INTO launches (mint, network, mode, name, symbol, uri, creator, dev_buy_sol, shareholders, status, tx1, tx2, note)

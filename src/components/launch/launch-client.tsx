@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Mic, MicOff, SendHorizontal, Volume2, VolumeX } from "lucide-react";
 import { fieldCls, labelCls, SlidePanel } from "@/components/tools/tool-frame";
+import { SelfLaunch } from "@/components/launch/self-launch";
 import { VanityTool } from "@/components/tools/vanity-tool";
 import { useVoice } from "@/components/talk/use-voice";
 import { draftAction, imageAction, launchAction, prepareLaunchAction, retrySplitAction, scanTokenAction, type PrepareOut } from "@/app/(dash)/launch/actions";
@@ -274,11 +275,18 @@ export function LaunchClient({ treasury, network, executeBlockedReason }: { trea
 
       {panel("approve", "7. Approve and launch", "Nothing moves until you say so", false, (
         <div className="grid gap-3">
+          <div role="tablist" aria-label="Launch type" className="grid grid-cols-2 gap-2">
+            <button type="button" role="tab" aria-selected={mode === "sponsored"} data-testid="tab-agent" className={`rk-btn ${mode === "sponsored" ? "rk-btn-honey" : "rk-btn-white"}`} onClick={() => setMode("sponsored")}>Agent launch (free)</button>
+            <button type="button" role="tab" aria-selected={mode === "own"} data-testid="tab-self" className={`rk-btn ${mode === "own" ? "rk-btn-honey" : "rk-btn-white"}`} onClick={() => setMode("own")}>Self launch</button>
+          </div>
           <ul className="grid gap-1 text-sm">
             {([["scan", "Token scanned"], ["draft", "River draft"], ["image", "Image"], ["fees", "Fee wallet and 70/30 split"], ["sim", "Simulation safe"]] as const).map(([k, l]) => <li key={k} className="flex items-center gap-2">{chip(ready[k])} {l}</li>)}
           </ul>
           <p className="text-sm" data-testid="exec-blocked">{executeBlockedReason}</p>
-          <div className="flex flex-wrap gap-2">
+          {mode === "own" ? (
+            <SelfLaunch name={draft?.name ?? ""} ticker={draft?.ticker ?? ""} description={draft?.description ?? ""} image={image} links={{ website: token?.links.website, twitter: token?.links.twitter, telegram: token?.links.telegram }} feeWallet={wallet} devBuySol={Number(devSol) || 0} ready={allReady} blockedReason={executeBlockedReason} onUseWallet={setWallet} say={say} />
+          ) : null}
+          <div className={mode === "own" ? "hidden" : "flex flex-wrap gap-2"}>
             <button type="button" className="rk-btn rk-btn-white" disabled={!pkg} onClick={download} data-testid="pkg-btn">Download launch package</button>
             <button type="button" className="rk-btn rk-btn-white" disabled={!allReady || !!busy} onClick={() => void runPrepare()} data-testid="prepare-btn">{busy === "prepare" ? "Preparing…" : "Prepare launch"}</button>
             <button type="button" className="rk-btn rk-btn-mint" disabled={!prep || !!executeBlockedReason || !!busy || mode === "own"} onClick={() => void runLaunch()} data-testid="launch-btn">{executeBlockedReason ? "Launch (blocked)" : "Approve and launch"}</button>
@@ -291,7 +299,6 @@ export function LaunchClient({ treasury, network, executeBlockedReason }: { trea
               <p className="break-all text-xs">Details link: <a className="underline" href={prep.plan.uri} target="_blank" rel="noreferrer">{prep.plan.uri}</a></p>
               <p className="text-xs">Transactions: {prep.tx1Bytes} and {prep.tx2Bytes} bytes (limit 1232). {prep.simulation.note}</p>
               <p className="text-xs opacity-80">Approval is valid for 10 minutes and only for exactly this plan.</p>
-              {mode === "own" ? <p className="text-xs text-amber-300">Own-wallet signing is added with the wallet connect button. For now this mode only prepares.</p> : null}
             </div>
           ) : null}
           {launchMsg ? <p className="text-sm break-all" role="status" data-testid="launch-msg">{launchMsg} {launchMsg.includes("Retry") ? <button type="button" className="underline" onClick={() => void runRetry()}>Retry the split</button> : null}</p> : null}
