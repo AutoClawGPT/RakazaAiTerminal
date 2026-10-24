@@ -149,3 +149,15 @@ import { signApproval, verifyApproval, checkCaps, type LaunchPlan } from "../src
   assert.ok(checkCaps(plan, { maxLaunchSol: 0.5, spentTodaySol: 0.95, maxDailySol: 1 }));
   console.log("approval tests ok");
 }
+
+// ---- mint seal ----
+import { sealBytes, openBytes } from "../src/lib/launch/seal";
+{
+  const S = "q".repeat(40);
+  const raw = Uint8Array.from({ length: 64 }, (_, i) => i);
+  const s = sealBytes(raw, S);
+  assert.deepEqual(Array.from(openBytes(s, S)), Array.from(raw));
+  assert.throws(() => openBytes(s, "z".repeat(40)));
+  assert.throws(() => openBytes(s.slice(0, -2) + "AA", S));
+  console.log("seal tests ok");
+}

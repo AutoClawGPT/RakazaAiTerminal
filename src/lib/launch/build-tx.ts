@@ -48,16 +48,8 @@ export function checkInput(i: LaunchInput) {
 
 export async function buildLaunch(conn: Connection, i: LaunchInput): Promise<BuiltLaunch> {
   checkInput(i);
-  const online = new OnlinePumpSdk(conn);
   const ixs1: TransactionInstruction[] = [ComputeBudgetProgram.setComputeUnitLimit({ units: CU_TX1 }), ComputeBudgetProgram.setComputeUnitPrice({ microLamports: PRIORITY_MICROLAMPORTS })];
-  if (i.devBuySol > 0) {
-    const [global, feeConfig] = await Promise.all([online.fetchGlobal(), online.fetchFeeConfig()]);
-    const solAmount = new BN(Math.round(i.devBuySol * 1e9));
-    const amount = getBuyTokenAmountFromSolAmount({ global, feeConfig, mintSupply: null, bondingCurve: null, amount: solAmount, quoteMint: NATIVE_MINT });
-    ixs1.push(...(await PUMP_SDK.createV2AndBuyInstructions({ global, mint: i.mint, name: i.name, symbol: i.symbol, uri: i.uri, creator: i.creator, user: i.creator, amount, solAmount, mayhemMode: false })));
-  } else {
-    ixs1.push(await PUMP_SDK.createV2Instruction({ mint: i.mint, name: i.name, symbol: i.symbol, uri: i.uri, creator: i.creator, user: i.creator, mayhemMode: false }));
-  }
+  ixs1.push(await PUMP_SDK.createV2Instruction({ mint: i.mint, name: i.name, symbol: i.symbol, uri: i.uri, creator: i.creator, user: i.creator, mayhemMode: false }));
   const cfgIx = await PUMP_SDK.createFeeSharingConfig({ creator: i.creator, mint: i.mint, pool: null });
   const shareIx = await PUMP_SDK.updateFeeSharesV2({
     authority: i.creator,
@@ -83,3 +75,20 @@ export async function simulateOnly(conn: Connection, tx: VersionedTransaction) {
 
 /** A throwaway mint address for simulations only. */
 export const scratchMint = () => Keypair.generate().publicKey;
+
+/**
+ * TX3: the dev buy. Built only after the token exists, because it needs the live bonding curve.
+ * Sent after the 70/30 split is set, so the buy's creator fees go through the split too.
+ */
+export async function buildDevBuy(conn: Connection, creator: PublicKey, mint: PublicKey, devBuySol: number, slippagePct = 20): Promise<{ tx: VersionedTransaction; bytes: number; blockhash: string; lastValidBlockHeight: number }> {
+  if (!(devBuySol > 0 && devBuySol <= 85)) throw new LaunchBuildError("Dev buy must be above 0 and at most 85 SOL.");
+  const online = new OnlinePumpSdk(conn);
+  const [global, feeConfig, st] = await Promise.all([online.fetchGlobal(), online.fetchFeeConfig(), online.fetchBuyState(mint, creator)]);
+  const solAmount = new BN(Math.round(devBuySol * 1e9));
+  const amount = getBuyTokenAmountFromSolAmount({ global, feeConfig, mintSupply: null, bondingCurve: st.bondingCurve, amount: solAmount, quoteMint: NATIVE_MINT });
+  const buy = await PUMP_SDK.buyInstructions({ global, bondingCurveAccountInfo: st.bondingCurveAccountInfo, bondingCurve: st.bondingCurve, associatedUserAccountInfo: st.associatedUserAccountInfo, mint, user: creator, amount, solAmount, slippage: slippagePct, tokenProgram: TOKEN_PROGRAM_ID });
+  const ixs = [ComputeBudgetProgram.setComputeUnitLimit({ units: 250_000 }), ComputeBudgetProgram.setComputeUnitPrice({ microLamports: PRIORITY_MICROLAMPORTS }), ...buy];
+  const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash("confirmed");
+  const tx = new VersionedTransaction(new TransactionMessage({ payerKey: creator, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message());
+  return { tx, bytes: tx.serialize().length, blockhash, lastValidBlockHeight };
+}

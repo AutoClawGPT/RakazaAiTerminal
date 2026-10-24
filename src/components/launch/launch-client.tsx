@@ -5,7 +5,7 @@ import { Mic, MicOff, SendHorizontal, Volume2, VolumeX } from "lucide-react";
 import { fieldCls, labelCls, SlidePanel } from "@/components/tools/tool-frame";
 import { VanityTool } from "@/components/tools/vanity-tool";
 import { useVoice } from "@/components/talk/use-voice";
-import { draftAction, imageAction, scanTokenAction } from "@/app/(dash)/launch/actions";
+import { draftAction, imageAction, launchAction, prepareLaunchAction, retrySplitAction, scanTokenAction, type PrepareOut } from "@/app/(dash)/launch/actions";
 import { parseIntent } from "@/lib/launch/intent";
 import { bpsToPercent, platformSplit, validateSplit } from "@/lib/tools/splits";
 import { simulate } from "@/lib/tools/curve";
@@ -37,6 +37,9 @@ export function LaunchClient({ treasury, network, executeBlockedReason }: { trea
   const busyRef = useRef(false);
   const voiceRef = useRef<ReturnType<typeof useVoice> | null>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [prep, setPrep] = useState<PrepareOut | null>(null);
+  const [prepErr, setPrepErr] = useState("");
+  const [launchMsg, setLaunchMsg] = useState("");
 
   const say = useCallback((text: string, who: "me" | "her" = "her") => {
     setLog((l) => [...l.slice(-30), { id: idRef.current++, who, text }]);
@@ -148,6 +151,29 @@ export function LaunchClient({ treasury, network, executeBlockedReason }: { trea
     const a = document.createElement("a"); a.href = url; a.download = "rakaza-launch-package.json"; a.click(); URL.revokeObjectURL(url);
   };
 
+  const runPrepare = async () => {
+    if (!draft || !image || !split) return;
+    setBusy("prepare"); setPrepErr(""); setPrep(null); setLaunchMsg("");
+    const r = await prepareLaunchAction({ name: draft.name, ticker: draft.ticker, description: draft.description, imageDataUrl: image, links: { website: token?.links.website, twitter: token?.links.twitter, telegram: token?.links.telegram }, feeWallet: wallet, mode: mode === "own" ? "own" : "sponsored", devBuySol: Number(devSol) || 0 });
+    if (r.ok) { setPrep(r.out); say(`Launch prepared. The image and details are saved on IPFS and both transactions are built. ${r.out.simulation.note} Nothing has been sent.`); }
+    else { setPrepErr(r.error); say(`I could not prepare it: ${r.error}`); }
+    setBusy("");
+  };
+  const runLaunch = async () => {
+    if (!prep) return;
+    setBusy("launch"); setLaunchMsg("");
+    const r = await launchAction(prep.plan, prep.ticket, prep.sealedMint);
+    const msg = !r.ok ? r.error : r.result.ok ? `Launched. Create transaction ${r.result.tx1 ?? ""}, split transaction ${r.result.tx2 ?? "already set"}.` : `${r.result.error ?? "Stopped."}`;
+    setLaunchMsg(msg); say(msg); setBusy("");
+  };
+  const runRetry = async () => {
+    if (!prep) return;
+    setBusy("launch");
+    const r = await retrySplitAction(prep.plan, prep.ticket);
+    const msg = !r.ok ? r.error : r.result.ok ? "The 70/30 split is now set and verified on-chain." : (r.result.error ?? "Split still failing.");
+    setLaunchMsg(msg); say(msg); setBusy("");
+  };
+
   const chip = (ok: boolean) => <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${ok ? "bg-emerald-400/90 text-black" : "bg-white/15"}`}>{ok ? "done" : "to do"}</span>;
   const panel = (id: string, title: string, hint: string, ok: boolean, body: React.ReactNode) => (
     <div data-panel={id}>
@@ -254,8 +280,21 @@ export function LaunchClient({ treasury, network, executeBlockedReason }: { trea
           <p className="text-sm" data-testid="exec-blocked">{executeBlockedReason}</p>
           <div className="flex flex-wrap gap-2">
             <button type="button" className="rk-btn rk-btn-white" disabled={!pkg} onClick={download} data-testid="pkg-btn">Download launch package</button>
-            <button type="button" className="rk-btn rk-btn-mint" disabled data-testid="launch-btn" aria-disabled="true">{allReady ? "Launch (blocked)" : "Launch"}</button>
+            <button type="button" className="rk-btn rk-btn-white" disabled={!allReady || !!busy} onClick={() => void runPrepare()} data-testid="prepare-btn">{busy === "prepare" ? "Preparing…" : "Prepare launch"}</button>
+            <button type="button" className="rk-btn rk-btn-mint" disabled={!prep || !!executeBlockedReason || !!busy || mode === "own"} onClick={() => void runLaunch()} data-testid="launch-btn">{executeBlockedReason ? "Launch (blocked)" : "Approve and launch"}</button>
           </div>
+          {prepErr ? <p className="text-sm text-red-400" role="alert" data-testid="prep-err">{prepErr}</p> : null}
+          {prep ? (
+            <div className="grid gap-1 rounded-xl bg-white/5 p-3 text-sm" data-testid="prep-out">
+              <p><b>{prep.plan.name}</b> ({prep.plan.symbol}) on {prep.plan.network}</p>
+              <p className="break-all text-xs">New token address: <span className="font-mono">{prep.plan.mint}</span></p>
+              <p className="break-all text-xs">Details link: <a className="underline" href={prep.plan.uri} target="_blank" rel="noreferrer">{prep.plan.uri}</a></p>
+              <p className="text-xs">Transactions: {prep.tx1Bytes} and {prep.tx2Bytes} bytes (limit 1232). {prep.simulation.note}</p>
+              <p className="text-xs opacity-80">Approval is valid for 10 minutes and only for exactly this plan.</p>
+              {mode === "own" ? <p className="text-xs text-amber-300">Own-wallet signing is added with the wallet connect button. For now this mode only prepares.</p> : null}
+            </div>
+          ) : null}
+          {launchMsg ? <p className="text-sm break-all" role="status" data-testid="launch-msg">{launchMsg} {launchMsg.includes("Retry") ? <button type="button" className="underline" onClick={() => void runRetry()}>Retry the split</button> : null}</p> : null}
         </div>
       ))}
     </div>

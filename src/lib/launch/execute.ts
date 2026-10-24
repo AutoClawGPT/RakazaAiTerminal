@@ -4,7 +4,7 @@ import { Connection, Keypair, PublicKey, type VersionedTransaction } from "@sola
 import { getEnv } from "@/lib/env";
 import { assertExecuteAllowed } from "@/lib/execute-gate";
 import { ensureSchema, sql } from "@/lib/db";
-import { buildLaunch } from "./build-tx";
+import { buildDevBuy, buildLaunch } from "./build-tx";
 import { checkCaps, verifyApproval, type LaunchPlan } from "./approval";
 import { verifySplitOnChain, type SplitReport } from "./verify-split";
 
@@ -57,7 +57,7 @@ async function sendAndConfirm(conn: Connection, tx: VersionedTransaction, blockh
   return sig;
 }
 
-export interface ExecResult { ok: boolean; stage: string; tx1?: string; tx2?: string; split?: SplitReport; error?: string }
+export interface ExecResult { ok: boolean; stage: string; tx1?: string; tx2?: string; devBuy?: string; split?: SplitReport; error?: string }
 
 export async function executeSponsoredLaunch(plan: LaunchPlan, ticket: string | undefined, mintSecret: Uint8Array): Promise<ExecResult> {
   assertExecuteAllowed("sponsored launch");
@@ -79,7 +79,7 @@ export async function executeSponsoredLaunch(plan: LaunchPlan, ticket: string | 
   const bal = (await conn.getBalance(treasury.publicKey)) / 1e9;
   if (bal < plan.devBuySol + 0.03) throw new LaunchExecError(`Treasury has ${bal.toFixed(4)} SOL, which is not enough for this launch.`);
 
-  const built = await buildLaunch(conn, { creator: treasury.publicKey, mint: mintKp.publicKey, name: plan.name, symbol: plan.symbol, uri: plan.uri, shareholders: plan.shareholders.map((s) => ({ ...s, label: "" })), devBuySol: plan.devBuySol });
+  const built = await buildLaunch(conn, { creator: treasury.publicKey, mint: mintKp.publicKey, name: plan.name, symbol: plan.symbol, uri: plan.uri, shareholders: plan.shareholders.map((s) => ({ ...s, label: "" })), devBuySol: 0 });
   await record(plan, "creating");
   let tx1: string;
   try {
@@ -91,7 +91,20 @@ export async function executeSponsoredLaunch(plan: LaunchPlan, ticket: string | 
     return { ok: false, stage: "create", error: msg };
   }
   await record(plan, "created_unsplit", tx1);
-  return finishSplit(plan, conn, treasury, tx1);
+  const res = await finishSplit(plan, conn, treasury, tx1);
+  if (!res.ok || plan.devBuySol <= 0) return res;
+  // Dev buy is its own transaction, sent only after the split is verified.
+  try {
+    const d = await buildDevBuy(conn, treasury.publicKey, new PublicKey(plan.mint), plan.devBuySol);
+    d.tx.sign([treasury]);
+    const buySig = await sendAndConfirm(conn, d.tx, d.blockhash, d.lastValidBlockHeight);
+    await record(plan, "live", tx1, res.tx2, `dev buy ${buySig}`);
+    return { ...res, devBuy: buySig };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "dev buy failed";
+    await record(plan, "live", tx1, res.tx2, `dev buy failed: ${msg}`);
+    return { ...res, error: `The token is live with the 70/30 split, but the dev buy failed: ${msg}` };
+  }
 }
 
 /** Second step on its own, so a failed or timed-out split can be retried safely. */
