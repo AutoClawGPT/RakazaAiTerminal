@@ -1,0 +1,777 @@
+{
+ "phases": {
+  "1": "Scaffold + design system",
+  "2": "Public pages (static)",
+  "3": "Brain, Talk and Deepgram voice",
+  "4": "Chain data, checker, diary, live, wallet",
+  "5": "Owner auth, dashboard shell, API and MCP",
+  "6": "Pump.fun launch on devnet with 70/30 fee split",
+  "7": "Vanity lab, vault, fees and trade",
+  "8": "Extras: games, studio, avatar upgrade"
+ },
+ "routes": [
+  {
+   "path": "/",
+   "title": "Home",
+   "label": "Home",
+   "group": "site",
+   "access": "P",
+   "phase": 2,
+   "kicker": "Rakaza",
+   "blurb": "Landing page: hero, Evaluations, Model card, Playground, Relationship, Risk checker, Manifesto, Safety note and Contract.",
+   "bullets": [
+    "Hero with the Rakaza character stage (2D / 3D toggle)",
+    "Evaluations, Model card, Manifesto, Safety and Contract sections",
+    "Playground chat preview, wired to the brain in Phase 3",
+    "Risk checker for pump.fun coins, wired to chain data in Phase 4"
+   ]
+  },
+  {
+   "path": "/talk",
+   "title": "Talk",
+   "label": "Talk",
+   "group": "site",
+   "access": "P",
+   "phase": 3,
+   "kicker": "Chat and voice",
+   "blurb": "Full chat with the character: split view, 18+ gate, language picker, mute, level badge, and a mic button.",
+   "bullets": [
+    "River brain with streaming replies",
+    "Deepgram live speech-to-text and text-to-speech with lip-sync",
+    "Holder level badge and daily message counters",
+    "Rate limited per IP and session"
+   ]
+  },
+  {
+   "path": "/live",
+   "title": "Live",
+   "label": "Live",
+   "group": "site",
+   "access": "P",
+   "phase": 4,
+   "kicker": "Live show queue",
+   "blurb": "Question queue for the live stream. Visitors ask, the host panel (owner only) controls the line.",
+   "bullets": [
+    "Ticketed questions and waiting list",
+    "Host controls: pause, resume, skip, clear, block words",
+    "Queue stored in Upstash, polled every few seconds"
+   ]
+  },
+  {
+   "path": "/diary",
+   "title": "Diary",
+   "label": "Diary",
+   "group": "site",
+   "access": "P",
+   "phase": 4,
+   "kicker": "One entry a day",
+   "blurb": "A daily diary the character writes from real on-chain and market stats, with a mood and a small chart.",
+   "bullets": [
+    "Daily cron writes the entry from live stats",
+    "Mood tag and 24h change / volume",
+    "Show older entries"
+   ]
+  },
+  {
+   "path": "/games",
+   "title": "Games",
+   "label": "Games",
+   "group": "games",
+   "access": "P",
+   "phase": 8,
+   "kicker": "Arcade",
+   "blurb": "Free browser mini-games with our own art, ratings and a wallet-gated leaderboard.",
+   "bullets": [
+    "Three original mini-games",
+    "Leaderboards in Upstash",
+    "Wallet sign-in for scores"
+   ]
+  },
+  {
+   "path": "/games/ride-em",
+   "title": "Ride 'Em",
+   "label": "Ride 'Em",
+   "group": "games",
+   "access": "P",
+   "phase": 8,
+   "kicker": "Game 1 of 3",
+   "blurb": "Endless runner. Original art and mechanics.",
+   "bullets": [
+    "Jump, double-jump and duck",
+    "Score submitted with a signed wallet message"
+   ]
+  },
+  {
+   "path": "/games/trench-sim",
+   "title": "Trench Sim",
+   "label": "Trench Sim",
+   "group": "games",
+   "access": "P",
+   "phase": 8,
+   "kicker": "Game 2 of 3",
+   "blurb": "Meme-coin trading simulator with fake money only.",
+   "bullets": [
+    "Simulated holders, devs and snipers",
+    "No real funds, ever"
+   ]
+  },
+  {
+   "path": "/games/neon-runner",
+   "title": "Neon Runner",
+   "label": "Neon Runner",
+   "group": "games",
+   "access": "P",
+   "phase": 8,
+   "kicker": "Game 3 of 3",
+   "blurb": "Side-scrolling brawler. Original art and mechanics.",
+   "bullets": [
+    "Keyboard and touch controls",
+    "Combo and dodge system"
+   ]
+  },
+  {
+   "path": "/memes",
+   "title": "Memes",
+   "label": "Memes",
+   "group": "site",
+   "access": "P",
+   "phase": 2,
+   "kicker": "Gallery",
+   "blurb": "Meme gallery with All, Images, Videos and Slopcore tabs, a viewer and Load more. Media is pinned on IPFS.",
+   "bullets": [
+    "Tabs: All, Images, Videos, Slopcore",
+    "Full-screen viewer",
+    "Media pinned through Pinata"
+   ]
+  },
+  {
+   "path": "/roadmap",
+   "title": "Roadmap",
+   "label": "Roadmap",
+   "group": "site",
+   "access": "P",
+   "phase": 2,
+   "kicker": "Roadmap",
+   "blurb": "What is live now, what is next, and the attention flywheel.",
+   "bullets": [
+    "Live now / Under way / Coming soon",
+    "Flywheel diagram",
+    "Links to Stake and Giveaway"
+   ]
+  },
+  {
+   "path": "/stake",
+   "title": "Stake",
+   "label": "Stake",
+   "group": "site",
+   "access": "P",
+   "phase": 2,
+   "kicker": "Coming soon",
+   "blurb": "Coming-soon page for staking. Nothing can be staked yet.",
+   "bullets": [
+    "Explains the planned options",
+    "No wallet actions on this page"
+   ]
+  },
+  {
+   "path": "/giveaway",
+   "title": "Giveaway",
+   "label": "Giveaway",
+   "group": "site",
+   "access": "P",
+   "phase": 2,
+   "kicker": "Coming soon",
+   "blurb": "Coming-soon teaser for the giveaway.",
+   "bullets": [
+    "Teaser copy and rules once announced"
+   ]
+  },
+  {
+   "path": "/studio",
+   "title": "Studio",
+   "label": "Studio",
+   "group": "studio",
+   "access": "P",
+   "phase": 2,
+   "kicker": "Character and token studio",
+   "blurb": "Explore community characters, stats and holder perks. The shell lands first, generation comes in Phase 8.",
+   "bullets": [
+    "Hero, stats bar, Trending / Characters / My creations tabs",
+    "Holder tier perks",
+    "Two ways to start: design it or from a picture"
+   ]
+  },
+  {
+   "path": "/studio/explore",
+   "title": "Studio \u00b7 Explore",
+   "label": "Explore",
+   "group": "studio",
+   "access": "P",
+   "phase": 2,
+   "kicker": "Studio",
+   "blurb": "Browse characters and creations with filters.",
+   "bullets": [
+    "Masonry gallery",
+    "Filters: all, photos, videos"
+   ]
+  },
+  {
+   "path": "/studio/create",
+   "title": "Studio \u00b7 Create",
+   "label": "Create",
+   "group": "studio",
+   "access": "P",
+   "phase": 8,
+   "kicker": "Studio",
+   "blurb": "Design a character and logo, then hand off to the Launch tab.",
+   "bullets": [
+    "Look, age, hair, eyes, style",
+    "Needs an image provider key (not set yet)"
+   ]
+  },
+  {
+   "path": "/studio/me",
+   "title": "Studio \u00b7 My studio",
+   "label": "My studio",
+   "group": "studio",
+   "access": "P",
+   "phase": 8,
+   "kicker": "Studio",
+   "blurb": "Your characters, credits and tickets once you sign in with a wallet.",
+   "bullets": [
+    "Wallet sign-in",
+    "Your creations"
+   ]
+  },
+  {
+   "path": "/studio/help",
+   "title": "Studio \u00b7 Help",
+   "label": "Help",
+   "group": "studio",
+   "access": "P",
+   "phase": 2,
+   "kicker": "Studio",
+   "blurb": "Ask the helper, view tickets, and read what we never ask for.",
+   "bullets": [
+    "Helper chat with a daily limit",
+    "Never-ask list: seed phrases, private keys, DMs"
+   ]
+  },
+  {
+   "path": "/studio/learn",
+   "title": "Studio \u00b7 How it works",
+   "label": "How it works",
+   "group": "studio",
+   "access": "P",
+   "phase": 2,
+   "kicker": "Studio",
+   "blurb": "Step cards that explain create and explore.",
+   "bullets": [
+    "Step cards with short demos"
+   ]
+  },
+  {
+   "path": "/studio/i/demo",
+   "title": "Studio \u00b7 Character page",
+   "label": "Character page",
+   "group": "studio",
+   "access": "P",
+   "phase": 8,
+   "kicker": "Studio",
+   "blurb": "Public page for one character: profile, gallery, likes.",
+   "bullets": [
+    "Dynamic route /studio/i/[id]"
+   ],
+   "hidden": true
+  },
+  {
+   "path": "/studio/3d/demo",
+   "title": "Studio \u00b7 3D viewer",
+   "label": "3D viewer",
+   "group": "studio",
+   "access": "P",
+   "phase": 8,
+   "kicker": "Studio",
+   "blurb": "GLB / VRM viewer for one character.",
+   "bullets": [
+    "Dynamic route /studio/3d/[id]"
+   ],
+   "hidden": true
+  },
+  {
+   "path": "/studio/owner",
+   "title": "Studio \u00b7 Owner tools",
+   "label": "Owner tools",
+   "group": "studio",
+   "access": "O",
+   "phase": 8,
+   "kicker": "Owner only",
+   "blurb": "Owner-only studio tools: numbers, team, spotlight, reports, gift links, access.",
+   "bullets": [
+    "Gated by the owner session"
+   ]
+  },
+  {
+   "path": "/studio/mod",
+   "title": "Studio \u00b7 Moderation",
+   "label": "Moderation",
+   "group": "studio",
+   "access": "O",
+   "phase": 8,
+   "kicker": "Owner only",
+   "blurb": "Moderation queue for reported creations.",
+   "bullets": [
+    "Gated by the owner session"
+   ]
+  },
+  {
+   "path": "/docs",
+   "title": "Docs",
+   "label": "Docs",
+   "group": "docs",
+   "access": "P",
+   "phase": 5,
+   "kicker": "Documentation",
+   "blurb": "Public documentation hub for the API and MCP server.",
+   "bullets": [
+    "Quick start",
+    "Authentication",
+    "Rate limits and errors"
+   ]
+  },
+  {
+   "path": "/docs/api",
+   "title": "Docs \u00b7 API",
+   "label": "API",
+   "group": "docs",
+   "access": "P",
+   "phase": 5,
+   "kicker": "Documentation",
+   "blurb": "Reference for the public JSON API. No secrets in the docs.",
+   "bullets": [
+    "Endpoints, params and responses",
+    "Access levels: public, owner, agent"
+   ]
+  },
+  {
+   "path": "/docs/mcp",
+   "title": "Docs \u00b7 MCP",
+   "label": "MCP",
+   "group": "docs",
+   "access": "P",
+   "phase": 5,
+   "kicker": "Documentation",
+   "blurb": "How an agent connects to the Streamable-HTTP MCP server with a bearer key.",
+   "bullets": [
+    "Tool list",
+    "Money tools return previews only"
+   ]
+  },
+  {
+   "path": "/docs/agents",
+   "title": "Docs \u00b7 Agents",
+   "label": "Agents",
+   "group": "docs",
+   "access": "P",
+   "phase": 5,
+   "kicker": "Documentation",
+   "blurb": "How a user or agent registers, gets a key, and connects to Rakaza through skill.md.",
+   "bullets": [
+    "Step by step: register, create a key, connect",
+    "What an agent can and cannot do",
+    "Limits, errors and safety rules"
+   ]
+  },
+  {
+   "path": "/skill.md",
+   "title": "skill.md",
+   "label": "skill.md",
+   "group": "docs",
+   "access": "P",
+   "phase": 5,
+   "kicker": "Agent skill file",
+   "blurb": "Public plain-text skill file. Any user or agent reads it to learn how to register and connect their own agent to Rakaza.",
+   "bullets": [
+    "Markdown, no secrets",
+    "Registration steps and per-user agent key usage",
+    "Tool list and rate limits"
+   ],
+   "raw": true
+  },
+  {
+   "path": "/register",
+   "title": "Register",
+   "label": "Register",
+   "group": "account",
+   "access": "P",
+   "phase": 5,
+   "kicker": "Join Rakaza",
+   "blurb": "Public sign-up open to anyone, anywhere. Create an account to get your own agent key.",
+   "bullets": [
+    "Open registration, international, no region lock",
+    "Per-user accounts and per-user agent keys (not owner-only)",
+    "Rate limited, abuse checks, 18+ confirmation",
+    "Language picker for the interface"
+   ]
+  },
+  {
+   "path": "/agents",
+   "title": "Agents",
+   "label": "Agents",
+   "group": "account",
+   "access": "P",
+   "phase": 5,
+   "kicker": "Bring your agent",
+   "blurb": "Create and connect your own agent to Rakaza. Registration and key management for every user.",
+   "bullets": [
+    "Register, then create an agent key (shown once, stored hashed)",
+    "Connect any agent through skill.md or the MCP endpoint",
+    "Per-key rate limits, revoke and rotate",
+    "Separate from the owner's operator console"
+   ]
+  },
+  {
+   "path": "/settings/integrations",
+   "title": "Integrations",
+   "label": "Integrations",
+   "group": "account",
+   "access": "U",
+   "phase": 7,
+   "kicker": "Connect",
+   "blurb": "Connect your own services. First up: Paybox, so you can launch with your own Paybox key and its settings.",
+   "bullets": [
+    "Paybox: connect your own key (https://app.paybox.sh/?return=%2Fplugins), launch with many settings",
+    "Keys stored encrypted per user, never shown again",
+    "Connect, test, disconnect",
+    "More integrations later (Helius, Pinata, wallets)"
+   ]
+  },
+  {
+   "path": "/login",
+   "title": "Owner login",
+   "label": "Login",
+   "group": "legal",
+   "access": "P",
+   "phase": 5,
+   "kicker": "Owner",
+   "blurb": "Owner sign-in. Sets an httpOnly session cookie.",
+   "bullets": [
+    "Password check in constant time",
+    "Rate limited"
+   ]
+  },
+  {
+   "path": "/terms",
+   "title": "Terms",
+   "label": "Terms",
+   "group": "legal",
+   "access": "P",
+   "phase": 2,
+   "kicker": "Legal",
+   "blurb": "Terms of use.",
+   "bullets": [
+    "Static legal text"
+   ]
+  },
+  {
+   "path": "/privacy",
+   "title": "Privacy",
+   "label": "Privacy",
+   "group": "legal",
+   "access": "P",
+   "phase": 2,
+   "kicker": "Legal",
+   "blurb": "Privacy notice.",
+   "bullets": [
+    "Static legal text"
+   ]
+  },
+  {
+   "path": "/dash",
+   "title": "Dashboard",
+   "label": "Dashboard",
+   "group": "dash",
+   "access": "OA",
+   "phase": 5,
+   "kicker": "Owner and agent",
+   "blurb": "Home of the control room: treasury status, recent launches, kill switch and key health.",
+   "bullets": [
+    "Treasury and last launches",
+    "Kill switch",
+    "Key health shows names only, never values"
+   ]
+  },
+  {
+   "path": "/launch",
+   "title": "Launch",
+   "label": "Launch",
+   "group": "dash",
+   "access": "OA",
+   "phase": 6,
+   "kicker": "Pump.fun",
+   "blurb": "Prepare a coin, pin metadata, simulate, then approve and launch with the 70/30 fee split.",
+   "bullets": [
+    "Metadata pinned to IPFS",
+    "Optional vanity mint",
+    "Simulation and exact preview before any signature",
+    "Fee split fixed at 70% creator / 30% treasury"
+   ]
+  },
+  {
+   "path": "/vanity",
+   "title": "Vanity lab",
+   "label": "Vanity",
+   "group": "dash",
+   "access": "O",
+   "phase": 7,
+   "kicker": "Mint grinder",
+   "blurb": "Browser Web-Worker grinder for custom mint addresses. The secret never leaves the browser.",
+   "bullets": [
+    "Pattern, speed and ETA",
+    "Verify-only API"
+   ]
+  },
+  {
+   "path": "/splits",
+   "title": "Fee splits",
+   "label": "Splits",
+   "group": "dash",
+   "access": "OA",
+   "phase": 6,
+   "kicker": "Creator fees",
+   "blurb": "Decode and verify the on-chain fee-share config. The split is permanent once set.",
+   "bullets": [
+    "7000 / 3000 bps",
+    "Max 10 shareholders",
+    "One-time set warning"
+   ]
+  },
+  {
+   "path": "/vault",
+   "title": "Vault",
+   "label": "Vault",
+   "group": "dash",
+   "access": "OA",
+   "phase": 7,
+   "kicker": "Owner and agent only",
+   "blurb": "Treasury balances, spend caps, history and audit log. The secret is never displayed.",
+   "bullets": [
+    "Balances and caps",
+    "Withdraw needs explicit approval",
+    "Audit log"
+   ]
+  },
+  {
+   "path": "/fees",
+   "title": "Fees",
+   "label": "Fees",
+   "group": "dash",
+   "access": "OA",
+   "phase": 7,
+   "kicker": "Creator fees",
+   "blurb": "Collect and distribute creator fees per mint.",
+   "bullets": [
+    "Per-mint claimable amounts",
+    "Claim with approval"
+   ]
+  },
+  {
+   "path": "/trade",
+   "title": "Trade",
+   "label": "Trade",
+   "group": "dash",
+   "access": "OA",
+   "phase": 7,
+   "kicker": "Owner and agent only",
+   "blurb": "Build, simulate and execute buys and sells from the vault, with limits and approval.",
+   "bullets": [
+    "Jupiter and pump swap routes",
+    "Simulation before approval",
+    "Spend limits"
+   ]
+  },
+  {
+   "path": "/explore",
+   "title": "Explore",
+   "label": "Explore",
+   "group": "dash",
+   "access": "O",
+   "phase": 7,
+   "kicker": "Coins",
+   "blurb": "Our launches and live pump.fun coins with sort and filters.",
+   "bullets": [
+    "Sort and filter",
+    "Token detail pages"
+   ]
+  },
+  {
+   "path": "/token/example",
+   "title": "Token detail",
+   "label": "Token detail",
+   "group": "dash",
+   "access": "O",
+   "phase": 7,
+   "kicker": "Coins",
+   "blurb": "Detail page for one mint: market data, holders, fee-share config.",
+   "bullets": [
+    "Dynamic route /token/[mint]"
+   ],
+   "hidden": true
+  },
+  {
+   "path": "/scanner",
+   "title": "Scanner",
+   "label": "Scanner",
+   "group": "dash",
+   "access": "O",
+   "phase": 7,
+   "kicker": "Risk",
+   "blurb": "Rug and risk scan: holders, organic score, bundlers and snipers.",
+   "bullets": [
+    "Jupiter and SolanaTracker data",
+    "Plain-language verdict"
+   ]
+  },
+  {
+   "path": "/dash/agents",
+   "title": "Operator agents",
+   "label": "Operator agents",
+   "group": "dash",
+   "access": "OA",
+   "phase": 5,
+   "kicker": "River agent",
+   "blurb": "Operator agent console for the owner: chat, tools, task log, approval queue and templates.",
+   "bullets": [
+    "Tool calls need approval when they move money",
+    "Task log"
+   ]
+  },
+  {
+   "path": "/rewards",
+   "title": "Rewards",
+   "label": "Rewards",
+   "group": "dash",
+   "access": "O",
+   "phase": 7,
+   "kicker": "Ledger",
+   "blurb": "Fee and rewards ledger.",
+   "bullets": [
+    "Per-mint rewards"
+   ]
+  },
+  {
+   "path": "/revenue",
+   "title": "Revenue",
+   "label": "Revenue",
+   "group": "dash",
+   "access": "O",
+   "phase": 7,
+   "kicker": "Ledger",
+   "blurb": "Revenue summary for the treasury share.",
+   "bullets": [
+    "Totals and trend"
+   ]
+  },
+  {
+   "path": "/history",
+   "title": "History",
+   "label": "History",
+   "group": "dash",
+   "access": "O",
+   "phase": 7,
+   "kicker": "Ledger",
+   "blurb": "Transaction and launch history.",
+   "bullets": [
+    "Signatures with explorer links"
+   ]
+  },
+  {
+   "path": "/infra",
+   "title": "Infra",
+   "label": "Infra",
+   "group": "dash",
+   "access": "O",
+   "phase": 5,
+   "kicker": "UpCloud",
+   "blurb": "Read-only server status. Start and stop only with approval.",
+   "bullets": [
+    "Server list and status",
+    "Optional GPU vanity worker later"
+   ]
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "label": "Settings",
+   "group": "dash",
+   "access": "O",
+   "phase": 5,
+   "kicker": "Owner",
+   "blurb": "Network, RPC health, key health (ok or missing), limits and logout.",
+   "bullets": [
+    "Key health shows ok or missing only",
+    "Limits and kill switch"
+   ]
+  },
+  {
+   "path": "/mcp",
+   "title": "MCP server",
+   "label": "MCP",
+   "group": "system",
+   "access": "A",
+   "phase": 5,
+   "kicker": "Agent endpoint",
+   "blurb": "Streamable-HTTP MCP endpoint. Bearer key required.",
+   "bullets": [
+    "Not a page: JSON-RPC over HTTP"
+   ],
+   "api": true,
+   "hidden": true
+  },
+  {
+   "path": "/api/v1/tools",
+   "title": "Tools API",
+   "label": "Tools API",
+   "group": "system",
+   "access": "A",
+   "phase": 5,
+   "kicker": "Agent endpoint",
+   "blurb": "REST mirror of the MCP tools. Bearer key required.",
+   "bullets": [
+    "JSON"
+   ],
+   "api": true,
+   "hidden": true
+  },
+  {
+   "path": "/api/health",
+   "title": "Health",
+   "label": "Health",
+   "group": "system",
+   "access": "P",
+   "phase": 1,
+   "kicker": "System",
+   "blurb": "Liveness and configuration health (booleans only).",
+   "bullets": [
+    "JSON"
+   ],
+   "api": true,
+   "hidden": true
+  },
+  {
+   "path": "/design",
+   "title": "Design system",
+   "label": "Design",
+   "group": "system",
+   "access": "P",
+   "phase": 1,
+   "kicker": "Dev only",
+   "blurb": "Dev-only design reference.",
+   "bullets": [
+    "404 in production"
+   ],
+   "hidden": true,
+   "dev": true
+  }
+ ]
+}

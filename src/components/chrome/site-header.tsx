@@ -1,0 +1,58 @@
+import Link from "next/link";
+import { Send } from "lucide-react";
+import { LogoPill } from "@/components/brand/logo";
+import { PRIMARY_NAV, publicMenu } from "@/lib/routes";
+import { publicEnv } from "@/lib/public-env";
+import { MenuSheet, type MenuGroup } from "./menu-sheet";
+import { NavPills } from "./nav-pills";
+import { ThemeControls } from "./theme-controls";
+
+function XIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true" fill="currentColor">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
+
+export function menuGroups(): MenuGroup[] {
+  return [
+    { title: "Quick links", items: PRIMARY_NAV.map((n) => ({ href: n.href, label: n.label })) },
+    ...publicMenu().map((g) => ({
+      title: g.title,
+      items: g.items.map((r) => ({ href: r.path, label: r.label, note: r.access === "O" ? "owner" : r.access === "U" ? "sign in" : undefined })),
+    })),
+  ];
+}
+
+export function SiteHeader() {
+  const xUrl = publicEnv.xUrl;
+  const tgUrl = publicEnv.telegramUrl;
+  return (
+    <header className="rk-header">
+      <div className="rk-container flex h-full items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-3">
+          <LogoPill />
+        </div>
+        <NavPills items={PRIMARY_NAV} />
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {xUrl ? (
+            <a className="rk-icon-btn hidden nav:grid" href={xUrl} target="_blank" rel="noopener noreferrer" aria-label="Rakaza on X">
+              <XIcon />
+            </a>
+          ) : null}
+          {tgUrl ? (
+            <a className="rk-icon-btn hidden nav:grid" href={tgUrl} target="_blank" rel="noopener noreferrer" aria-label="Rakaza on Telegram">
+              <Send className="size-4" />
+            </a>
+          ) : null}
+          <ThemeControls />
+          <Link href="/talk" className="rk-btn rk-btn-honey rk-btn-sm">
+            Try Rakaza
+          </Link>
+          <MenuSheet groups={menuGroups()} title="Menu" />
+        </div>
+      </div>
+    </header>
+  );
+}
