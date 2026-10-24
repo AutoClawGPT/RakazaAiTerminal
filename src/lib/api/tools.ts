@@ -13,6 +13,7 @@ import { buildMetadata, emptyKit } from "@/lib/tools/kit";
 import { publicEnv } from "@/lib/public-env";
 import { getEnv } from "@/lib/env";
 import { AGENT_KNOWLEDGE } from "@/lib/brain/knowledge";
+import { feeDestination, rugcheckToken, tokenAuthorities, trustCheck } from "./agent-kit-tools";
 import { jupiterPrice, jupiterQuote, treasuryHealth, verifyLaunch, walletBalance, walletFees } from "./chain-tools";
 import type { Caller } from "@/lib/auth/agent-keys";
 
@@ -179,6 +180,36 @@ export const TOOLS: Tool[] = [
     description: "Live health of the platform treasury: network, RPC, SOL balance, whether the signing key is ready, whether launching is switched on, and the spend caps. Never shows a key.",
     shape: {},
     run: async () => treasuryHealth(),
+  }),
+  tool({
+    name: "rugcheck_token",
+    title: "RugCheck risk report",
+    description: "A token's public RugCheck risk score and named risks (mainnet only). Use it on any scanned token before copying it.",
+    shape: { mint: addr },
+    heavy: true,
+    run: async ({ mint }) => rugcheckToken(mint),
+  }),
+  tool({
+    name: "token_authorities",
+    title: "Mint and freeze authority",
+    description: "Reads a token from the chain: which program owns it, supply, decimals, and whether the mint or freeze authority is still set.",
+    shape: { mint: addr },
+    run: async ({ mint }) => tokenAuthorities(mint),
+  }),
+  tool({
+    name: "fee_destination",
+    title: "Where a coin's creator fees go",
+    description: "For a pump.fun coin: whether its creator fees go to traders as cashback, to shareholders on a sharing config, or to the creator, and how much can be paid out now.",
+    shape: { mint: addr },
+    heavy: true,
+    run: async ({ mint }) => feeDestination(mint),
+  }),
+  tool({
+    name: "trust_check",
+    title: "Check a fee wallet",
+    description: "Before launching to a wallet, check it is a normal wallet that can receive fees (on the curve, not a program, system owned) and see its Said Protocol trust tier.",
+    shape: { wallet: addr },
+    run: async ({ wallet }) => trustCheck(wallet),
   }),
   tool({
     name: "latest_diary",

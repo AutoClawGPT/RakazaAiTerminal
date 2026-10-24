@@ -28,7 +28,7 @@ Streamable HTTP endpoint: ${base}/mcp (same bearer key). Methods: initialize, to
 60 calls a minute per key. Slow tools: 6 a minute. Errors are JSON: {"error","message"}.
 
 ## Rules
-- Nothing here signs or sends a transaction. Launch tools return previews only.
+- Nothing here signs or sends a transaction. Launch tools return previews only. Read-only safety tools (rugcheck_token, token_authorities, fee_destination, trust_check) return live data.
 - Only the owner can approve a real launch, in the dashboard.
 - Creator fees on every launch are split 70% to the launcher and 30% to the platform, permanently.
 - Do not put your key in public places.
