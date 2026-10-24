@@ -44,6 +44,16 @@ export function ensureSchema(): Promise<void> {
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now()
     )`;
+    await q`CREATE TABLE IF NOT EXISTS fee_payouts (
+      id bigserial PRIMARY KEY,
+      mint text NOT NULL,
+      network text NOT NULL,
+      wallet text NOT NULL,
+      lamports numeric NOT NULL,
+      sig text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE (sig, wallet)
+    )`;
   })().catch((e) => { migrated = null; throw e; });
   return migrated;
 }

@@ -1,8 +1,19 @@
 import type { Metadata } from "next";
-import { StubPage } from "@/components/stub/stub-page";
-
+import { ToolHero } from "@/components/tools/tool-frame";
+import { LedgerView } from "@/components/launch/ledger-view";
+import { getRoute } from "@/lib/routes";
+import { publicEnv } from "@/lib/public-env";
 export const metadata: Metadata = { title: "Fees" };
+export const dynamic = "force-dynamic";
 
 export default function Page() {
-  return <StubPage path="/fees" variant="dash" />;
+  const r = getRoute("/fees");
+  return (
+    <>
+      <ToolHero kicker={r.kicker} title={r.title} blurb="What every wallet has earned, what is waiting to be sent, and what has been sent." />
+      <section className="rk-container grid max-w-3xl gap-5 py-8 md:py-12">
+        <LedgerView view="fees" treasury={publicEnv.treasuryPubkey} />
+      </section>
+    </>
+  );
 }

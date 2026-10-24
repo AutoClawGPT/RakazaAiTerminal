@@ -25,6 +25,7 @@ const PUBLIC_API = [
   "/api/memes",
   "/api/checker",
   "/api/public/",
+  "/api/cron/", // the route checks CRON_SECRET or API_SERVER_KEY itself
 ];
 
 function digest(v: string): Buffer {
