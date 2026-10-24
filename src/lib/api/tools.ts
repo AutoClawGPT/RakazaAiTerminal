@@ -12,6 +12,7 @@ import { isSolanaAddress } from "@/lib/tools/address";
 import { buildMetadata, emptyKit } from "@/lib/tools/kit";
 import { publicEnv } from "@/lib/public-env";
 import { getEnv } from "@/lib/env";
+import { AGENT_KNOWLEDGE } from "@/lib/brain/knowledge";
 import { jupiterPrice, jupiterQuote, treasuryHealth, verifyLaunch, walletBalance, walletFees } from "./chain-tools";
 import type { Caller } from "@/lib/auth/agent-keys";
 
@@ -128,6 +129,13 @@ export const TOOLS: Tool[] = [
       if (!check.ok) return { ok: false, error: check.errors[0] };
       return { ok: true, approvalRequired: true, executed: false, package: { network: publicEnv.network, metadata: buildMetadata({ ...emptyKit, name: i.name, ticker: i.ticker, description: i.description }), shareholders: split, devBuySol: i.devBuySol } };
     },
+  }),
+  tool({
+    name: "project_knowledge",
+    title: "How launching works here",
+    description: "The full guide to how Rakaza launches tokens: the flow, both launch types, the on-chain steps, how fees are split and sent, how to check your work, and the safety rules. Read this first.",
+    shape: {},
+    run: async () => ({ ok: true, guide: AGENT_KNOWLEDGE }),
   }),
   tool({
     name: "verify_launch",
