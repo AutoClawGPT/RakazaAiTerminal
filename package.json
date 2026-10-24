@@ -11,13 +11,17 @@
     "check": "npm run typecheck && npm run lint && npm run build"
   },
   "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
     "@neondatabase/serverless": "^1.2.0",
     "@pixiv/three-vrm": "3.5.5",
+    "@pump-fun/pump-sdk": "^4.3.1",
     "@react-three/drei": "10.7.9",
     "@react-three/fiber": "9.8.2",
+    "@solana/spl-token": "^0.4.15",
     "@solana/web3.js": "1.99.0",
     "@upstash/ratelimit": "2.2.0",
     "@upstash/redis": "1.39.0",
+    "bn.js": "^5.2.5",
     "bs58": "6.0.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
@@ -38,6 +42,7 @@
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
+    "@types/bn.js": "^5.2.0",
     "@types/libsodium-wrappers": "^0.7.14",
     "@types/node": "^20",
     "@types/react": "^19",
