@@ -65,7 +65,9 @@ export function proxy(req: NextRequest) {
 
   if (isProtectedPath(pathname)) {
     if (ownerSessionOk() || bearerOk(req)) return NextResponse.next();
-    const preview = process.env.NODE_ENV !== "production" && process.env.DEV_PREVIEW_OWNER_PAGES === "true";
+    const hostName = (req.headers.get("host") ?? "").split(":")[0].toLowerCase();
+    const loopback = hostName === "localhost" || hostName === "127.0.0.1" || hostName === "[::1]";
+    const preview = process.env.NODE_ENV !== "production" && process.env.DEV_PREVIEW_OWNER_PAGES === "true" && loopback;
     if (preview) return NextResponse.next();
     const url = req.nextUrl.clone();
     url.pathname = "/login";
