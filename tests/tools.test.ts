@@ -113,3 +113,18 @@ import bs58T from "bs58";
   await assert.rejects(() => openResult(bad, kp));
   console.log("POOL TESTS PASSED");
 })();
+
+// intent
+import { parseIntent } from "../src/lib/launch/intent";
+(async () => {
+  const M = "AQBTDs9tw2Qf1Mk2NGC6xyrHPpXDLZyh2xigsynzpump";
+  assert.deepEqual(parseIntent(`scan ${M}`), { kind: "scan", mint: M });
+  assert.deepEqual(parseIntent(`send fees to ${M}`), { kind: "split", wallet: M });
+  assert.equal(parseIntent("recreate it better").kind, "draft");
+  assert.equal(parseIntent("make the logo").kind, "image");
+  assert.equal(parseIntent("grind a vanity address").kind, "vanity");
+  assert.deepEqual(parseIntent("simulate a 2 sol dev buy"), { kind: "simulate", sol: 2 });
+  assert.equal(parseIntent("ok launch it").kind, "launch");
+  assert.equal(parseIntent("how are you").kind, "chat");
+  console.log("INTENT TESTS PASSED");
+})();
