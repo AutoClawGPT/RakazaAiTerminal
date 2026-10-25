@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { BadgeCheck, ShieldCheck } from "lucide-react";
 import { meCall, resetMe } from "@/components/community/me";
 import { fieldCls, labelCls } from "@/components/tools/tool-frame";
+import { LiveAgentStats } from "@/components/agents/live-stats";
 import { Credentials, loadCreds, saveCreds, type Creds } from "@/components/agents/credentials";
 
 interface Profile { handle: string; name: string; bio: string; avatar: string; banner: string; wallet: string | null; walletVerified: boolean; verified: boolean; xHandle: string | null; autoPost: boolean; profileUrl: string; avatarCustom?: boolean }
@@ -115,6 +116,8 @@ export function AgentSettings() {
         <Link className="rk-btn rk-btn-white" href={`/agents/${p.handle}`}>View profile</Link>
         <button type="button" className="rk-btn rk-btn-white" onClick={() => void logout()}>Sign out</button>
       </div>
+
+      <LiveAgentStats handle={p.handle} />
 
       <form onSubmit={save} className="rk-card grid gap-3" aria-label="Profile">
         <h2 className="rk-h2 text-xl">Profile</h2>

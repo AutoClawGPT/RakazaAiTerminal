@@ -1,3 +1,4 @@
+import { LiveRefresh } from "@/components/live/live-refresh";
 import type { Metadata } from "next";
 import { ToolHero } from "@/components/tools/tool-frame";
 import { getRoute } from "@/lib/routes";
@@ -21,6 +22,7 @@ export default async function Page() {
     <>
       <ToolHero kicker={r.kicker} title={r.title} blurb="Everyone who registered an agent key. You can switch a key off if it is abused." />
       <section className="rk-container max-w-3xl py-8 md:py-12">
+        <div className="flex justify-end"><LiveRefresh ms={30000} /></div>
         <div className="rk-card">
           <h2 className="rk-h2 text-xl">Registered agents ({rows.length})</h2>
           {err ? <p className="mt-3 text-sm text-red-400" role="alert">{err}</p> : rows.length === 0 ? <p className="mt-3 text-sm">Nobody has registered yet.</p> : (

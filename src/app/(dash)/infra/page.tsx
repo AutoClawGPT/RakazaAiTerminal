@@ -1,3 +1,4 @@
+import { LiveRefresh } from "@/components/live/live-refresh";
 import type { Metadata } from "next";
 import { ToolHero } from "@/components/tools/tool-frame";
 import { getRoute } from "@/lib/routes";
@@ -13,6 +14,7 @@ export default async function Page() {
     <>
       <ToolHero kicker={r.kicker} title={r.title} blurb={r.blurb} />
       <section className="rk-container max-w-3xl py-8 md:py-12">
+        <div className="flex justify-end"><LiveRefresh ms={60000} /></div>
         <div className="rk-card">
           <h2 className="rk-h2 text-xl">Servers</h2>
           {!res.ok ? <p className="mt-3 text-sm font-semibold text-red-400" role="alert" data-testid="infra-err">{res.error}</p> : res.servers.length === 0 ? <p className="mt-3 text-sm">No servers on this account.</p> : (

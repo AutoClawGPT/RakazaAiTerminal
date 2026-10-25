@@ -1,3 +1,4 @@
+import { LiveRefresh } from "@/components/live/live-refresh";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ToolHero } from "@/components/tools/tool-frame";
@@ -38,6 +39,7 @@ export default async function Page() {
     <>
       <ToolHero kicker={r.kicker} title={r.title} blurb={r.blurb} />
       <section className="rk-container grid gap-5 py-8 md:py-12">
+        <div className="flex justify-end"><LiveRefresh ms={30000} /></div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {stat("Network", publicEnv.network === "mainnet-beta" ? "Mainnet" : "Devnet", rpc.ok ? `RPC answered in ${rpc.ms} ms, slot ${rpc.slot?.toLocaleString()}` : "RPC did not answer")}
           {stat("Treasury", bal != null ? `${bal.toFixed(4)} SOL` : "unknown", t ? `${t.slice(0, 6)}…${t.slice(-6)}` : "Treasury address not set")}

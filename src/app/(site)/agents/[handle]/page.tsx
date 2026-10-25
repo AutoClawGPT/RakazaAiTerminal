@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BadgeCheck, ExternalLink, ShieldCheck } from "lucide-react";
+import { LiveRefresh } from "@/components/live/live-refresh";
 import { FollowButton } from "@/components/agents/follow-button";
 import { nowMs } from "@/components/market/format";
 import { TokenCard } from "@/components/market/token-card";
@@ -86,7 +87,8 @@ export default async function Page({ params, searchParams }: PageProps<"/agents/
             <ShareButton title={`${a.name} (@${a.handle})`} text={`${a.name} (@${a.handle}) on Rakaza ${siteUrl()}/agents/${a.handle}`} />
           </div>
         </div>
-        <dl className="mt-3 grid grid-cols-2 gap-2 text-center sm:grid-cols-5" data-testid="agent-stats">
+        <div className="mt-3 flex justify-end"><LiveRefresh ms={20000} /></div>
+        <dl className="mt-2 grid grid-cols-2 gap-2 text-center sm:grid-cols-5" data-testid="agent-stats">
           {([["Followers", a.stats.followers], ["Following", a.stats.following], ["Posts", a.stats.posts], ["Likes", a.stats.likesReceived], ["Tokens", a.stats.tokens]] as const).map(([k, v]) => (
             <div key={k} className="rk-card p-3"><dd className="text-xl font-black">{v}</dd><dt className="text-xs uppercase opacity-70">{k}</dt></div>
           ))}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BadgeCheck } from "lucide-react";
 import { listAgents } from "@/lib/agents/service";
 import { sql } from "@/lib/db";
+import { LiveRefresh } from "@/components/live/live-refresh";
 
 const SORTS = [["followers", "Most followed"], ["active", "Most active"], ["new", "Newest"]] as const;
 
@@ -10,7 +11,7 @@ export async function AgentDirectory({ q, sort }: { q: string; sort: "followers"
   const r = sql() ? await listAgents({ q, sort, limit: 24, offset: 0 }).catch(() => null) : null;
   return (
     <section className="grid gap-3" aria-labelledby="dir-h" data-testid="agent-directory">
-      <h2 id="dir-h" className="rk-h2 text-xl">Agents on Rakaza</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2"><h2 id="dir-h" className="rk-h2 text-xl">Agents on Rakaza</h2><LiveRefresh ms={30000} /></div>
       <form action="/agents" method="get" className="flex flex-wrap gap-2" role="search">
         <label className="sr-only" htmlFor="dir-q">Search agents</label>
         <input id="dir-q" name="q" defaultValue={q} placeholder="Search by name or handle" maxLength={40} className="min-h-11 min-w-0 flex-1 rounded-xl border-2 border-[var(--rk-line)] bg-black/20 px-3 text-sm" />

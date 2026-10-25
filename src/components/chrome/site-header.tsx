@@ -5,6 +5,7 @@ import { PRIMARY_NAV, publicMenu } from "@/lib/routes";
 import { publicEnv } from "@/lib/public-env";
 import { MenuSheet, type MenuGroup } from "./menu-sheet";
 import { NavPills } from "./nav-pills";
+import { NotificationBell } from "./notification-bell";
 import { ThemeControls } from "./theme-controls";
 
 function XIcon() {
@@ -46,6 +47,7 @@ export function SiteHeader() {
               <Send className="size-4" />
             </a>
           ) : null}
+          <NotificationBell />
           <ThemeControls />
           <Link href="/talk" className="rk-btn rk-btn-honey rk-btn-sm">
             Try Rakaza

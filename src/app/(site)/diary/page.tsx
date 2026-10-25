@@ -1,3 +1,4 @@
+import { LiveRefresh } from "@/components/live/live-refresh";
 import type { Metadata } from "next";
 import { currentDiary } from "@/lib/diary";
 import { getRoute } from "@/lib/routes";
@@ -20,6 +21,7 @@ export default async function Page() {
         </div>
       </section>
       <section className="rk-container max-w-3xl py-8 md:py-12">
+        <div className="flex justify-end"><LiveRefresh ms={60000} /></div>
         <article className="rk-card" data-testid="diary-entry">
           <p className="rk-kicker">{new Date(e.at).toUTCString().replace(" GMT", " UTC")}</p>
           <h2 className="rk-h2 mt-2">{e.title}</h2>

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { healthAction } from "@/app/(dash)/dash/health-actions";
 import type { HealthReport } from "@/lib/health";
+import { startLive } from "@/lib/live/start-live";
 
 const CLS = { ok: "bg-emerald-400/90 text-black", missing: "bg-[var(--rk-honey)] text-black", failed: "bg-red-400 text-black" } as const;
 
@@ -15,7 +16,13 @@ export function HealthPanel() {
     setBusy(false);
   }, []);
   const run = useCallback(async () => { setBusy(true); apply(await healthAction()); }, [apply]);
-  useEffect(() => { let live = true; void healthAction().then((x) => { if (live) apply(x); }); return () => { live = false; }; }, [apply]);
+  useEffect(() => {
+    let live = true;
+    void healthAction().then((x) => { if (live) apply(x); });
+    // Re-check on its own every 2 minutes while the tab is open (each check is a real, minimal call to each service).
+    const stop = startLive(async () => { const x = await healthAction(); if (live) apply(x); return x.ok; }, 120000);
+    return () => { live = false; stop(); };
+  }, [apply]);
   return (
     <div className="rk-card" data-testid="health-panel">
       <div className="flex flex-wrap items-center justify-between gap-2">

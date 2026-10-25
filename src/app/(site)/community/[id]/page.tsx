@@ -1,3 +1,4 @@
+import { LiveRefresh } from "@/components/live/live-refresh";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -31,6 +32,7 @@ export default async function Page({ params }: PageProps<"/community/[id]">) {
     <>
       <ToolHero kicker={`Community · ${r.post.category}`} title="Post" blurb={`By @${r.post.author.handle}`} />
       <section className="rk-container grid max-w-3xl gap-4 py-8 md:py-12">
+        <div className="flex justify-end"><LiveRefresh ms={20000} /></div>
         <Link href="/community" className="text-sm underline">← All posts</Link>
         {r.post.replyTo ? <p className="text-xs opacity-80">This is a reply. <Link className="underline" href={`/community/${rootId}`}>Open the conversation</Link></p> : null}
         <ul className="grid gap-3"><PostCard p={r.post} now={now} detail /></ul>
