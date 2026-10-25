@@ -63,6 +63,44 @@ export function ensureSchema(): Promise<void> {
       created_at timestamptz NOT NULL DEFAULT now(),
       UNIQUE (sig, wallet)
     )`;
+    // B2 (additive): public market data. A trade per row decoded from the pump program's own events, one cursor and one stats row per mint.
+    await q`CREATE TABLE IF NOT EXISTS curve_trades (
+      signature text NOT NULL,
+      mint text NOT NULL,
+      ts timestamptz NOT NULL,
+      side text NOT NULL,
+      sol_amount double precision NOT NULL,
+      token_amount double precision NOT NULL,
+      price_sol double precision NOT NULL,
+      trader text NOT NULL,
+      PRIMARY KEY (signature, mint)
+    )`;
+    await q`CREATE INDEX IF NOT EXISTS curve_trades_mint_ts ON curve_trades (mint, ts DESC)`;
+    await q`CREATE TABLE IF NOT EXISTS index_cursor (
+      mint text PRIMARY KEY,
+      newest_sig text,
+      backfilled boolean NOT NULL DEFAULT false,
+      last_run timestamptz NOT NULL DEFAULT now()
+    )`;
+    await q`CREATE TABLE IF NOT EXISTS mint_stats (
+      mint text PRIMARY KEY,
+      progress_pct real NOT NULL DEFAULT 0,
+      complete boolean NOT NULL DEFAULT false,
+      price_sol double precision,
+      mcap_sol double precision,
+      price_usd double precision,
+      mcap_usd double precision,
+      volume24h_sol double precision NOT NULL DEFAULT 0,
+      trades24h integer NOT NULL DEFAULT 0,
+      last_trade_at timestamptz,
+      image_url text,
+      description text,
+      links jsonb,
+      meta_at timestamptz,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )`;
+    await q`CREATE INDEX IF NOT EXISTS mint_stats_progress ON mint_stats (progress_pct DESC)`;
+    await q`CREATE INDEX IF NOT EXISTS launches_network_created ON launches (network, created_at DESC)`;
   })().catch((e) => { migrated = null; throw e; });
   return migrated;
 }
