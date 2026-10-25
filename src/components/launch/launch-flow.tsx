@@ -396,6 +396,7 @@ function Success({ mint, plan, done, network, ledger }: { mint: string; plan: Pr
       <p className="break-all">Mint <span className="font-mono text-xs">{mint}</span></p>
       <p className="break-all">Token creator (agent wallet) <a className={`${link} font-mono text-xs`} href={`https://solscan.io/account/${plan.creator}${cl}`} target="_blank" rel="noreferrer">{plan.creator}</a></p>
       <p className="flex flex-wrap gap-x-4">
+        <a className={link} href={`/token/${mint}`} data-testid="al-token-page">Token page: chart &amp; trades →</a>
         <a className={link} href={`https://solscan.io/token/${mint}${cl}`} target="_blank" rel="noreferrer" data-testid="al-solscan">Solscan token ↗</a>
         <a className={link} href={`https://pump.fun/coin/${mint}`} target="_blank" rel="noreferrer" data-testid="al-pump">pump.fun ↗</a>
         {done.tx1 ? <a className={link} href={`https://solscan.io/tx/${done.tx1}${cl}`} target="_blank" rel="noreferrer">Create tx ↗</a> : null}

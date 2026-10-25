@@ -222,6 +222,7 @@ export function SelfStage({ ctx, wallet, enabled }: { ctx: StageCtx; wallet: Sta
           <div><dt className="rk-kicker">Network</dt><dd>{network}</dd></div>
         </dl>
         <div className="flex flex-wrap gap-3 text-sm">
+          <Link className={link} href={`/token/${c.mint}`} data-testid="sl-token-page">Token page: chart &amp; trades</Link>
           <a className={link} href={sc(`token/${c.mint}`)} target="_blank" rel="noreferrer" data-testid="sl-solscan">Token on Solscan <ExternalLink className="size-3.5" aria-hidden="true" /></a>
           <a className={link} href={sc(`account/${c.creator}`)} target="_blank" rel="noreferrer">Your wallet on Solscan <ExternalLink className="size-3.5" aria-hidden="true" /></a>
           {done.sigs.create ? <a className={link} href={sc(`tx/${done.sigs.create}`)} target="_blank" rel="noreferrer">Create transaction <ExternalLink className="size-3.5" aria-hidden="true" /></a> : null}

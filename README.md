@@ -116,7 +116,7 @@ The owner area is behind `/login`. Public pages work without it.
 <td><img src="docs/images/tab-history.jpg" alt="History"><br><b>History</b>: every launch, its transactions and where each wallet's fees stand.</td>
 </tr>
 <tr>
-<td><img src="docs/images/tab-explore.jpg" alt="Explore"><br><b>Explore</b>: search and filter all launches; open one to verify it.</td>
+<td><img src="docs/images/tab-explore.jpg" alt="Explore"><br><b>Ledger</b> (owner): search and filter all launches; open one to verify it. The public <b>Explore</b> page is separate (see below).</td>
 <td><img src="docs/images/tab-scanner.jpg" alt="Scanner"><br><b>Scanner</b>: rug/risk scan (holders, organic score, bundlers, snipers), watchlist, copycat finder.</td>
 </tr>
 <tr>
@@ -155,7 +155,7 @@ The owner area is behind `/login`. Public pages work without it.
 | Fees | `/fees` | owner + agent | Collect and distribute creator fees |
 | Trade | `/trade` | owner + agent | Jupiter quotes; swaps are gated |
 | Rewards / Revenue / History | `/rewards` `/revenue` `/history` | owner | Ledgers |
-| Explore | `/explore` | owner | All launches |
+| Ledger | `/ledger` | owner | All launches (the public token list lives at `/explore`) |
 | Scanner | `/scanner` | owner | Risk scan |
 | Operator agents | `/dash/agents` | owner + agent | Agent console |
 | Infra | `/infra` | owner | Server status |
@@ -172,6 +172,13 @@ Admin-only (your numeric Telegram id). Commands: `/status` `/health` `/balance` 
 
 ### MCP and skill.md
 Any agent can read `/skill.md`, register at `/register`, get a bearer key and call the tools at `/mcp` (Streamable HTTP) or `/api/v1/tools` (REST). Tool examples: `scan_token`, `vamp_scan`, `draft_token`, `generate_image`, `preview_fee_split`, `simulate_launch`, `prepare_launch_package`, `verify_launch`, `wallet_fees`, `jupiter_quote`, `rugcheck_token`, `trust_check`. See `/docs/api` and `/docs/mcp`.
+
+### Explore and token pages (public)
+- **`/explore`**: every token launched through Rakaza, in four tabs: **New**, **Graduating soon** (bonding curve at 60% or more), **Graduated** and **Trending** (24h volume), with search and a graduation bar. While the deployment is on devnet it lists our own devnet launches.
+- **`/token/<mint>`**: header with image, links and a share button; a live candlestick chart (lightweight-charts, market cap or price, 15s to 1d), recent trades, top holders and the curve progress. Owner-only checks (fee wallets and splits) are hidden from visitors. Each token has its own share image at `/token/<mint>/opengraph-image`.
+- **Public read API** (no key, same-origin friendly, rate limited): `GET /api/public/tokens`, `/api/public/tokens/<mint>`, `/candles`, `/trades`, `/holders` and the IPFS image proxy `/api/public/ipfs/<cid>`. See `/openapi.json`.
+- **Indexing**: trades are indexed lazily when a token is read, plus a daily cron (`/api/cron/index-trades`, `0 7 * * *`, the most Hobby allows). On mainnet, prices come from DexScreener/GeckoTerminal read-only adapters.
+- The old owner ledger moved from `/explore` to **`/ledger`** (owner only). The public site also serves `robots.txt`, `sitemap.xml`, `llms.txt`, `openapi.json`, `/.well-known/*`, and social share images.
 
 ## Launching a coin
 
@@ -355,6 +362,7 @@ vercel.json       daily cron
 | `node tests/sponsored-e2e.mjs <feeWallet> --launch` | Real devnet sponsored launch through the /launch UI (owner preview), checks the 70/30 split and that no self-launch text is on the page |
 | `node tests/self-launch-e2e.mjs 0.01` | Real devnet self launch through the /self-launch UI with a fake wallet (devnet throwaway key, see `tests/devnet-throwaway.ts`) |
 | `npx tsx tests/devnet-fee-flow.ts` | Real devnet launch + fee-split flow (needs devnet keys) |
+| `npx tsx tests/market-schema.ts` / `market-index.ts` / `market-mainnet.ts` | Explore data layer: additive tables, trade indexer (devnet), read-only mainnet adapters (needs `DATABASE_URL`) |
 | `node tests/mobile-audit.mjs` | 390px overflow audit of every tab |
 
 ## FAQ and troubleshooting

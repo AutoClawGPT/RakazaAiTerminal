@@ -44,14 +44,15 @@ export function isProtectedPath(pathname: string): boolean {
   if (pathname === "/mcp" || pathname.startsWith("/api/v1/") || pathname.startsWith("/api/agent") || pathname.startsWith("/api/owner")) {
     return true;
   }
-  return ROUTES.some((r) => r.access !== "P" && r.group !== "system" && (r.path === pathname || (r.path === "/token/example" && pathname.startsWith("/token/"))));
+  return ROUTES.some((r) => r.access !== "P" && r.group !== "system" && r.path === pathname);
 }
 
-/** Pages shown in the public desktop nav pills (agi1: 6 pills). */
+/** Pages shown in the public desktop nav pills (agi1: 6 pills, plus Explore). */
 export const PRIMARY_NAV: { href: string; label: string }[] = [
   { href: "/#evaluations", label: "Evaluations" },
   { href: "/#model-card", label: "Model card" },
   { href: "/#playground", label: "Playground" },
+  { href: "/explore", label: "Explore" },
   { href: "/#checker", label: "Risk check your coins on pump.fun" },
   { href: "/diary", label: "Diary" },
   { href: "/memes", label: "Memes" },
@@ -78,7 +79,7 @@ export const dashMenu = (): { title: string; items: RouteDef[] }[] => {
   return [
     { title: "Control room", items: pick(["/dash", "/launch", "/self-launch", "/vanity", "/keyvault", "/pool", "/splits", "/shield", "/lab", "/kit", "/dev"]) },
     { title: "Money", items: pick(["/vault", "/fees", "/trade", "/rewards", "/revenue", "/history"]) },
-    { title: "Intelligence", items: pick(["/explore", "/scanner", "/dash/agents"]) },
+    { title: "Intelligence", items: pick(["/ledger", "/scanner", "/dash/agents"]) },
     { title: "System", items: pick(["/infra", "/settings"]) },
   ];
 };

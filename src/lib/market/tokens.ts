@@ -109,12 +109,12 @@ export async function refreshStale(network: Network, cap = 8, budgetMs = 9000): 
 
 const escLike = (s: string) => s.replace(/[\\%_]/g, (c) => "\\" + c);
 
-export async function listTokens(o: { tab: Tab; q?: string; limit: number; offset: number; network?: Network }): Promise<{ tokens: PublicToken[]; hasMore: boolean; network: Network }> {
+export async function listTokens(o: { tab: Tab; q?: string; limit: number; offset: number; network?: Network; noRefresh?: boolean }): Promise<{ tokens: PublicToken[]; hasMore: boolean; network: Network }> {
   const network = o.network ?? publicEnv.network;
   const db = sql();
   if (!db) return { tokens: [], hasMore: false, network };
   await ensureSchema();
-  await refreshStale(network);
+  if (!o.noRefresh) await refreshStale(network);
   const params: unknown[] = [network, [...PUBLIC_LAUNCH_STATUSES]];
   let where = PUBLIC_WHERE;
   const term = (o.q ?? "").trim().slice(0, 64);
@@ -148,6 +148,14 @@ async function lazyIndex(row: Row, minAgeMs: number) {
   const cur = (await db`SELECT extract(epoch FROM (now() - last_run)) * 1000 AS age FROM index_cursor WHERE mint = ${row.mint}`) as unknown as { age: number }[];
   if (cur[0] && Number(cur[0].age) < minAgeMs) return;
   await withDeadline(indexMint(net, row.mint, { maxSigs: 100, deadline: Date.now() + 7000 }).catch(() => null), 8000);
+}
+
+/** Reads one public token straight from the cache, with no refresh. Fast enough for server rendering and share images. */
+export async function peekToken(mintRaw: string): Promise<PublicToken | null> {
+  const mint = mintRaw.trim();
+  if (!isSolanaAddress(mint)) return null;
+  const row = await rowFor(mint);
+  return row ? toPublic(row, null) : null;
 }
 
 /** One public token, or null when it was not launched here (or does not exist). Refreshes stale numbers first. */

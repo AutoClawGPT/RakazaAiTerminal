@@ -610,27 +610,44 @@
    "path": "/explore",
    "title": "Explore",
    "label": "Explore",
+   "group": "site",
+   "access": "P",
+   "phase": 7,
+   "kicker": "Tokens",
+   "blurb": "Public explorer of every token launched through Rakaza: New, Graduating soon, Graduated and Trending, with search.",
+   "bullets": [
+    "Four tabs and search",
+    "Bonding curve progress bar on every card",
+    "Live data, no login"
+   ]
+  },
+  {
+   "path": "/ledger",
+   "title": "Ledger",
+   "label": "Ledger",
    "group": "dash",
    "access": "O",
    "phase": 7,
    "kicker": "Coins",
-   "blurb": "Our launches and live pump.fun coins with sort and filters.",
+   "blurb": "Owner view of every token launched through the platform, with fee status.",
    "bullets": [
-    "Sort and filter",
-    "Token detail pages"
+    "Search, sort and filter",
+    "Fees sent and waiting per token"
    ]
   },
   {
    "path": "/token/example",
    "title": "Token detail",
    "label": "Token detail",
-   "group": "dash",
-   "access": "O",
+   "group": "site",
+   "access": "P",
    "phase": 7,
-   "kicker": "Coins",
-   "blurb": "Detail page for one mint: market data, holders, fee-share config.",
+   "kicker": "Token",
+   "blurb": "Public page for one token: live chart, trades, holders and curve progress.",
    "bullets": [
-    "Dynamic route /token/[mint]"
+    "Dynamic route /token/[mint]",
+    "Real-time candlestick chart",
+    "Owner-only checks card for signed-in owners"
    ],
    "hidden": true
   },

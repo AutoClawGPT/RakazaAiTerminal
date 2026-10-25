@@ -33,7 +33,7 @@ Turbopack is the default Next.js 16 bundler and needs no flag. `src/proxy.ts` is
 - Validated against the official schema (`https://openapi.vercel.sh/vercel.json`) with a negative control.
 - **No `functions` block.** Durations are set in code with `export const maxDuration` (a `functions` glob that matches nothing can fail a deploy):
   - Route handlers: `/mcp`, `/api/v1/tools/[tool]`, `/api/telegram/webhook`, `/api/cron/distribute` at 60 s.
-  - Pages that host server actions: `/launch` 120 s, and 60 s for `/studio`, `/studio/create`, `/trade`, `/scanner`, `/history`, `/fees`, `/explore`, `/revenue`, `/rewards`, `/dash`, `/settings/integrations`. A server action runs under the limit of the page it was called from.
+  - Pages that host server actions: `/launch` 120 s, and 60 s for `/studio`, `/studio/create`, `/trade`, `/scanner`, `/history`, `/fees`, `/ledger`, `/revenue`, `/rewards`, `/dash`, `/settings/integrations`. A server action runs under the limit of the page it was called from.
   - Hobby maximum is 300 s, Pro maximum 800 s, so all of these are inside every plan.
 - **Runtime:** every route is Node.js (`runtime = "nodejs"` where it is stated, Node by default elsewhere). Do not move anything to Edge. Edge limits each env var to 5 KB and has no `node:crypto`, `@solana/web3.js` or `pump-sdk` support. Nothing in the app needs Edge.
 - **Region:** not pinned in `vercel.json`. If you want it fixed in code, add `"regions": ["fra1"]` (one region only on Hobby).
@@ -124,7 +124,9 @@ Never set in Vercel: `DEV_PREVIEW_OWNER_PAGES` (dev only, ignored in production)
 - Because it is inlined at build time: the first build must already know the final domain. If the custom domain is not attached yet, use the Vercel alias (`https://<project-name>.vercel.app`), deploy, attach the domain (Settings, Domains), change `NEXT_PUBLIC_APP_URL`, and redeploy.
 - `robots.txt` currently says `Disallow: /` (Phase 1 setting). Open it in `src/app/robots.ts` when the site should be indexed. That is a launch decision, not a deploy requirement.
 
-## 6. Cron: `/api/cron/distribute`
+## 6. Cron: `/api/cron/distribute` (and `/api/cron/index-trades`)
+
+`/api/cron/index-trades` (daily, `0 7 * * *`) catches the public trade index up for every launched token. Same bearer rule as below; it never signs or sends anything. Token pages also index lazily when they are read, so the daily run is only a safety net.
 
 What it does: pays out accrued creator fees for every live launch. Behaviour is gated:
 
@@ -162,9 +164,9 @@ Do this only after the devnet deploy has passed section 8 and the owner has said
 
 Replace `$D` with the deployment URL (`export D=https://...`). Expected codes were measured on a production build with `next start` and no keys configured; a configured deployment may return 200 where this table says 503/502.
 
-**Public pages, expect 200:** `/`, `/agents`, `/diary`, `/docs`, `/docs/agents`, `/docs/api`, `/docs/mcp`, `/games`, `/games/neon-runner`, `/games/ride-em`, `/games/trench-sim`, `/giveaway`, `/live`, `/login`, `/memes`, `/privacy`, `/register`, `/roadmap`, `/stake`, `/studio`, `/studio/create`, `/studio/explore`, `/studio/help`, `/studio/learn`, `/studio/me`, `/talk`, `/terms`, `/skill.md`, `/robots.txt`, `/icon.svg`, `/studio/i/x`, `/studio/3d/x`.
+**Public pages, expect 200:** `/`, `/agents`, `/diary`, `/docs`, `/docs/agents`, `/docs/api`, `/docs/mcp`, `/games`, `/games/neon-runner`, `/games/ride-em`, `/games/trench-sim`, `/giveaway`, `/live`, `/login`, `/memes`, `/privacy`, `/register`, `/roadmap`, `/stake`, `/studio`, `/studio/create`, `/studio/explore`, `/studio/help`, `/studio/learn`, `/studio/me`, `/talk`, `/terms`, `/explore`, `/token/<mint>`, `/skill.md`, `/robots.txt`, `/sitemap.xml`, `/llms.txt`, `/openapi.json`, `/opengraph-image`, `/icon.svg`, `/studio/i/x`, `/studio/3d/x`.
 
-**Owner pages, expect 307 to `/login?next=...` when signed out** (200 after `/login`): `/dash`, `/dash/agents`, `/dev`, `/explore`, `/fees`, `/history`, `/infra`, `/keyvault`, `/kit`, `/lab`, `/launch`, `/pool`, `/revenue`, `/rewards`, `/scanner`, `/settings`, `/settings/integrations`, `/shield`, `/splits`, `/studio/mod`, `/studio/owner`, `/trade`, `/vanity`, `/vault`, `/token/<mint>`.
+**Owner pages, expect 307 to `/login?next=...` when signed out** (200 after `/login`): `/dash`, `/dash/agents`, `/dev`, `/ledger`, `/fees`, `/history`, `/infra`, `/keyvault`, `/kit`, `/lab`, `/launch`, `/pool`, `/revenue`, `/rewards`, `/scanner`, `/settings`, `/settings/integrations`, `/shield`, `/splits`, `/studio/mod`, `/studio/owner`, `/trade`, `/vanity`, `/vault`.
 
 **404 on purpose:** `/design` (dev-only page) and any unknown path.
 
