@@ -25,6 +25,7 @@ const PUBLIC_API = [
   "/api/memes",
   "/api/checker",
   "/api/public/",
+  "/api/telegram/webhook", // checks Telegram's secret header and the admin id itself
   "/api/cron/", // the route checks CRON_SECRET or API_SERVER_KEY itself
 ];
 
