@@ -6,7 +6,19 @@ const url = (m: string) => `https://api.telegram.org/bot${token()}/${m}`;
 
 export type Button = { text: string; callback_data: string };
 
+/**
+ * Mock mode for tests: with TELEGRAM_MOCK=1 nothing leaves the machine. Every outbound call is recorded in
+ * `globalThis.__tgOutbox` instead of going to Telegram (text, photo, voice and button calls alike).
+ */
+export type Outbound = { method: string; body?: Record<string, unknown> };
+export const isMock = () => process.env.TELEGRAM_MOCK === "1";
+function record(o: Outbound) {
+  const g = globalThis as unknown as { __tgOutbox?: Outbound[] };
+  (g.__tgOutbox ??= []).push(o);
+}
+
 export async function tg(method: string, body?: Record<string, unknown>): Promise<{ ok: boolean; result?: unknown; description?: string }> {
+  if (isMock()) { record({ method, body }); return { ok: true, result: {} }; }
   try {
     const res = await fetch(url(method), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}), signal: AbortSignal.timeout(30_000), cache: "no-store" });
     return (await res.json()) as { ok: boolean; result?: unknown; description?: string };
@@ -28,6 +40,7 @@ export async function sendPhoto(chat: number, bytes: Uint8Array, caption: string
   fd.set("chat_id", String(chat));
   fd.set("caption", caption.slice(0, 1000));
   fd.set("photo", new Blob([Buffer.from(bytes)], { type: "image/png" }), "token.png");
+  if (isMock()) { record({ method: "sendPhoto", body: { chat_id: chat, caption, bytes: bytes.length } }); return; }
   try {
     await fetch(url("sendPhoto"), { method: "POST", body: fd, signal: AbortSignal.timeout(30_000) });
   } catch { /* the text reply still goes out */ }
@@ -43,6 +56,7 @@ function voiceName() {
 export async function sendVoice(chat: number, text: string): Promise<boolean> {
   const key = process.env.DEEPGRAM_API_KEY;
   if (!key) return false;
+  if (isMock()) { record({ method: "sendVoice", body: { chat_id: chat, text: text.slice(0, 600), voice: voiceName() } }); return true; }
   try {
     const r = await fetch(`https://api.deepgram.com/v1/speak?model=${voiceName()}&encoding=opus&container=ogg`, {
       method: "POST", headers: { authorization: `Token ${key}`, "content-type": "application/json" }, body: JSON.stringify({ text: text.slice(0, 600) }), signal: AbortSignal.timeout(30_000), cache: "no-store",
