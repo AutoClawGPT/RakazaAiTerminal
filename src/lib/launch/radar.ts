@@ -13,6 +13,13 @@ export interface Lookalike {
   risk: number; // 0-100
   why: string[];
   verdict: Verdict;
+  /** Characters that match at the start and end of the address (0 when no mint was given). */
+  head: number;
+  tail: number;
+  sameTicker: boolean;
+  sameName: boolean;
+  /** "Likely vamp" from risk 50, otherwise "Possible vamp". */
+  label: "Likely vamp" | "Possible vamp";
 }
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -62,15 +69,19 @@ export async function radarScan(input: { mint?: string; name: string; ticker: st
     if (ts === 1) { risk += 45; why.push("Same ticker"); } else if (ts >= 0.75) { risk += 25; why.push("Very close ticker"); }
     if (ns === 1) { risk += 40; why.push("Same name"); } else if (ns >= 0.75) { risk += 22; why.push("Very close name"); }
     let verdict: Verdict = "different";
+    let head = 0, tail = 0;
     if (input.mint) {
       const c = compareAddresses(input.mint, addr);
       verdict = c.verdict ?? "different";
+      // Every pump.fun address ends in "pump", so that shared suffix says nothing about a copy.
+      if (c.valid) { head = c.head; tail = input.mint.endsWith("pump") && addr.endsWith("pump") ? Math.max(0, c.tail - 4) : c.tail; }
       if (c.valid && c.verdict && c.verdict !== "different") { risk += 25; why.push("Address looks like yours at the ends"); }
     }
     if (risk < 25) continue;
     const liq = p.liquidity?.usd;
     if ((liq ?? 0) > 20000) risk += 10;
-    out.push({ mint: addr, name: b.name, symbol: b.symbol, priceUsd: p.priceUsd ? Number(p.priceUsd) : undefined, liquidityUsd: liq, marketCapUsd: p.marketCap ?? p.fdv, ageHours: p.pairCreatedAt ? Math.max(0, (Date.now() - p.pairCreatedAt) / 36e5) : undefined, url: p.url ?? `https://dexscreener.com/solana/${addr}`, risk: Math.min(100, risk), why, verdict });
+    const finalRisk = Math.min(100, risk);
+    out.push({ mint: addr, name: b.name, symbol: b.symbol, priceUsd: p.priceUsd ? Number(p.priceUsd) : undefined, liquidityUsd: liq, marketCapUsd: p.marketCap ?? p.fdv, ageHours: p.pairCreatedAt ? Math.max(0, (Date.now() - p.pairCreatedAt) / 36e5) : undefined, url: p.url ?? `https://dexscreener.com/solana/${addr}`, risk: finalRisk, why, verdict, head, tail, sameTicker: ts === 1, sameName: ns === 1, label: finalRisk >= 50 ? "Likely vamp" : "Possible vamp" });
   }
   out.sort((a, b) => b.risk - a.risk);
   return { ok: true, found: out.slice(0, 20), checked: seen.size };

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { fetchToken } from "@/lib/launch/token-fetch";
 import { optimizeToken } from "@/lib/launch/optimize";
 import { radarScan } from "@/lib/launch/radar";
+import { vampScan } from "@/lib/launch/vamp";
 import { currentDiary } from "@/lib/diary";
 import { generateImage } from "@/lib/pollinations";
 import { platformSplit, validateSplit } from "@/lib/tools/splits";
@@ -83,6 +84,14 @@ export const TOOLS: Tool[] = [
     shape: { name: z.string().max(60).default(""), ticker: z.string().max(20).default(""), mint: addr.optional() },
     heavy: true,
     run: async (i) => radarScan({ name: i.name, ticker: i.ticker, mint: i.mint }),
+  }),
+  tool({
+    name: "vamp_scan",
+    title: "Vamp Radar and Shield scan",
+    description: "Paste only a token address: looks the token up, then lists every lookalike (same ticker, same name, matching address ends, liquidity, market cap) and scores how cheap the address is to clone.",
+    shape: { mint: addr.describe("Token mint address") },
+    heavy: true,
+    run: async ({ mint }) => vampScan(mint),
   }),
   tool({
     name: "preview_fee_split",
