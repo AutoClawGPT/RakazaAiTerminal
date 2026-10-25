@@ -50,6 +50,10 @@ export async function record(plan: LaunchPlan, status: string, tx1?: string, tx2
     VALUES (${plan.mint}, ${plan.network}, ${plan.mode}, ${plan.name}, ${plan.symbol}, ${plan.uri}, ${plan.creator}, ${plan.devBuySol}, ${JSON.stringify(plan.shareholders)}::jsonb, ${status}, ${tx1 ?? null}, ${tx2 ?? null}, ${note ?? null})
     ON CONFLICT (mint) DO UPDATE SET status = ${status}, tx1 = COALESCE(${tx1 ?? null}, launches.tx1), tx2 = COALESCE(${tx2 ?? null}, launches.tx2), note = ${note ?? null}, updated_at = now()`;
   });
+  // B6: a launch that reached "live" gets one automatic Callout post. Best effort: it can never fail or slow the launch.
+  if (status === "live") {
+    try { const { autoLaunchCallout } = await import("@/lib/community/service"); await autoLaunchCallout({ mint: plan.mint, name: plan.name, symbol: plan.symbol, network: plan.network, creator: plan.creator, mode: plan.mode }); } catch { /* ignore */ }
+  }
 }
 
 /**

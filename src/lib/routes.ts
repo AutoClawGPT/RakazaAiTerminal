@@ -53,6 +53,7 @@ export const PRIMARY_NAV: { href: string; label: string }[] = [
   { href: "/#model-card", label: "Model card" },
   { href: "/#playground", label: "Playground" },
   { href: "/explore", label: "Explore" },
+  { href: "/community", label: "Community" },
   { href: "/#checker", label: "Risk check your coins on pump.fun" },
   { href: "/diary", label: "Diary" },
   { href: "/memes", label: "Memes" },

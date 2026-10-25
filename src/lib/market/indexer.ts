@@ -13,20 +13,20 @@ const CPI_TAG = Buffer.from("e445a52e51cb9a1d", "hex");
 
 export interface TradeRow { signature: string; mint: string; ts: Date; side: "buy" | "sell"; sol: number; tokens: number; price: number; trader: string }
 
-function fromEventBytes(buf: Buffer, sig: string, mint: string): TradeRow | null {
+function fromEventBytes(buf: Buffer, sig: string, mint: string | null): TradeRow | null {
   if (buf.length < 16 || !buf.subarray(0, 8).equals(TRADE_DISC)) return null;
   try {
     const e = PUMP_SDK.decodeTradeEventBc(buf.subarray(8));
-    if (e.mint.toBase58() !== mint) return null;
+    if (mint && e.mint.toBase58() !== mint) return null;
     const sol = Number(e.solAmount.toString()) / 1e9;
     const tokens = Number(e.tokenAmount.toString()) / 1e6;
     if (!(tokens > 0) || !(sol >= 0)) return null;
-    return { signature: sig, mint, ts: new Date(Number(e.timestamp.toString()) * 1000), side: e.isBuy ? "buy" : "sell", sol, tokens, price: sol / tokens, trader: e.user.toBase58() };
+    return { signature: sig, mint: e.mint.toBase58(), ts: new Date(Number(e.timestamp.toString()) * 1000), side: e.isBuy ? "buy" : "sell", sol, tokens, price: sol / tokens, trader: e.user.toBase58() };
   } catch { return null; }
 }
 
-/** Trade events for `mint` inside one transaction. Reads program-data log lines first, then the self-CPI inner instructions. */
-export function tradesFromTx(tx: VersionedTransactionResponse | ParsedTransactionWithMeta, sig: string, mint: string): TradeRow[] {
+/** Trade events for `mint` (or for every mint when `mint` is null) inside one transaction. Reads program-data log lines first, then the self-CPI inner instructions. */
+export function tradesFromTx(tx: VersionedTransactionResponse | ParsedTransactionWithMeta, sig: string, mint: string | null): TradeRow[] {
   const rows: TradeRow[] = [];
   const logs = tx.meta?.logMessages ?? [];
   for (const l of logs) {

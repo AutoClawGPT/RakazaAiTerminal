@@ -2,6 +2,8 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { ensureSchema, sql } from "@/lib/db";
 import { indexMint, refreshStats } from "@/lib/market/indexer";
+import { syncAllAgentBuys } from "@/lib/community/calls";
+import { backfillLaunchCallouts } from "@/lib/community/service";
 import { publicEnv } from "@/lib/public-env";
 import { PUBLIC_LAUNCH_STATUSES } from "@/lib/site";
 import type { Network } from "@/lib/market/types";
@@ -34,7 +36,11 @@ export async function GET(req: NextRequest) {
       trades += r.reduce((a, x) => a + x.newTrades, 0);
     }
     await refreshStats(net, rows.map((r) => r.mint));
-    return NextResponse.json({ ok: true, tokens: rows.length, newTrades: trades }, { headers: { "Cache-Control": "no-store" } });
+    // B6: turn real buys by verified agent wallets into Callout posts (best effort, never blocks the index run).
+    let calls: { agents: number; posted: number } | null = null;
+    if (Date.now() < deadline + 8_000) { try { calls = await syncAllAgentBuys(15); } catch { calls = null; } }
+    try { await backfillLaunchCallouts(20); } catch { /* ignore */ }
+    return NextResponse.json({ ok: true, tokens: rows.length, newTrades: trades, calls }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("cron index-trades failed:", e instanceof Error ? e.message.slice(0, 160) : "unknown");
     return NextResponse.json({ ok: false, error: "failed" }, { status: 500 });

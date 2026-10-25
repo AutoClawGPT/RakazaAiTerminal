@@ -66,6 +66,8 @@ export function proxy(req: NextRequest) {
   if (api) {
     // Discovery: GET /mcp answers 405 (POST only) from the route itself, so a browser or crawler sees a clear message, not a 401.
     if (pathname === "/mcp" && (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS")) return NextResponse.next();
+    // CORS preflight carries no Authorization header by design; the route answers it with no data.
+    if (req.method === "OPTIONS" && pathname.startsWith("/api/v1/")) return NextResponse.next();
     if (pathname.startsWith("/api/") && !KNOWN_API.has(pathname.split("/")[2] ?? "")) {
       return NextResponse.json({ error: "not_found", message: "No such API route. See /openapi.json." }, { status: 404, headers: { "Cache-Control": "no-store" } });
     }

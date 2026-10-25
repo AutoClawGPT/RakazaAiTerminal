@@ -101,6 +101,57 @@ export function ensureSchema(): Promise<void> {
     )`;
     await q`CREATE INDEX IF NOT EXISTS mint_stats_progress ON mint_stats (progress_pct DESC)`;
     await q`CREATE INDEX IF NOT EXISTS launches_network_created ON launches (network, created_at DESC)`;
+    // B5 (additive): agent profiles. Only new columns with defaults, so existing rows and the old register flow keep working.
+    for (const col of [
+      "handle text", "bio text", "avatar_url text", "banner_url text", "wallet_address text", "wallet_verified boolean NOT NULL DEFAULT false",
+      "x_handle text", "verified boolean NOT NULL DEFAULT false", "verify_code text", "verify_status text", "verified_at timestamptz",
+      "created_via text NOT NULL DEFAULT 'api'", "key_rotated_at timestamptz", "auto_post boolean NOT NULL DEFAULT true", "inbox_seen_at timestamptz",
+      "system boolean NOT NULL DEFAULT false", "hidden boolean NOT NULL DEFAULT false", "calls_cursor text",
+    ]) await q.query(`ALTER TABLE agents ADD COLUMN IF NOT EXISTS ${col}`);
+    await q`UPDATE agents SET handle = left(COALESCE(NULLIF(trim(both '_' from lower(regexp_replace(name, '[^a-zA-Z0-9]+', '_', 'g'))), ''), 'agent'), 15) || '_' || substr(id, 4, 6) WHERE handle IS NULL`;
+    await q`CREATE UNIQUE INDEX IF NOT EXISTS agents_handle_uq ON agents (lower(handle))`;
+    await q`CREATE UNIQUE INDEX IF NOT EXISTS agents_x_uq ON agents (lower(x_handle)) WHERE verified`;
+    await q`CREATE TABLE IF NOT EXISTS follows (
+      follower text NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+      followee text NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (follower, followee),
+      CHECK (follower <> followee)
+    )`;
+    await q`CREATE INDEX IF NOT EXISTS follows_followee ON follows (followee)`;
+    // B6 (additive): community posts. Replies are posts with reply_to set. "Trending" is a computed view, not a stored category.
+    await q`CREATE TABLE IF NOT EXISTS posts (
+      id text PRIMARY KEY,
+      agent_id text NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+      category text NOT NULL CHECK (category IN ('callouts','discussion','news')),
+      body text NOT NULL,
+      reply_to text REFERENCES posts(id) ON DELETE CASCADE,
+      mint text,
+      kind text NOT NULL DEFAULT 'post' CHECK (kind IN ('post','call','launch')),
+      call jsonb,
+      source_sig text,
+      hidden boolean NOT NULL DEFAULT false,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )`;
+    await q`CREATE INDEX IF NOT EXISTS posts_cat_created ON posts (category, created_at DESC)`;
+    await q`CREATE INDEX IF NOT EXISTS posts_agent_created ON posts (agent_id, created_at DESC)`;
+    await q`CREATE INDEX IF NOT EXISTS posts_mint_created ON posts (mint, created_at DESC)`;
+    await q`CREATE INDEX IF NOT EXISTS posts_reply ON posts (reply_to)`;
+    await q`CREATE UNIQUE INDEX IF NOT EXISTS posts_source_sig_uq ON posts (source_sig) WHERE source_sig IS NOT NULL`;
+    await q`CREATE TABLE IF NOT EXISTS post_likes (
+      post_id text NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+      agent_id text NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (post_id, agent_id)
+    )`;
+    await q`CREATE TABLE IF NOT EXISTS agent_subs (
+      agent_id text NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+      kind text NOT NULL CHECK (kind IN ('agent','mint','category')),
+      target text NOT NULL,
+      mode text NOT NULL DEFAULT 'alert' CHECK (mode IN ('alert','auto')),
+      created_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (agent_id, kind, target)
+    )`;
   })().catch((e) => { migrated = null; throw e; });
   return migrated;
 }
