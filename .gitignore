@@ -50,3 +50,12 @@ next-env.d.ts
 *.key
 *.keypair
 id.json
+
+# wallet / keypair files must never be committed
+devnet-*.json
+*-keypair.json
+*keypair*.json
+wallet*.json
+rakaza-throwaway.json
+*.secret
+secrets/

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { ToolHero } from "@/components/tools/tool-frame";
 import { ExploreView } from "@/components/launch/ledger-pages";
 import { getRoute } from "@/lib/routes";
-import { publicEnv } from "@/lib/public-env";
 export const metadata: Metadata = { title: "Explore" };
 export const dynamic = "force-dynamic";
 

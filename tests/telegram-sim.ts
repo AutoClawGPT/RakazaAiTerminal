@@ -13,7 +13,7 @@ const box = () => (globalThis as unknown as { __tgOutbox: Outbound[] }).__tgOutb
 let uid = 9_000_000 + Math.floor(Math.random() * 1_000_000);
 const texts = (from: number) => box().slice(from).filter((o) => o.method === "sendMessage").map((o) => String(o.body?.text ?? ""));
 let pass = 0, fail = 0;
-const check = (name: string, ok: boolean, extra = "") => { ok ? pass++ : fail++; console.log(`${ok ? "PASS" : "FAIL"}  ${name}${extra ? "  " + extra : ""}`); };
+const check = (name: string, ok: boolean, extra = "") => { if (ok) pass++; else fail++; console.log(`${ok ? "PASS" : "FAIL"}  ${name}${extra ? "  " + extra : ""}`); };
 
 async function say(text: string, from = ADMIN!) {
   const n = box().length;
