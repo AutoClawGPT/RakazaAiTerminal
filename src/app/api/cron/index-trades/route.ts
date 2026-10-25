@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   try {
     await ensureSchema();
     const net = publicEnv.network as Network;
-    const rows = (await q`SELECT mint FROM launches WHERE network = ${net} AND status = ANY(${[...PUBLIC_LAUNCH_STATUSES]}) ORDER BY created_at DESC LIMIT 60`) as unknown as { mint: string }[];
+    const rows = (await q`SELECT mint FROM launches WHERE network = ${net} AND NOT hidden AND status = ANY(${[...PUBLIC_LAUNCH_STATUSES]}) ORDER BY created_at DESC LIMIT 60`) as unknown as { mint: string }[];
     const deadline = Date.now() + 45_000;
     let trades = 0;
     for (let i = 0; i < rows.length && Date.now() < deadline; i += 4) {

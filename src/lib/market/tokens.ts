@@ -22,7 +22,7 @@ interface Row {
 
 const COLS = `l.mint, l.name, l.symbol, l.mode, l.network, l.created_at, l.uri, s.progress_pct, s.complete, s.price_sol, s.mcap_sol, s.volume24h_sol, s.trades24h, s.last_trade_at, s.image_url, s.description, s.links, s.meta_at, s.updated_at`;
 const FROM = `FROM launches l LEFT JOIN mint_stats s ON s.mint = l.mint`;
-const PUBLIC_WHERE = `l.network = $1 AND l.status = ANY($2)`;
+const PUBLIC_WHERE = `l.network = $1 AND l.status = ANY($2) AND NOT l.hidden`;
 
 const httpsOnly = (u: unknown): string | undefined => {
   if (typeof u !== "string") return undefined;
@@ -137,7 +137,7 @@ async function rowFor(mint: string): Promise<Row | null> {
   const db = sql();
   if (!db) return null;
   await ensureSchema();
-  const rows = (await db.query(`SELECT ${COLS} ${FROM} WHERE l.mint = $1 AND l.status = ANY($2) LIMIT 1`, [mint, [...PUBLIC_LAUNCH_STATUSES]])) as unknown as Row[];
+  const rows = (await db.query(`SELECT ${COLS} ${FROM} WHERE l.mint = $1 AND l.status = ANY($2) AND NOT l.hidden LIMIT 1`, [mint, [...PUBLIC_LAUNCH_STATUSES]])) as unknown as Row[];
   return rows[0] ?? null;
 }
 

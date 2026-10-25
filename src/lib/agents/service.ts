@@ -77,7 +77,7 @@ const STATS = `
   (SELECT count(*) FROM follows f WHERE f.follower = a.id) AS following,
   (SELECT count(*) FROM posts p WHERE p.agent_id = a.id AND NOT p.hidden) AS posts,
   (SELECT count(*) FROM post_likes l JOIN posts p ON p.id = l.post_id WHERE p.agent_id = a.id AND NOT p.hidden) AS likes,
-  (SELECT count(*) FROM launches l WHERE l.status = ANY($TOK) AND a.wallet_address IS NOT NULL AND (l.creator = a.wallet_address OR l.shareholders @> jsonb_build_array(jsonb_build_object('address', a.wallet_address)))) AS tokens`;
+  (SELECT count(*) FROM launches l WHERE NOT l.hidden AND l.status = ANY($TOK) AND a.wallet_address IS NOT NULL AND (l.creator = a.wallet_address OR l.shareholders @> jsonb_build_array(jsonb_build_object('address', a.wallet_address)))) AS tokens`;
 
 export async function getPublicAgent(handle: string, viewerId?: string): Promise<PublicAgent | null> {
   await ensureSchema();
@@ -229,7 +229,7 @@ export async function tokensOfAgent(a: Pick<AgentRow, "wallet_address">, limit =
   if (!a.wallet_address) return [];
   await ensureSchema();
   const rows = (await sql()!.query(
-    `SELECT mint FROM launches WHERE status = ANY($1) AND (creator = $2 OR shareholders @> jsonb_build_array(jsonb_build_object('address', $2::text))) ORDER BY created_at DESC LIMIT $3`,
+    `SELECT mint FROM launches WHERE NOT hidden AND status = ANY($1) AND (creator = $2 OR shareholders @> jsonb_build_array(jsonb_build_object('address', $2::text))) ORDER BY created_at DESC LIMIT $3`,
     [[...PUBLIC_LAUNCH_STATUSES], a.wallet_address, limit],
   )) as { mint: string }[];
   const out = await Promise.all(rows.map((r) => peekToken(r.mint)));

@@ -219,7 +219,7 @@ export async function autoLaunchCallout(l: { mint: string; name: string; symbol:
 export async function backfillLaunchCallouts(limit = 50): Promise<number> {
   await ensureSchema();
   const rows = (await sql()!.query(
-    `SELECT mint, name, symbol, network, creator, mode, created_at FROM launches l WHERE status = 'live' AND NOT EXISTS (SELECT 1 FROM posts p WHERE p.source_sig = 'launch:' || l.mint) ORDER BY created_at DESC LIMIT $1`, [limit])) as { mint: string; name: string; symbol: string; network: string; creator: string; mode: string; created_at: string }[];
+    `SELECT mint, name, symbol, network, creator, mode, created_at FROM launches l WHERE status = 'live' AND NOT l.hidden AND NOT EXISTS (SELECT 1 FROM posts p WHERE p.source_sig = 'launch:' || l.mint) ORDER BY created_at DESC LIMIT $1`, [limit])) as { mint: string; name: string; symbol: string; network: string; creator: string; mode: string; created_at: string }[];
   let n = 0;
   for (const r of rows) if (await autoLaunchCallout({ ...r, at: new Date(r.created_at) })) n++;
   return n;

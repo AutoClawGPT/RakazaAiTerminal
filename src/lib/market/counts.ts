@@ -9,7 +9,7 @@ export async function listPublicMints(limit = 200): Promise<{ mint: string; crea
     const q = sql();
     if (!q) return [];
     await ensureSchema();
-    const rows = (await q`SELECT mint, created_at FROM launches WHERE network = ${publicEnv.network} AND status = ANY(${[...PUBLIC_LAUNCH_STATUSES]}) ORDER BY created_at DESC LIMIT ${limit}`) as unknown as { mint: string; created_at: string }[];
+    const rows = (await q`SELECT mint, created_at FROM launches WHERE network = ${publicEnv.network} AND NOT hidden AND status = ANY(${[...PUBLIC_LAUNCH_STATUSES]}) ORDER BY created_at DESC LIMIT ${limit}`) as unknown as { mint: string; created_at: string }[];
     return rows.map((r) => ({ mint: r.mint, createdAt: new Date(r.created_at) }));
   } catch {
     return [];
@@ -22,7 +22,7 @@ export async function publicLaunchCount(): Promise<number | null> {
     const q = sql();
     if (!q) return null;
     await ensureSchema();
-    const rows = (await q`SELECT count(*)::int AS c FROM launches WHERE network = ${publicEnv.network} AND status = ANY(${[...PUBLIC_LAUNCH_STATUSES]})`) as unknown as { c: number }[];
+    const rows = (await q`SELECT count(*)::int AS c FROM launches WHERE network = ${publicEnv.network} AND NOT hidden AND status = ANY(${[...PUBLIC_LAUNCH_STATUSES]})`) as unknown as { c: number }[];
     return rows[0]?.c ?? 0;
   } catch {
     return null;

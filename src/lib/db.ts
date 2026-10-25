@@ -100,6 +100,8 @@ export function ensureSchema(): Promise<void> {
       updated_at timestamptz NOT NULL DEFAULT now()
     )`;
     await q`CREATE INDEX IF NOT EXISTS mint_stats_progress ON mint_stats (progress_pct DESC)`;
+    // Soft hide for test / demo launches: they stay in the database but never show in any public list, count, profile or page.
+    await q`ALTER TABLE launches ADD COLUMN IF NOT EXISTS hidden boolean NOT NULL DEFAULT false`;
     await q`CREATE INDEX IF NOT EXISTS launches_network_created ON launches (network, created_at DESC)`;
     // B5 (additive): agent profiles. Only new columns with defaults, so existing rows and the old register flow keep working.
     for (const col of [
