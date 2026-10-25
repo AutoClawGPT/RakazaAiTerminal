@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Studio \u00b7 How it works", descrip
 const STEPS = [
   { n: "01", title: "Describe what you want", body: "In the Create page pick Character design, Picture or Token logo and write a short description. Keep it under 600 characters. Original characters only: do not ask for a real person or someone else's artwork." },
   { n: "02", title: "Generate the image", body: "The server calls Pollinations (FLUX Schnell) with the platform key. The key never reaches your browser. A 512 px image takes about 5 seconds, 1024 px a little longer. One image at a time." },
-  { n: "03", title: "Use it on a coin", body: "Download the picture and use it as the token image on the Launch tab. Launches use a permanent 70/30 creator-fee split and need an owner approval ticket." },
+  { n: "03", title: "Use it on a coin", body: "Download the picture and use it as the token image on the Launch tab. Sponsored launches use a permanent 70/30 creator-fee split (70% user, 30% Rakaza agent wallet) and need an owner approval ticket. Self launch has no split: you keep 100%." },
 ];
 
 const RULES = [

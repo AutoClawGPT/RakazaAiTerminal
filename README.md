@@ -3,7 +3,7 @@
 </p>
 
 <h1 align="center">Rakaza AI Terminal</h1>
-<p align="center"><b>A self-hostable Solana launchpad for pump.fun, with an AI character, a permanent 70/30 fee split, vanity grinding, an agent API (REST + MCP) and a Telegram admin bot.</b><br>
+<p align="center"><b>A self-hostable Solana launchpad for pump.fun, with an AI character, a permanent 70/30 fee split on sponsored launches (self launch: you keep 100%), vanity grinding, an agent API (REST + MCP) and a Telegram admin bot.</b><br>
 Clone it, add your API keys, and run it as your own launchpad.</p>
 
 <h2 align="center">Watch the promo (16:9)</h2>
@@ -74,7 +74,7 @@ It also exposes the same tools to AI agents over **REST (`/api/v1/tools`)**, **M
 | | |
 |---|---|
 | **One-paste agent launch** | Paste a contract address. The agent runs Vamp Radar/Shield, studies the token, writes a new name/ticker/description, generates an image (FLUX), pins metadata to IPFS, simulates, and waits for your approval. |
-| **Fees that are easy to explain** | Sponsored launches: permanent 70/30 split, verified on-chain before any dev buy. Self launches: **no split**, you keep 100% of creator fees and pay one flat service fee (about $2 in SOL) inside the launch transaction. |
+| **Fees that are easy to explain** | Sponsored launch: 70% to the user, 30% to the Rakaza agent wallet, permanent, verified on-chain before any dev buy. Self launch: **no split**, the user keeps 100% and pays a flat ~$2 service fee (in SOL) only if the token is created. |
 | **Vanity grinder** | Grind mint addresses in browser Web Workers (libsodium). The secret key never leaves the browser. Also a CLI and a shareable "grind pool". |
 | **Safety gates** | Approval tickets, per-launch and daily spend caps, kill switch, default-deny proxy. |
 | **Agent platform** | 24 tools over REST and MCP, per-user agent keys, `skill.md` for self-onboarding. |
@@ -222,7 +222,7 @@ Any agent can read `/skill.md`, register at `/register`, get a bearer key and ca
 2. **Rewrite**: the River AI brain proposes a new name, ticker and description.
 3. **Image**: Pollinations FLUX generates art; metadata is pinned to IPFS (Pinata).
 4. **Vanity (optional)**: grind a custom mint address in the browser.
-5. **Fees**: sponsored launches use the 70/30 split; self launches have no split (you keep 100%) and show a quote with the flat service fee.
+5. **Fees**: sponsored launch: 70% to the user, 30% to the Rakaza agent wallet. Self launch: no split, you keep 100%, and the quote shows the flat ~$2 service fee (only paid if the token is created).
 6. **Simulate**: the transactions are simulated against the RPC.
 7. **Approve and launch**: an approval ticket is signed; the transactions are sent.
 
@@ -232,7 +232,9 @@ Any agent can read `/skill.md`, register at `/register`, get a bearer key and ca
 
 Creator fees on pump.fun can be shared between wallets via a **fee-sharing config**.
 
-- **Sponsored launch, 70/30**: a launch done *for* a user, paid by the platform treasury agent wallet. `7000 bps` to the user's fee wallet, `3000 bps` to the platform treasury.
+> **Sponsored launch: 70% to the user, 30% to the Rakaza agent wallet. Self launch: the user keeps 100%, flat ~$2 service fee only if the token is created.**
+
+- **Sponsored launch, 70/30**: 70% to the user, 30% to the Rakaza agent wallet. A launch done *for* a user, paid by the platform treasury agent wallet. `7000 bps` to the user's fee wallet, `3000 bps` to the platform treasury.
 - **Self launch, no split**: the user launches from their own wallet. There is **no fee-sharing config**, so pump.fun's default applies: the creator (the user) gets 100% of the creator fees. The platform charges one flat **service fee**, `SELF_LAUNCH_SERVICE_FEE_USD` (default `2`), converted to SOL with the Jupiter price at quote time and sent as a `SystemProgram.transfer` to the treasury **inside the same create transaction** (if the token is not created, the fee is not paid). A quote is valid for 5 minutes. If the price lookup fails, `SELF_LAUNCH_SERVICE_FEE_SOL` (default `0.015`) is used and the UI says so. Typical total: pump.fun cost (about $1.5) + service fee ($2) = about $3.5, plus network fees and an optional dev buy. The quote screen shows every line, and the user ticks a confirmation before the wallet opens.
 - **Self-launch safety**: the platform never signs for the user, the creator is the user's wallet, the mint signs first, and the server verifies the signed transaction (exactly one transfer to the exact treasury pubkey, amount within 2% of the quote, nothing else moves SOL) before relaying. Honest limit: because the platform does not co-sign, a user can always bypass our relay and send a transaction to the RPC themselves; they then simply skip our fee, and nothing else changes for them. Test: `tests/service-fee.ts`.
 - **Never the same wallet twice**: the fee wallet cannot be the platform treasury (the UI, server actions, Telegram bot and API tools all block it with a friendly message). Test: `tests/treasury-clash.ts`.
@@ -245,29 +247,31 @@ Creator fees on pump.fun can be shared between wallets via a **fee-sharing confi
 ```mermaid
 flowchart LR
   subgraph Browser
-    UI[Next.js UI<br/>public site + owner dash]
-    VAN[Vanity Web Workers<br/>libsodium]
-    AV[3D avatar + voice<br/>three / VRM / Deepgram]
+    UI["Next.js UI: public site and owner dash"]
+    VAN["Vanity Web Workers (libsodium)"]
+    AV["3D avatar and voice (three, VRM, Deepgram)"]
   end
   subgraph Vercel
-    PX[src/proxy.ts<br/>default-deny gate]
-    API[/api/*  /mcp  /skill.md/]
-    ACT[Server actions<br/>launch / fees / history]
-    CRON[/api/cron/distribute<br/>daily/]
-    TG[/api/telegram/webhook/]
+    PX["src/proxy.ts: default-deny gate"]
+    API["API routes: /api, /mcp, /skill.md"]
+    ACT["Server actions: launch, fees, history"]
+    CRON["Cron: /api/cron/distribute (daily)"]
+    TG["Telegram webhook: /api/telegram/webhook"]
   end
   subgraph Services
-    RPC[Helius RPC]
-    PUMP[pump.fun<br/>@pump-fun/pump-sdk]
-    JUP[Jupiter / SolanaTracker]
-    AI[River AI / Deepgram / Pollinations FLUX]
-    STORE[(Neon Postgres<br/>Upstash Redis<br/>Pinata IPFS)]
+    RPC["Helius RPC"]
+    PUMP["pump.fun (pump-sdk)"]
+    JUP["Jupiter and SolanaTracker"]
+    AI["River AI, Deepgram, Pollinations FLUX"]
+    STORE[("Neon Postgres, Upstash Redis, Pinata IPFS")]
   end
-  AGENTS[AI agents<br/>MCP / REST] --> PX
-  TGU[Telegram admin] --> TG
-  UI --> PX --> API
+  AGENTS["AI agents: MCP and REST"] --> PX
+  TGU["Telegram admin"] --> TG
+  UI --> PX
+  PX --> API
   PX --> ACT
-  ACT --> PUMP --> RPC
+  ACT --> PUMP
+  PUMP --> RPC
   API --> JUP
   API --> AI
   ACT --> STORE

@@ -27,7 +27,7 @@ const ITEMS: { n: string; status: Status; title: string; body: string; tags: str
     n: "03",
     status: "COMING SOON",
     title: "Launch with Rakaza",
-    body: "Create a coin on pump.fun from your own wallet or sponsored by the treasury, with a permanent 70/30 creator fee split.",
+    body: "Create a coin on pump.fun from your own wallet or sponsored by the treasury, with a permanent 70/30 creator fee split on sponsored launches (70% user, 30% Rakaza agent wallet); self launch keeps 100% for the user with a flat ~$2 service fee.",
     tags: "own wallet · sponsored · fee split · vanity address",
   },
   {

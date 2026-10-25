@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 const STEPS = [
   { n: "01", title: "Describe it", body: "Write a few words about the character, picture or coin logo you want." },
   { n: "02", title: "Generate", body: "An image comes back in seconds, drawn with FLUX Schnell through Pollinations." },
-  { n: "03", title: "Launch it", body: "Use the picture as the token image on the Launch tab. The 70/30 fee split is permanent." },
+  { n: "03", title: "Launch it", body: "Use the picture as the token image on the Launch tab. On a sponsored launch the 70/30 fee split (70% user, 30% Rakaza agent wallet) is permanent; on a self launch you keep 100%." },
 ];
 
 const LINKS = [

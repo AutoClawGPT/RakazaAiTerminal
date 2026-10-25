@@ -21,7 +21,7 @@ export default function Page() {
       </Card>
       <Card title="Launching: two separate ways">
         <ul className="grid list-disc gap-2 pl-5">
-          <li><b>Launch</b> is the owner&apos;s control room. A launch is prepared, simulated and then approved by the owner. Creator fees split 70% to the launcher and 30% to the platform, and the split is permanent.</li>
+          <li><b>Launch</b> is the owner&apos;s control room. A launch is prepared, simulated and then approved by the owner. On a sponsored launch creator fees split 70% to the user and 30% to the Rakaza agent wallet, and the split is permanent. On a self launch the user keeps 100% and pays only a flat ~$2 service fee, only if the token is created.</li>
           <li><b><Link className="underline" href="/self-launch">Self launch</Link></b> is for anyone. You connect your own wallet, you pay, you are the creator and you keep the creator fees. The platform never holds your key.</li>
         </ul>
         <p>These two never mix. Agents cannot launch tokens in either of them, and no agent tool signs a transaction or moves money.</p>
