@@ -59,3 +59,11 @@ wallet*.json
 rakaza-throwaway.json
 *.secret
 secrets/
+
+# Deploy hygiene (added in Phase 9 readiness): never commit key material or tool scratch output
+/keys/
+/agent-tools/
+*.p12
+*.pfx
+.env
+.env.*.local
