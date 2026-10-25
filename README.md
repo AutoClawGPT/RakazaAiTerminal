@@ -1,53 +1,386 @@
-# RakazaTokenization
+<p align="center">
+  <img src="docs/images/banner.jpg" alt="Rakaza AI Terminal: a Solana token launchpad with an AI character" width="100%">
+</p>
 
-Rakaza is a Solana token launch platform with an AI character. It is a Next.js app (App Router) with a public site, an owner dashboard, a launch flow built on pump.fun, a 70/30 fee split, an agent API (REST and MCP), and a Telegram control bot.
+<h1 align="center">Rakaza AI Terminal</h1>
+<p align="center"><b>A self-hostable Solana launchpad for pump.fun, with an AI character, a permanent 70/30 fee split, vanity grinding, an agent API (REST + MCP) and a Telegram admin bot.</b><br>
+Clone it, add your API keys, and run it as your own launchpad.</p>
 
-**Status: devnet.** Nothing is signed or sent unless `EXECUTE_ENABLED` is exactly `true`. Mainnet is a separate, deliberate switch (see [docs/DEPLOY.md](docs/DEPLOY.md)).
+<p align="center">
+  <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs">
+  <img alt="React 19" src="https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=black">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white">
+  <img alt="Node 22" src="https://img.shields.io/badge/Node-22.x-339933?logo=nodedotjs&logoColor=white">
+  <img alt="Solana" src="https://img.shields.io/badge/Solana-devnet%20first-9945ff?logo=solana&logoColor=white">
+  <img alt="Deploy" src="https://img.shields.io/badge/Deploy-Vercel-black?logo=vercel">
+  <img alt="License MIT" src="https://img.shields.io/badge/License-MIT-green">
+</p>
 
-## Stack
+> **Status: devnet first.** Nothing is ever signed or sent unless `EXECUTE_ENABLED` is exactly `true`. Mainnet is a separate, deliberate switch: see the [mainnet checklist](#devnet-first-then-mainnet).
+> **The repo contains no secrets.** It builds and serves its public pages with zero environment variables; features that need a key say "not configured" until you add it.
 
-Next.js 16 (App Router, Turbopack, `src/proxy.ts`), React 19, TypeScript, Tailwind, zod 4, `@solana/web3.js` 1.99, `@pump-fun/pump-sdk`, Neon Postgres (HTTP), Upstash Redis, Three.js / three-vrm for the character stage. Node 22.x.
+---
 
-## Setup
+## Table of contents
 
-```bash
-nvm use 22            # or any Node 22.x
-npm ci
-cp .env.example .env.local
-# fill in .env.local (see below). Real values never go in git.
-npm run dev           # http://localhost:3200
-```
+1. [What it is](#what-it-is)
+2. [Feature highlights](#feature-highlights)
+3. [The dashboard and every tab](#the-dashboard-and-every-tab)
+4. [Launching a coin](#launching-a-coin)
+5. [The 70/30 and 95/5 splits](#the-7030-and-955-splits)
+6. [Architecture](#architecture)
+7. [Security model](#security-model)
+8. [Quick start](#quick-start)
+9. [Environment variables](#environment-variables)
+10. [One-go Vercel deploy](#one-go-vercel-deploy)
+11. [Devnet first, then mainnet](#devnet-first-then-mainnet)
+12. [Project structure](#project-structure)
+13. [Scripts and tests](#scripts-and-tests)
+14. [FAQ and troubleshooting](#faq-and-troubleshooting)
+15. [Make it your own launchpad](#make-it-your-own-launchpad)
+16. [Brand kit](#brand-kit)
+17. [Guides for AI agents, links and build history](#guides-for-ai-agents-links-and-build-history)
+18. [License](#license)
 
-Minimum to boot: `SESSION_SECRET`, `CRON_SECRET`, `LIVE_SECRET` (each at least 32 random characters). Generate one with `openssl rand -hex 32`. To sign in as owner also set `DASHBOARD_PASSWORD` and `API_SERVER_KEY` (at least 16 characters). Everything else is optional and the matching feature shows "not configured" until you add it.
+---
 
-Full variable list with notes: [docs/ENV.md](docs/ENV.md). Names only: [.env.example](.env.example).
+## What it is
 
-## Scripts
+Rakaza is a Next.js 16 app that has two faces:
 
-| Command | What it does |
+- **A public site** with an AI character (3D VRM avatar, voice, chat), a risk checker for pump.fun coins, a diary, memes, mini-games, a Studio and docs.
+- **An owner dashboard** (behind a password) that scans a token, rewrites it, generates art, optionally grinds a vanity address, simulates the launch, and launches it on **pump.fun** with a **permanent on-chain fee split**.
+
+It also exposes the same tools to AI agents over **REST (`/api/v1/tools`)**, **MCP (`/mcp`)** and a plain-text **`/skill.md`**, and to you over a **Telegram admin bot**.
+
+<p align="center"><img src="docs/images/dashboard-preview.jpg" alt="Dashboard preview" width="92%"></p>
+
+## Feature highlights
+
+| | |
 |---|---|
-| `npm run dev` | dev server on port 3200 |
-| `npm run build` | production build |
-| `npm start` | serve the production build on port 3200 |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint` | ESLint (0 errors expected) |
-| `npm run check` | typecheck, lint and build |
-| `npm run grind` | local vanity-address grinder CLI (`cli/rakaza-grind.mjs`) |
+| **One-paste agent launch** | Paste a contract address. The agent runs Vamp Radar/Shield, studies the token, writes a new name/ticker/description, generates an image (FLUX), pins metadata to IPFS, simulates, and waits for your approval. |
+| **Permanent fee split** | 70/30 for launches done for a user, 95/5 for self launches. Verified on-chain before any dev buy. |
+| **Vanity grinder** | Grind mint addresses in browser Web Workers (libsodium). The secret key never leaves the browser. Also a CLI and a shareable "grind pool". |
+| **Safety gates** | Approval tickets, per-launch and daily spend caps, kill switch, default-deny proxy. |
+| **Agent platform** | 24 tools over REST and MCP, per-user agent keys, `skill.md` for self-onboarding. |
+| **AI character** | VRM avatar, Deepgram speech in/out, River AI brain, 18+ gate. |
+| **Telegram admin bot** | `/scan`, `/launch`, `/fees`, `/verify` and more, admin-only. |
+| **Zero-key first deploy** | Builds and serves with no env at all. Add keys later in Vercel. |
 
-Tests live in `tests/`. The `*.mjs` ones are plain Node scripts against a running server (`BASE=http://localhost:3200 node tests/tools-audit.mjs`). The `*-live.ts` ones talk to devnet. Run only the ones you understand; none of them touches mainnet.
+## The dashboard and every tab
+
+The owner area is behind `/login`. Public pages work without it.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/tab-launch.jpg" alt="Launch"><br><b>Launch</b>: paste a token, the agent does the rest (scan, rewrite, image, IPFS, simulate, approve, launch with the split).</td>
+<td width="50%"><img src="docs/images/tab-shield.jpg" alt="Shield"><br><b>Vamp Radar / Shield</b>: find lookalikes of any contract address and see how cheap it is to fake yours.</td>
+</tr>
+<tr>
+<td><img src="docs/images/tab-lab.jpg" alt="Lab"><br><b>Lab</b>: test a launch on the bonding curve with dev buys and team wallets before shipping.</td>
+<td><img src="docs/images/tab-kit.jpg" alt="Kit"><br><b>Kit</b>: fill the coin in once, get the metadata file, a launch post and a checklist.</td>
+</tr>
+<tr>
+<td><img src="docs/images/tab-pool.jpg" alt="Pool"><br><b>Pool</b>: share one link; friends grind in their browsers and send back sealed codes only you can open.</td>
+<td><img src="docs/images/tab-splits.jpg" alt="Splits"><br><b>Splits</b>: decode and verify any on-chain fee-share config. Permanent once set.</td>
+</tr>
+<tr>
+<td><img src="docs/images/tab-vanity.jpg" alt="Vanity"><br><b>Vanity</b>: Web-Worker grinder for custom mint addresses (starts with / ends with).</td>
+<td><img src="docs/images/tab-keyvault.jpg" alt="Key vault"><br><b>Key vault</b>: grinder keys encrypted under your passphrase, in the browser only.</td>
+</tr>
+<tr>
+<td><img src="docs/images/tab-vault.jpg" alt="Vault"><br><b>Vault</b>: treasury balance, spend caps, recent activity. The secret key is never shown.</td>
+<td><img src="docs/images/tab-fees.jpg" alt="Fees"><br><b>Fees</b>: what every wallet has earned, what is waiting, what was sent.</td>
+</tr>
+<tr>
+<td><img src="docs/images/tab-trade.jpg" alt="Trade"><br><b>Trade</b>: live Jupiter quote and route before any trade.</td>
+<td><img src="docs/images/tab-rewards.jpg" alt="Rewards"><br><b>Rewards</b>: per token, who gets what, what is waiting and what was sent.</td>
+</tr>
+<tr>
+<td><img src="docs/images/tab-revenue.jpg" alt="Revenue"><br><b>Revenue</b>: the platform's 30% share, last 30 days, by token.</td>
+<td><img src="docs/images/tab-history.jpg" alt="History"><br><b>History</b>: every launch, its transactions and where each wallet's fees stand.</td>
+</tr>
+<tr>
+<td><img src="docs/images/tab-explore.jpg" alt="Explore"><br><b>Explore</b>: search and filter all launches; open one to verify it.</td>
+<td><img src="docs/images/tab-scanner.jpg" alt="Scanner"><br><b>Scanner</b>: rug/risk scan (holders, organic score, bundlers, snipers), watchlist, copycat finder.</td>
+</tr>
+<tr>
+<td><img src="docs/images/tab-agents.jpg" alt="Operator agents"><br><b>Operator agents</b>: everyone who registered an agent key; switch a key off if abused.</td>
+<td><img src="docs/images/tab-dev.jpg" alt="Dev"><br><b>Dev</b>: the command-line vanity grinder and core API, with a quick start.</td>
+</tr>
+<tr>
+<td><img src="docs/images/tab-dash.jpg" alt="Dashboard"><br><b>Dashboard</b>: network, treasury, launch execution gate, key health, integrations health.</td>
+<td><img src="docs/images/tab-infra.jpg" alt="Infra"><br><b>Infra</b>: read-only server status (UpCloud). Start/stop only with approval.</td>
+</tr>
+<tr>
+<td><img src="docs/images/tab-settings.jpg" alt="Settings"><br><b>Settings</b>: network, RPC health, key health (ok/missing), limits, logout.</td>
+<td><img src="docs/images/tab-studio.jpg" alt="Studio"><br><b>Studio</b>: make a face for your coin: character design and token logo, handed off to Launch.</td>
+</tr>
+<tr>
+<td><img src="docs/images/tab-talk.jpg" alt="Talk"><br><b>Talk / avatar / voice</b>: chat with the 3D character, voice in and out, 18+ gate.</td>
+<td><img src="docs/images/tab-home.jpg" alt="Home"><br><b>Home</b>: the public landing page: character, risk checker, playground.</td>
+</tr>
+</table>
+
+**On a phone** the whole thing is responsive, with a bottom nav and a menu sheet:
+
+<p align="center"><img src="docs/images/mobile-strip.jpg" alt="Mobile views" width="100%"></p>
+
+| Tab | Route | Access | What it does |
+|---|---|---|---|
+| Launch | `/launch` | owner + agent | Scan, rewrite, image, IPFS, simulate, approve, launch with the split |
+| Vamp Radar / Shield | `/shield` | owner | Lookalike address detection and clone-cost scoring |
+| Kit | `/kit` | owner | Metadata file, launch post, checklist |
+| Lab | `/lab` | owner | Bonding-curve launch simulation |
+| Pool | `/pool` | owner | Team vanity grinding via a shared link |
+| Splits | `/splits` | owner + agent | Decode/verify on-chain fee shares |
+| Vanity | `/vanity` | owner | In-browser vanity mint grinder |
+| Key vault | `/keyvault` | owner | Passphrase-encrypted key storage (browser only) |
+| Vault | `/vault` | owner + agent | Treasury status, caps, audit log |
+| Fees | `/fees` | owner + agent | Collect and distribute creator fees |
+| Trade | `/trade` | owner + agent | Jupiter quotes; swaps are gated |
+| Rewards / Revenue / History | `/rewards` `/revenue` `/history` | owner | Ledgers |
+| Explore | `/explore` | owner | All launches |
+| Scanner | `/scanner` | owner | Risk scan |
+| Operator agents | `/dash/agents` | owner + agent | Agent console |
+| Infra | `/infra` | owner | Server status |
+| Settings | `/settings` | owner | Health and limits |
+| Studio | `/studio` | public | Character and logo generator |
+| Talk | `/talk` | public | AI character chat with voice |
+| Dev CLI & core API | `/dev`, `cli/` | owner | Command-line grinder |
+| Telegram admin bot | `/api/telegram/webhook` | admin id | Remote control |
+| MCP & skill | `/mcp`, `/skill.md` | agent key / public | Agent tools and self-onboarding |
+| API | `/api/v1/tools`, `/api/health`, `/docs/api` | agent key / public | REST mirror of the tools |
+
+### Telegram admin bot
+Admin-only (your numeric Telegram id). Commands: `/status` `/health` `/balance` `/scan <mint>` `/draft <mint>` `/launch <mint>` `/resume` `/launches` `/fees` `/verify <mint>` `/lookalikes <mint>` `/wallet` `/voice on|off` `/tools` `/how`. Launches are prepared by the bot and only run after you tap approve. Webhook mode on Vercel, polling mode locally (`scripts/telegram-poll.mjs`).
+
+### MCP and skill.md
+Any agent can read `/skill.md`, register at `/register`, get a bearer key and call the tools at `/mcp` (Streamable HTTP) or `/api/v1/tools` (REST). Tool examples: `scan_token`, `vamp_scan`, `draft_token`, `generate_image`, `preview_fee_split`, `simulate_launch`, `prepare_launch_package`, `verify_launch`, `wallet_fees`, `jupiter_quote`, `rugcheck_token`, `trust_check`. See `/docs/api` and `/docs/mcp`.
+
+## Launching a coin
+
+<p align="center"><img src="docs/images/launchpad-preview.jpg" alt="Launchpad preview" width="92%"></p>
+
+1. **Scan**: Vamp Radar/Shield checks the contract address, lookalikes and risk.
+2. **Rewrite**: the River AI brain proposes a new name, ticker and description.
+3. **Image**: Pollinations FLUX generates art; metadata is pinned to IPFS (Pinata).
+4. **Vanity (optional)**: grind a custom mint address in the browser.
+5. **Fee split**: choose the split (70/30 or 95/5).
+6. **Simulate**: the transactions are simulated against the RPC.
+7. **Approve and launch**: an approval ticket is signed; the transactions are sent.
+
+## The 70/30 and 95/5 splits
+
+<p align="center"><img src="docs/images/share-card.jpg" alt="70/30 split" width="80%"></p>
+
+Creator fees on pump.fun can be shared between wallets via a **fee-sharing config**.
+
+- **70/30**: a launch done *for* a user. `7000 bps` to the user's fee wallet, `3000 bps` to the platform treasury.
+- **95/5**: a self launch by the owner. `9500 bps` to the owner wallet, `500 bps` to the treasury.
+- **Permanent**: `updateFeeSharesV2` revokes the admin, so the split can be set **once** and never changed. That is the point: users can verify it on-chain.
+- **Transactions**: TX1 `createV2` (the mint co-signs). TX2 `createFeeSharingConfig` + `updateFeeSharesV2`. TX3 (optional) the dev buy. The dev buy lives in its own transaction because the three together exceed the 1232-byte transaction size limit.
+- **Verified first**: the code reads the config back on-chain and compares it before any dev buy runs.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph Browser
+    UI[Next.js UI<br/>public site + owner dash]
+    VAN[Vanity Web Workers<br/>libsodium]
+    AV[3D avatar + voice<br/>three / VRM / Deepgram]
+  end
+  subgraph Vercel
+    PX[src/proxy.ts<br/>default-deny gate]
+    API[/api/*  /mcp  /skill.md/]
+    ACT[Server actions<br/>launch / fees / history]
+    CRON[/api/cron/distribute<br/>daily/]
+    TG[/api/telegram/webhook/]
+  end
+  subgraph Services
+    RPC[Helius RPC]
+    PUMP[pump.fun<br/>@pump-fun/pump-sdk]
+    JUP[Jupiter / SolanaTracker]
+    AI[River AI / Deepgram / Pollinations FLUX]
+    STORE[(Neon Postgres<br/>Upstash Redis<br/>Pinata IPFS)]
+  end
+  AGENTS[AI agents<br/>MCP / REST] --> PX
+  TGU[Telegram admin] --> TG
+  UI --> PX --> API
+  PX --> ACT
+  ACT --> PUMP --> RPC
+  API --> JUP
+  API --> AI
+  ACT --> STORE
+  CRON --> ACT
+  UI --- VAN
+  UI --- AV
+```
 
 ## Security model
 
-- Default deny: `src/proxy.ts` returns 401 JSON for every `/api/**` and `/mcp` request unless the route is in the public list, or the request carries a valid bearer key or owner session. Owner pages redirect to `/login`.
-- Only `NEXT_PUBLIC_*` values reach the browser. Secrets stay server-side and are never logged.
-- Spend caps: `MAX_LAUNCH_SOL` and `MAX_DAILY_SPEND_SOL`.
-- The treasury private key (`TREASURY_PRIVATE_KEY`) is read only in memory behind the approval gate, and only in the host's secret store.
-- Wallet and keypair files are git-ignored (`devnet-*.json`, `*keypair*.json`, `wallet*.json`).
+- **Default-deny proxy** (`src/proxy.ts`): every owner page redirects to `/login`; every `/api/*` and `/mcp` call returns 401 unless it is on an explicit public list or carries a valid key.
+- **Owner session**: signed, httpOnly cookie via `DASHBOARD_PASSWORD` + `SESSION_SECRET`. Agents use `API_SERVER_KEY` or a per-user key (stored hashed).
+- **Execution gate**: no signature or send unless `EXECUTE_ENABLED=true`. Spend caps (`MAX_LAUNCH_SOL`, `MAX_DAILY_SPEND_SOL`) and a kill switch.
+- **Approval tickets**: HMAC-signed over the exact launch plan; if the plan changes after approval, the ticket is invalid. Tickets expire.
+- **Mint keys are sealed**: the new mint's secret is AES-GCM sealed between prepare and launch; it never goes to the browser in the clear.
+- **Vanity keys stay in the browser**: grinding and the key vault are client-side only.
+- **Headers**: strict CSP with a connect-src allow-list, and other security headers (`next.config.ts`).
+- **Telegram**: webhook verifies Telegram's secret header and an admin id.
+- **No secrets in git**: `.env*`, key files and wallet files are git-ignored; env var *names* only in `.env.example`.
 
-## Deploy
+## Quick start
 
-See [docs/DEPLOY.md](docs/DEPLOY.md) for the exact Vercel settings, env var list, cron, Telegram setup, post-deploy checks and the mainnet checklist.
+Requires **Node 22.x** and npm.
 
-## Licence
+```bash
+git clone https://github.com/AutoClawGPT/RakazaAiTerminal.git
+cd RakazaAiTerminal
+npm i                       # or: npm ci
+cp .env.example .env.local
+# Edit .env.local and add ONLY the API keys listed in the table below.
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"   # run 3x for SESSION_SECRET, CRON_SECRET, LIVE_SECRET
+npm run dev                 # http://localhost:3200
+```
 
-MIT, see [LICENSE](LICENSE). The sample avatar `public/avatar/sample_b.vrm` is by the VRoid Project and has its own terms, see [public/avatar/LICENSE.md](public/avatar/LICENSE.md).
+Without any keys the public pages still work; each missing key shows up as "missing" in **Dashboard → Integrations health**.
+
+## Environment variables
+
+Names only: values go in `.env.local` (git-ignored) or in Vercel → Settings → Environment Variables. The full annotated list is in [`.env.example`](.env.example) and [`docs/ENV.md`](docs/ENV.md).
+
+| Variable | Needed? | What for | Get it |
+|---|---|---|---|
+| `SESSION_SECRET`, `CRON_SECRET`, `LIVE_SECRET` | **Required** to log in / run cron / live queue | Generated random strings (32+ chars) | `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"` |
+| `DASHBOARD_PASSWORD` | **Required** for owner login | Owner password | Choose one |
+| `API_SERVER_KEY` | Recommended | Bearer key for agents / cron | Generate (16+ chars) |
+| `NEXT_PUBLIC_SOLANA_NETWORK` | Optional | `devnet` (default) or `mainnet-beta` | n/a |
+| `HELIUS_DEVNET`, `HELIUS_MAINNET` | **Required** to launch | Solana RPC | [helius.dev](https://www.helius.dev/) |
+| `TREASURY_PUBKEY` | **Required** to launch | Platform wallet receiving the 30% | Create a wallet (Phantom/Solana CLI) |
+| `TREASURY_PRIVATE_KEY` | Required to sign launches | Treasury signer (**secret**, devnet key first) | Your wallet export |
+| `PINATA_API_KEY`, `PINATA_API_SECRET` (or `PINATA_JWT`) | Required to launch | IPFS metadata pinning | [pinata.cloud](https://pinata.cloud/) |
+| `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `UPSTASH_READONLY_TOKEN` | Recommended | Rate limits, approvals, pending taps | [upstash.com](https://upstash.com/) |
+| `DATABASE_URL` | Recommended | Neon Postgres ledger / history | [neon.tech](https://neon.tech/) |
+| `JUPITER_API_KEY`, `NEXT_PUBLIC_JUPITER_PUBLISHABLE_KEY` | Optional | Prices, quotes | [portal.jup.ag](https://portal.jup.ag/) |
+| `SOLANATRACKER_API_KEY` | Optional | Holders, bundlers, snipers | [solanatracker.io](https://www.solanatracker.io/) |
+| `PIMLICO_API_KEY` | Optional | Secondary RPC / sponsorship | [pimlico.io](https://www.pimlico.io/) |
+| `RIVER_AGENT`, `RIVER_RAKAZO`, `RIVER_BASE_URL`, `RIVER_MODEL_*` | Optional | AI brain (operator + public persona) | River AI dashboard |
+| `DEEPGRAM_API_KEY` | Optional | Voice in/out | [deepgram.com](https://deepgram.com/) |
+| `POLLINATIONS_API_KEY`, `POLLINATIONS_IMAGE_MODEL` | Optional | FLUX images | [gen.pollinations.ai](https://gen.pollinations.ai/docs) |
+| `BRAVE_SEARCH_API_KEY` | Optional | Agent web search | [brave.com/search/api](https://brave.com/search/api/) |
+| `FIRECRAWL_API_KEY` | Optional | Agent scrape tool | [firecrawl.dev](https://www.firecrawl.dev/) |
+| `UPCLOUD_API_TOKEN` | Optional | `/infra` server status | [upcloud.com](https://upcloud.com/) |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_ID` | Optional | Admin bot | [@BotFather](https://t.me/BotFather), [@userinfobot](https://t.me/userinfobot) |
+| `EXECUTE_ENABLED`, `SPONSORED_ENABLED`, `MAX_LAUNCH_SOL`, `MAX_DAILY_SPEND_SOL` | Optional | Safety gates and caps | n/a |
+| `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_X_URL`, `NEXT_PUBLIC_TELEGRAM_URL`, `NEXT_PUBLIC_TOKEN_MINT` | Optional | Branding and links | n/a |
+
+## One-go Vercel deploy
+
+The project builds with **no env vars** (keyless first deploy). Then add keys and redeploy.
+
+```bash
+npm i -g vercel
+vercel login
+vercel link                       # create/link the project (framework: Next.js, Node 22.x)
+vercel deploy --prod              # first, keyless, deploy
+# Add env keys in the dashboard (or `vercel env add NAME production`), then:
+vercel deploy --prod
+```
+
+Or in the dashboard: **Add New → Project → import the GitHub repo** → leave defaults (Next.js, `npm ci`/`npm install`, `next build`, Node 22.x) → Deploy. Details, cron notes and the post-deploy checklist: [`docs/DEPLOY.md`](docs/DEPLOY.md).
+
+Notes: Hobby plans only allow **daily** cron (`vercel.json` uses `0 6 * * *`), function `maxDuration` is capped at 300s on Hobby, and `NEXT_PUBLIC_*` values are baked in at build time (redeploy after changing them).
+
+## Devnet first, then mainnet
+
+1. Keep `NEXT_PUBLIC_SOLANA_NETWORK=devnet`, a devnet `HELIUS_DEVNET` and a throw-away devnet treasury key. Run a full launch and check **Splits** and **Fees**.
+2. Check the on-chain split with **Splits** before enabling any dev buy.
+3. Mainnet checklist:
+   - [ ] New treasury wallet; only the public key in `TREASURY_PUBKEY`.
+   - [ ] `NEXT_PUBLIC_SOLANA_NETWORK=mainnet-beta`, `HELIUS_MAINNET` set.
+   - [ ] Small `MAX_LAUNCH_SOL` and `MAX_DAILY_SPEND_SOL` caps.
+   - [ ] `DASHBOARD_PASSWORD`, `API_SERVER_KEY`, `SESSION_SECRET` set; Telegram admin id set.
+   - [ ] Fund the treasury with a small amount; launch a test coin.
+   - [ ] Only then set `EXECUTE_ENABLED=true`. Redeploy.
+
+## Project structure
+
+```
+src/
+  app/            Next.js App Router: (site) public, (dash) owner, (talk), api/, mcp/, skill.md/
+  components/     UI, brand, chrome (nav), avatar, vanity, launch flows
+  lib/            env, auth, launch (plan/approval/seal/execute), chain, telegram, api/tools, brain
+  proxy.ts        default-deny gate (Next 16 proxy)
+cli/              command-line vanity grinder (rakaza-grind.mjs) + core
+scripts/          telegram-poll.mjs (local Telegram polling)
+public/           avatar, brand assets
+tests/            devnet flows, simulators, audits, e2e
+docs/             DEPLOY.md, ENV.md, AI-SETUP-GUIDE.txt, LINKS-AND-TOOLS.txt, BUILD-HISTORY-AND-PROMPT.txt, images/
+vercel.json       daily cron
+```
+
+## Scripts and tests
+
+| Command | What |
+|---|---|
+| `npm run dev` | Dev server on :3200 |
+| `npm run build` / `npm start` | Production build / serve |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | ESLint |
+| `npm run check` | typecheck + lint + build |
+| `npm run grind -- --help` | CLI vanity grinder |
+| `npx tsx tests/tools.test.ts` | Agent tool tests |
+| `TELEGRAM_MOCK=1 npx tsx tests/telegram-sim.ts` | Telegram bot simulation (no real sends) |
+| `npx tsx tests/devnet-fee-flow.ts` | Real devnet launch + fee-split flow (needs devnet keys) |
+| `node tests/mobile-audit.mjs` | 390px overflow audit of every tab |
+
+## FAQ and troubleshooting
+
+**Does it need keys to deploy?** No. It builds and serves public pages with zero env. Owner pages redirect to `/login`, APIs answer 401/503 until you configure them.
+
+**Login says "not configured".** Set `DASHBOARD_PASSWORD` and `SESSION_SECRET` (32+ chars), then redeploy.
+
+**Launch says insufficient SOL / `0x1772`.** The program error `TooMuchSolRequired` on a curve that already traded means the dev buy max-cost is too low for the current price; raise slippage or buy less.
+
+**Env changes do nothing on Vercel.** Redeploy; `NEXT_PUBLIC_*` is build-time.
+
+**Cron fails on Hobby.** Only daily schedules are allowed. Keep `0 6 * * *`.
+
+**Wrong network in my shell.** An exported `NEXT_PUBLIC_SOLANA_NETWORK`/`HELIUS_*` in your shell overrides `.env.local`. Unset it.
+
+More, with the exact fixes: [`docs/AI-SETUP-GUIDE.txt`](docs/AI-SETUP-GUIDE.txt), section "Errors we hit and how we fixed them".
+
+## Make it your own launchpad
+
+1. **Rename**: change the name in `package.json`, `src/components/brand/`, `src/app/layout.tsx` metadata and `public/brand/`.
+2. **Branding**: colors live in the CSS variables (`--rk-*`) in `src/app/globals.css`; replace the avatar in `public/avatar/`; edit copy in `src/lib/routes-data.json`.
+3. **Fee wallets**: set `TREASURY_PUBKEY` to your wallet; the split constants are in `src/lib/tools/splits.ts` (`PLATFORM_*_BPS`, `SELF_*_BPS`).
+4. **Treasury**: use a fresh wallet, keep its key only as a Vercel secret (`TREASURY_PRIVATE_KEY`), never in git.
+5. **Links**: `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_X_URL`, `NEXT_PUBLIC_TELEGRAM_URL`.
+6. Deploy, then follow the [mainnet checklist](#devnet-first-then-mainnet).
+
+## Brand kit
+
+<table>
+<tr>
+<td width="30%"><img src="docs/images/profile.jpg" alt="Profile picture"><br>Profile picture</td>
+<td width="70%"><img src="docs/images/twitter-header.jpg" alt="X / Twitter header"><br>X header (3:1)</td>
+</tr>
+</table>
+
+Style notes and the prompts to regenerate these: [`docs/images/PROMPTS.md`](docs/images/PROMPTS.md).
+
+## Guides for AI agents, links and build history
+
+| File | What |
+|---|---|
+| [`docs/AI-SETUP-GUIDE.txt`](docs/AI-SETUP-GUIDE.txt) | 0-to-final setup guide for any AI agent, with every command and the errors we hit |
+| [`docs/LINKS-AND-TOOLS.txt`](docs/LINKS-AND-TOOLS.txt) | Every link, SDK, repo, skill, MCP and doc used |
+| [`docs/BUILD-HISTORY-AND-PROMPT.txt`](docs/BUILD-HISTORY-AND-PROMPT.txt) | How it was built, phase by phase, plus a copy-paste AI build prompt |
+| [`docs/DEPLOY.md`](docs/DEPLOY.md) / [`docs/ENV.md`](docs/ENV.md) | Vercel deploy and env reference |
+
+## License
+
+[MIT](LICENSE). Not financial advice. Launching tokens carries risk; you are responsible for compliance in your jurisdiction.

@@ -50,11 +50,13 @@ Rules (from the Vercel docs):
 
 ### 3a. Required for the first deploy
 
+**The app now builds and serves its public pages with ZERO env vars** (verified on a clean clone, Node 22, `env -i`): a missing `SESSION_SECRET`/`CRON_SECRET`/`LIVE_SECRET` no longer breaks the build; owner login answers 503 "not configured" until you set them. Add the keys below to make the owner side usable.
+
 The app builds and the public site works with only the first four. The rest of this table is what makes the owner side and registration usable. Verified: a clean clone built and served with only the first four plus the two owner-login variables.
 
 | Variable | Secret? | Value / rule |
 |---|---|---|
-| `SESSION_SECRET` | **yes** | 32+ random characters (`openssl rand -hex 32`). Signs the owner cookie. The app refuses to read env without it |
+| `SESSION_SECRET` | **yes** | 32+ random characters (`openssl rand -hex 32`). Signs the owner cookie. Without it, login answers 503 and owner features refuse |
 | `CRON_SECRET` | **yes** | 32+ random characters. Vercel sends it as `Authorization: Bearer ...` to cron paths |
 | `LIVE_SECRET` | **yes** | 32+ random characters. Signs live-queue tickets |
 | `NEXT_PUBLIC_APP_URL` | no | the final public origin, no trailing slash, for example `https://rakaza.xyz`. See section 5 |

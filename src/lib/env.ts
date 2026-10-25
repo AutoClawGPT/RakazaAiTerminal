@@ -10,7 +10,13 @@ import bs58 from "bs58";
  */
 
 const optStr = z.string().trim().min(1).optional();
-const secret32 = z.string().min(32, "must be at least 32 characters");
+// Keyless deploys must still build and serve public pages: a missing secret becomes "" (so every
+// feature that needs it refuses with a clear 503 / "not configured"), but a value that IS set must be >= 32 chars.
+const secret32 = z
+  .string()
+  .min(32, "must be at least 32 characters")
+  .optional()
+  .transform((v) => v ?? "");
 
 const base58Pubkey = z
   .string()
@@ -38,7 +44,7 @@ const numStr = (def: number) =>
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
-  // Generated locally, required in every environment.
+  // Generated locally. Optional at build time (keyless first deploy); features that need them report "not configured".
   SESSION_SECRET: secret32,
   CRON_SECRET: secret32,
   LIVE_SECRET: secret32,
