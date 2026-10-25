@@ -1,0 +1,20 @@
+// Headless check of /studio/create: owner can generate an image (dev preview owner), non-owner (production mode) is refused.
+import { createRequire } from "node:module";
+const require = createRequire("/workspace/shot-tool/package.json");
+const puppeteer = require("puppeteer-core");
+const BASE = process.env.BASE ?? "http://localhost:3200";
+const expectOwner = process.env.EXPECT_OWNER !== "0";
+const b = await puppeteer.launch({ executablePath: "/usr/bin/google-chrome", headless: "new", args: ["--no-sandbox"] });
+const p = await b.newPage();
+await p.goto(`${BASE}/studio/create`, { waitUntil: "networkidle0", timeout: 60000 });
+await p.type("#studio-prompt", "a purple haired cat-ear streamer with star hairpins");
+await p.evaluate(() => [...document.querySelectorAll("button")].find((x) => x.textContent.trim() === "Generate").click());
+await p.waitForFunction(() => /Made in|required|did not|rejected|error/i.test(document.querySelector("[data-testid=studio-result]")?.textContent ?? ""), { timeout: 90000 });
+const msg = await p.evaluate(() => document.querySelector("[data-testid=studio-result]").textContent);
+const img = await p.evaluate(() => { const i = document.querySelector("[data-testid=studio-create] img"); return i ? i.src.slice(0, 22) + " len=" + i.src.length : null; });
+if (process.env.SHOT) await p.screenshot({ path: process.env.SHOT });
+await b.close();
+console.log({ msg, img });
+const ok = expectOwner ? /Made in .* flux/.test(msg) && !!img : /Owner sign-in required/.test(msg) && !img;
+console.log(ok ? "STUDIO E2E PASS" : "STUDIO E2E FAIL");
+process.exit(ok ? 0 : 1);

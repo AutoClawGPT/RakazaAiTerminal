@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 import { StubPage } from "@/components/stub/stub-page";
+import { StudioCreate } from "@/components/pages/studio-create";
 
 export const metadata: Metadata = { title: "Studio \u00b7 Create" };
 
 export default function Page() {
-  return <StubPage path="/studio/create" />;
+  return (
+    <StubPage path="/studio/create">
+      <StudioCreate />
+    </StubPage>
+  );
 }
