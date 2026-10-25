@@ -817,6 +817,21 @@
    ]
   },
   {
+   "path": "/dev",
+   "title": "Dev",
+   "label": "Dev",
+   "group": "dash",
+   "access": "O",
+   "phase": 4,
+   "kicker": "Grinder CLI and core API",
+   "blurb": "Grind vanity addresses on your own computer, then use the key in a launch.",
+   "bullets": [
+    "Command-line grinder",
+    "Core API: grind, expectedKeys, keypairJson",
+    "Check a key file in the browser"
+   ]
+  },
+  {
    "path": "/keyvault",
    "title": "Key vault",
    "label": "Key vault",
