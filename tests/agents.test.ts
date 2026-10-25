@@ -6,7 +6,7 @@ import { checkHandle, handleFromName, normalizeHandle, RESERVED_HANDLES } from "
 import { avatarSvg, bannerSvg } from "../src/lib/agents/art";
 import { verifyWalletProof, walletProofMessage } from "../src/lib/agents/wallet-proof";
 import { signAgentSession, verifyAgentSession } from "../src/lib/agents/session";
-import { checkOembed, newVerifyCode, parseStatusUrl, verifyXPost } from "../src/lib/agents/verify-x";
+import { evaluateTweet, fetchTweet, newVerifyCode, normalizeXUsername, parseStatusUrl, tweetIntentUrl, verifyTweetText, verifyXPost } from "../src/lib/agents/verify-x";
 import { cleanPostBody, isCategory, isFeedTab, MAX_POST, trendScore } from "../src/lib/community/text";
 
 // handles
@@ -61,16 +61,62 @@ assert.equal(parseStatusUrl("https://x.com/alice/status/1234567890?s=20")?.canon
 assert.equal(parseStatusUrl("https://twitter.com/alice/status/1234567890")?.handle, "alice");
 assert.equal(parseStatusUrl("https://evil.com/alice/status/1234567890"), null);
 assert.equal(parseStatusUrl("https://x.com/alice"), null);
-const html = `<blockquote><p>my agent ${code}</p>&mdash; Alice (@alice)</blockquote>`;
-assert.ok(checkOembed({ html, author_url: "https://twitter.com/alice" }, "alice", code).ok);
-assert.ok(!checkOembed({ html, author_url: "https://twitter.com/bob" }, "alice", code).ok, "wrong author");
-assert.ok(!checkOembed({ html, author_url: "https://twitter.com/alice" }, "alice", "rk-00000000").ok, "wrong code");
-const fake = (status: number, body: unknown) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+const PROFILE = "https://rakaza-ai-terminal.vercel.app/agents/alice_ai";
+const want = { username: "alice", code, handle: "alice_ai" };
+const tw = (o: Partial<{ author: string; text: string; urls: string[] }> = {}) => ({ author: "alice", text: `Verifying my agent on Rakaza. ${code} https://t.co/abc`, urls: [PROFILE], ...o });
+assert.ok(evaluateTweet(tw(), want, "rakaza-ai-terminal.vercel.app").ok);
+assert.ok(evaluateTweet(tw({ author: "ALICE" }), want).ok, "username is case blind");
+assert.ok(!evaluateTweet(tw({ author: "bob" }), want).ok, "wrong author");
+assert.ok(!evaluateTweet(tw({ text: "no code here" }), want).ok, "wrong code");
+assert.ok(!evaluateTweet(tw({ urls: ["https://example.com/agents/alice_ai"] }), want, "rakaza-ai-terminal.vercel.app").ok, "wrong host");
+assert.ok(!evaluateTweet(tw({ urls: [] }), want).ok, "no profile link");
+assert.equal(normalizeXUsername("@Alice_1"), "Alice_1");
+assert.equal(normalizeXUsername("https://x.com/alice/"), "alice");
+assert.equal(normalizeXUsername("not valid!"), null);
+assert.match(verifyTweetText("Bot", code, PROFILE), new RegExp(`${code}[\\s\\S]*${PROFILE}`));
+assert.ok(tweetIntentUrl("a b").startsWith("https://x.com/intent/post?text=a%20b"));
+
+type Route = { match: RegExp; status: number; body?: unknown; headers?: Record<string, string> };
+const router = (routes: Route[]) => (async (u: string | URL | Request) => {
+  const url = String(u);
+  const r = routes.find((x) => x.match.test(url));
+  if (!r) throw new Error("net down " + url);
+  return new Response(r.body === undefined ? null : JSON.stringify(r.body), { status: r.status, headers: r.headers });
+}) as unknown as typeof fetch;
+const SYN = /cdn\.syndication\.twimg\.com/, OEM_X = /publish\.x\.com\/oembed/, OEM_T = /publish\.twitter\.com\/oembed/;
+const synBody = (o: { name?: string; text?: string; link?: string } = {}) => ({ text: o.text ?? `Verifying my agent on Rakaza. ${code} https://t.co/abc`, user: { screen_name: o.name ?? "alice" }, entities: { urls: [{ url: "https://t.co/abc", expanded_url: o.link ?? PROFILE, display_url: "rakaza-ai-terminal.vercel.app/agents/alice_ai" }] } });
+const input = (over: Partial<{ postUrl: string; username: string }> = {}) => ({ postUrl: "https://x.com/alice/status/1234567890", username: "@alice", code, handle: "alice_ai", host: "rakaza-ai-terminal.vercel.app", ...over });
+const oemBody = { author_url: "https://twitter.com/alice", html: `<blockquote class="twitter-tweet"><p lang="en" dir="ltr">Verifying my agent on Rakaza.<br>${code}<br><a href="https://t.co/abc">rakaza-ai-terminal.vercel.app/agents/alice_ai</a></p>&mdash; Alice (@alice)</blockquote>` };
 (async () => {
-  assert.deepEqual(await verifyXPost(`https://x.com/alice/status/1234567890`, code, fake(200, { html, author_url: "https://twitter.com/alice" })), { ok: true, xHandle: "alice" });
-  assert.equal((await verifyXPost(`https://x.com/alice/status/1234567890`, code, fake(404, {}))).ok, false);
-  assert.equal((await verifyXPost(`https://x.com/alice/status/1234567890`, code, (async () => { throw new Error("net"); }) as unknown as typeof fetch)).ok, false);
-  assert.equal((await verifyXPost(`nope`, code)).ok, false);
+  // syndication path
+  assert.deepEqual(await verifyXPost(input(), router([{ match: SYN, status: 200, body: synBody() }])), { state: "verified", xHandle: "alice" });
+  // falls back to oEmbed and resolves the t.co short link
+  assert.deepEqual(await verifyXPost(input(), router([{ match: SYN, status: 500 }, { match: OEM_X, status: 200, body: oemBody }, { match: /t\.co\/abc/, status: 301, headers: { location: PROFILE } }])), { state: "verified", xHandle: "alice" });
+  // last fallback: the old twitter.com oEmbed host
+  assert.equal((await verifyXPost(input(), router([{ match: OEM_T, status: 200, body: oemBody }, { match: /t\.co\/abc/, status: 301, headers: { location: PROFILE } }]))).state, "verified");
+  // wrong user, wrong code, no link: clear failures, never verified
+  const f1 = await verifyXPost(input({ username: "bob" }), router([{ match: SYN, status: 200, body: synBody() }]));
+  assert.equal(f1.state, "failed"); assert.match((f1 as { message: string }).message, /@alice but you said @bob/);
+  const f2 = await verifyXPost(input(), router([{ match: SYN, status: 200, body: synBody({ text: "hello" }) }]));
+  assert.equal(f2.state, "failed"); assert.match((f2 as { message: string }).message, /code/);
+  const f3 = await verifyXPost(input(), router([{ match: SYN, status: 200, body: synBody({ link: "https://example.com/" }) }]));
+  assert.equal(f3.state, "failed"); assert.match((f3 as { message: string }).message, /agent link/);
+  const f4 = await verifyXPost(input(), router([{ match: SYN, status: 200, body: synBody({ name: "mallory" }) }]));
+  assert.equal(f4.state, "failed", "post from another account");
+  // post not found or private
+  assert.equal((await verifyXPost(input(), router([{ match: SYN, status: 404 }, { match: OEM_X, status: 404 }, { match: OEM_T, status: 404 }]))).state, "failed");
+  // X unreachable: pending (retry), not failed
+  const pend = await verifyXPost(input(), (async () => { throw new Error("net"); }) as unknown as typeof fetch);
+  assert.equal(pend.state, "pending"); assert.match((pend as { message: string }).message, /again/);
+  assert.equal((await verifyXPost(input(), router([{ match: SYN, status: 503 }, { match: OEM_X, status: 503 }, { match: OEM_T, status: 503 }]))).state, "pending");
+  // bad input
+  assert.equal((await verifyXPost(input({ postUrl: "nope" }))).state, "failed");
+  assert.equal((await verifyXPost(input({ username: "!!" }))).state, "failed");
+
+  // REAL public post, no key: proves the parser against X itself. Skipped quietly when the box has no network.
+  const real = await fetchTweet("https://x.com/jack/status/20");
+  if (real.kind === "tweet") { assert.equal(real.tweet.author.toLowerCase(), "jack"); assert.match(real.tweet.text, /setting up my twttr/i); console.log("real tweet parsed:", real.tweet.author, JSON.stringify(real.tweet.text)); }
+  else console.log("real tweet check skipped (no network):", real.kind);
 
   // posts
   assert.deepEqual(cleanPostBody("  hello <b>world</b> \n\n\n\nbye "), { ok: true, body: "hello world\n\nbye" });

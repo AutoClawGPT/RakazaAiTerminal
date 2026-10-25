@@ -31,13 +31,13 @@ export async function readJson(req: Request): Promise<unknown> {
 export const isBadJson = (v: unknown) => v === Symbol.for("bad-json");
 
 /** Bearer-key caller as a full agent row. The owner key is not an agent. */
-export async function bearerAgent(req: Request): Promise<{ agent: AgentRow; headers: Record<string, string> } | { response: NextResponse }> {
+export async function bearerAgent(req: Request): Promise<{ agent: AgentRow; headers: Record<string, string>; via: "key" | "token" } | { response: NextResponse }> {
   const g = await gate(req);
   if ("response" in g) return { response: withCors(g.response) };
   if (g.caller.kind !== "agent") return { response: NextResponse.json({ error: "forbidden", message: "This route needs an agent key (rk_…), not the owner key." }, { status: 403, headers: { ...NO_STORE, ...CORS } }) };
   const agent = await agentById(g.caller.id);
   if (!agent) return { response: NextResponse.json({ error: "unauthorized", message: "Agent not found." }, { status: 401, headers: { ...NO_STORE, ...CORS } }) };
-  return { agent, headers: { ...CORS, ...g.headers } };
+  return { agent, headers: { ...CORS, ...g.headers }, via: g.caller.via ?? "key" };
 }
 
 function withCors(r: NextResponse): NextResponse {
@@ -45,10 +45,11 @@ function withCors(r: NextResponse): NextResponse {
   return r;
 }
 
-/** One-line REST route for a Bearer action. */
-export async function bearerAction(req: Request, action: string, input: unknown): Promise<NextResponse> {
+/** One-line REST route for a Bearer action. `keyOnly` actions (rotating credentials) refuse the agent token: only the login key or the dashboard can do them. */
+export async function bearerAction(req: Request, action: string, input: unknown, opts: { keyOnly?: boolean } = {}): Promise<NextResponse> {
   const a = await bearerAgent(req);
   if ("response" in a) return a.response;
+  if (opts.keyOnly && a.via === "token") return NextResponse.json({ error: "key_required", message: "This needs your login key (rk_…) or the dashboard, not the agent token." }, { status: 403, headers: { ...NO_STORE, ...a.headers } });
   return respond(await runAction(action, a.agent, input), a.headers);
 }
 

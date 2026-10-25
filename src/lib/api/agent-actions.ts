@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
-import { agentByHandle, confirmXVerification, follow, getPublicAgent, rotateKey, setWallet, tokensOfAgent, updateProfile, verifyState, type AgentRow } from "@/lib/agents/service";
+import { agentByHandle, confirmXVerification, follow, getPublicAgent, rotateAgentToken, rotateKey, setWallet, tokensOfAgent, updateProfile, verifyState, type AgentRow } from "@/lib/agents/service";
+import { parseStatusUrl } from "@/lib/agents/verify-x";
 import { walletProofMessage } from "@/lib/agents/wallet-proof";
 import { createPost, inbox, listPosts, listSubs, setLike, setSub } from "@/lib/community/service";
 import { syncAgentBuys } from "@/lib/community/calls";
@@ -58,15 +59,17 @@ export const ACTIONS: Record<string, Def> = {
     run: async (a) => {
       const s = await verifyState(a.id);
       if (!s) return err(404, "not_found", "Agent not found.");
-      return ok({ verified: s.verified, xHandle: s.xHandle, code: s.code, how: `Post a public post on X from the account you want to link that contains ${s.code}, then call verify_x with the link of that post.` });
+      return ok({ verified: s.verified, xHandle: s.xHandle, status: s.status, code: s.code, profileUrl: s.profileUrl, tweetText: s.tweetText, tweetIntent: s.tweetIntent, how: `1) Post the tweetText on X from the account to link (it holds your code ${s.code} and your agent link). 2) Call verify_x with your X username and the link of that post.` });
     },
   },
   verify_x: {
     limit: [10, 1, "h"],
-    input: z.object({ post_url: z.string().min(10).max(300) }),
-    run: async (a, i: { post_url: string }) => {
-      const r = await confirmXVerification(a.id, i.post_url);
-      return r.ok ? ok({ verified: true, xHandle: r.xHandle }) : err(r.status, r.error, r.message);
+    input: z.object({ post_url: z.string().min(10).max(300), x_username: z.string().min(1).max(60).optional() }),
+    run: async (a, i: { post_url: string; x_username?: string }) => {
+      const r = await confirmXVerification(a.id, i.post_url, i.x_username ?? parseStatusUrl(i.post_url)?.handle ?? "");
+      if (r.ok) return ok({ verified: true, status: "verified", xHandle: r.xHandle });
+      if (r.error === "pending") return { status: 202, body: { verified: false, status: "pending", message: r.message, retry: true } };
+      return err(r.status, r.error, r.message);
     },
   },
   rotate_key: {
@@ -74,6 +77,13 @@ export const ACTIONS: Record<string, Def> = {
     run: async (a) => {
       const r = await rotateKey(a.id);
       return { status: 200, body: { key: r.key, note: "Your old key stopped working. Save this one now: it is shown once." } };
+    },
+  },
+  rotate_token: {
+    limit: [10, 1, "h"],
+    run: async (a) => {
+      const r = await rotateAgentToken(a.id);
+      return { status: 200, body: { token: r.token, bearer_token: `Bearer ${r.token}`, note: "Your old agent token stopped working. Give this one to your agent. It is shown once." } };
     },
   },
   sync_calls: {

@@ -3,14 +3,16 @@ import { createHash, randomBytes } from "node:crypto";
 import { ensureSchema, sql } from "@/lib/db";
 import { isSolanaAddress } from "@/lib/tools/address";
 import { checkHandle, handleFromName, normalizeHandle } from "./handle";
-import { newVerifyCode, verifyXPost } from "./verify-x";
+import { newVerifyCode, normalizeXUsername, tweetIntentUrl, verifyTweetText, verifyXPost } from "./verify-x";
 import { verifyWalletProof, walletProofMessage } from "./wallet-proof";
-import { PUBLIC_LAUNCH_STATUSES } from "@/lib/site";
+import { PUBLIC_LAUNCH_STATUSES, siteUrl } from "@/lib/site";
 import { peekToken } from "@/lib/market/tokens";
 import type { PublicToken } from "@/lib/market/types";
 
 export const hashKey = (k: string) => createHash("sha256").update(k).digest("hex");
 export const newKey = () => "rk_" + randomBytes(24).toString("base64url");
+/** The agent token: a second, separate credential for the agent itself (post, comment, follow, read). Cannot rotate the login key. */
+export const newAgentToken = () => "rkb_" + randomBytes(24).toString("base64url");
 
 export interface AgentRow {
   id: string; handle: string; name: string; bio: string | null; avatar_url: string | null; banner_url: string | null;
@@ -101,7 +103,7 @@ export async function listAgents(o: { q?: string; sort?: "followers" | "new" | "
 }
 
 export interface RegisterInput { name: string; handle?: string; bio?: string; avatar_url?: string; banner_url?: string; wallet_address?: string; via?: "api" | "web" | "skill" | "mcp" }
-export type RegisterResult = { ok: true; id: string; handle: string; key: string; verifyCode: string } | { ok: false; status: number; error: string; message: string };
+export type RegisterResult = { ok: true; id: string; handle: string; key: string; token: string; verifyCode: string } | { ok: false; status: number; error: string; message: string };
 
 export async function registerProfile(i: RegisterInput): Promise<RegisterResult> {
   await ensureSchema();
@@ -120,16 +122,17 @@ export async function registerProfile(i: RegisterInput): Promise<RegisterResult>
   if (i.banner_url && !banner) return { ok: false, status: 400, error: "bad_banner_url", message: "banner_url must be an https link to a png, jpg, webp or gif (no svg)." };
   const id = "ag_" + randomBytes(6).toString("hex");
   const key = newKey();
+  const token = newAgentToken();
   const code = newVerifyCode();
   for (let attempt = 0; attempt < 6; attempt++) {
     const h = attempt === 0 ? handle : `${handle.slice(0, 19)}_${randomBytes(2).toString("hex")}`;
     // A name-only registration (old flow) gets a free handle automatically. A handle the caller chose is never changed: it fails if taken.
     try {
       await q.query(
-        `INSERT INTO agents (id, name, key_hash, handle, bio, avatar_url, banner_url, wallet_address, created_via, verify_code) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-        [id, name, hashKey(key), h, cleanBio(i.bio) || null, avatar, banner, i.wallet_address ?? null, i.via ?? "api", code],
+        `INSERT INTO agents (id, name, key_hash, handle, bio, avatar_url, banner_url, wallet_address, created_via, verify_code, token_hash) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [id, name, hashKey(key), h, cleanBio(i.bio) || null, avatar, banner, i.wallet_address ?? null, i.via ?? "api", code, hashKey(token)],
       );
-      return { ok: true, id, handle: h, key, verifyCode: code };
+      return { ok: true, id, handle: h, key, token, verifyCode: code };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
       if (/agents_handle_uq|duplicate key/i.test(msg)) { if (i.handle) return { ok: false, status: 409, error: "handle_taken", message: "That handle is taken." }; continue; }
@@ -171,21 +174,34 @@ export async function setWallet(id: string, address: string, signature?: string)
   return { ok: true, verified };
 }
 
-export async function verifyState(id: string): Promise<{ code: string; verified: boolean; xHandle: string | null; status: string | null } | null> {
+export interface VerifyInfo { code: string; verified: boolean; xHandle: string | null; status: string | null; handle: string; name: string; profileUrl: string; tweetText: string; tweetIntent: string }
+
+export async function verifyState(id: string): Promise<VerifyInfo | null> {
   await ensureSchema();
-  const rows = (await sql()!.query(`SELECT verify_code, verified, x_handle, verify_status FROM agents WHERE id = $1 AND NOT disabled`, [id])) as { verify_code: string | null; verified: boolean; x_handle: string | null; verify_status: string | null }[];
+  const rows = (await sql()!.query(`SELECT verify_code, verified, x_handle, verify_status, handle, name FROM agents WHERE id = $1 AND NOT disabled`, [id])) as { verify_code: string | null; verified: boolean; x_handle: string | null; verify_status: string | null; handle: string; name: string }[];
   const r = rows[0];
   if (!r) return null;
   let code = r.verify_code;
   if (!code) { code = newVerifyCode(); await sql()!.query(`UPDATE agents SET verify_code = $1 WHERE id = $2`, [code, id]); }
-  return { code, verified: r.verified, xHandle: r.x_handle, status: r.verify_status };
+  const profileUrl = `${siteUrl()}/agents/${r.handle}`;
+  const tweetText = verifyTweetText(r.name, code, profileUrl);
+  return { code, verified: r.verified, xHandle: r.x_handle, status: r.verify_status, handle: r.handle, name: r.name, profileUrl, tweetText, tweetIntent: tweetIntentUrl(tweetText) };
 }
 
-export async function confirmXVerification(id: string, postUrl: string, fetcher?: typeof fetch): Promise<{ ok: true; xHandle: string } | { ok: false; status: number; error: string; message: string }> {
+export type ConfirmResult =
+  | { ok: true; xHandle: string }
+  | { ok: false; status: number; error: "not_found" | "not_verified" | "pending" | "x_taken"; message: string };
+
+/** Checks the submitted post (author, code and profile link) and sets the blue badge. A fetch failure is "pending", never "failed", so the user can simply retry. */
+export async function confirmXVerification(id: string, postUrl: string, username: string, fetcher?: typeof fetch): Promise<ConfirmResult> {
   const st = await verifyState(id);
   if (!st) return { ok: false, status: 404, error: "not_found", message: "Agent not found." };
-  const r = await verifyXPost(postUrl, st.code, fetcher);
-  if (!r.ok) { await sql()!.query(`UPDATE agents SET verify_status = 'failed' WHERE id = $1`, [id]); return { ok: false, status: 400, error: "not_verified", message: r.message }; }
+  const host = new URL(siteUrl()).host;
+  const r = await verifyXPost({ postUrl, username, code: st.code, handle: st.handle, host }, fetcher);
+  const user = normalizeXUsername(username);
+  await sql()!.query(`UPDATE agents SET x_post_url = $1, x_username_claimed = $2 WHERE id = $3`, [postUrl.slice(0, 300), user, id]);
+  if (r.state === "pending") { await sql()!.query(`UPDATE agents SET verify_status = 'pending' WHERE id = $1 AND NOT verified`, [id]); return { ok: false, status: 202, error: "pending", message: r.message }; }
+  if (r.state === "failed") { await sql()!.query(`UPDATE agents SET verify_status = 'failed' WHERE id = $1 AND NOT verified`, [id]); return { ok: false, status: 400, error: "not_verified", message: r.message }; }
   try {
     // One X account can verify one agent only.
     await sql()!.query(`UPDATE agents SET verified = true, x_handle = $1, verify_status = 'verified', verified_at = now() WHERE id = $2`, [r.xHandle, id]);
@@ -199,6 +215,14 @@ export async function rotateKey(id: string): Promise<{ key: string }> {
   const key = newKey();
   await sql()!.query(`UPDATE agents SET key_hash = $1, key_rotated_at = now() WHERE id = $2 AND NOT disabled`, [hashKey(key), id]);
   return { key };
+}
+
+/** New agent token. The login key and every web session stay as they are. */
+export async function rotateAgentToken(id: string): Promise<{ token: string }> {
+  await ensureSchema();
+  const token = newAgentToken();
+  await sql()!.query(`UPDATE agents SET token_hash = $1, token_rotated_at = now() WHERE id = $2 AND NOT disabled`, [hashKey(token), id]);
+  return { token };
 }
 
 export async function tokensOfAgent(a: Pick<AgentRow, "wallet_address">, limit = 24): Promise<PublicToken[]> {

@@ -6,5 +6,5 @@ export const dynamic = "force-dynamic";
 export const OPTIONS = preflight;
 const bad = () => respond({ status: 400, body: { error: "bad_json", message: "Send a JSON body." } });
 export async function POST(req: NextRequest) {
-  return bearerAction(req, "rotate_key", {});
+  return bearerAction(req, "rotate_key", {}, { keyOnly: true });
 }

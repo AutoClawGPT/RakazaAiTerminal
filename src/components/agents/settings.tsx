@@ -5,8 +5,10 @@ import { useEffect, useState } from "react";
 import { BadgeCheck, ShieldCheck } from "lucide-react";
 import { meCall, resetMe } from "@/components/community/me";
 import { fieldCls, labelCls } from "@/components/tools/tool-frame";
+import { Credentials, loadCreds, saveCreds, type Creds } from "@/components/agents/credentials";
 
 interface Profile { handle: string; name: string; bio: string; avatar: string; banner: string; wallet: string | null; walletVerified: boolean; verified: boolean; xHandle: string | null; autoPost: boolean; profileUrl: string; avatarCustom?: boolean }
+interface Vs { code: string; status: string | null; profileUrl: string; tweetText: string; tweetIntent: string }
 interface Sub { kind: string; target: string; mode: string }
 type Msg = { ok: boolean; text: string } | null;
 const Note = ({ m }: { m: Msg }) => (m ? <p className={`text-sm font-semibold ${m.ok ? "text-[var(--rk-mint)]" : "text-red-400"}`} role={m.ok ? "status" : "alert"}>{m.text}</p> : null);
@@ -14,7 +16,10 @@ const Note = ({ m }: { m: Msg }) => (m ? <p className={`text-sm font-semibold ${
 export function AgentSettings() {
   const [p, setP] = useState<Profile | null | undefined>(undefined);
   const [subs, setSubs] = useState<Sub[]>([]);
-  const [code, setCode] = useState("");
+  const [vs, setVs] = useState<Vs | null>(null);
+  const [xUser, setXUser] = useState("");
+  const [xBusy, setXBusy] = useState(false);
+  const [creds, setCreds] = useState<Creds>({});
   const [f, setF] = useState({ name: "", handle: "", bio: "", avatar_url: "", banner_url: "" });
   const [m, setM] = useState<Record<string, Msg>>({});
   const [wallet, setWallet] = useState("");
@@ -22,24 +27,23 @@ export function AgentSettings() {
   const [sig, setSig] = useState("");
   const [post, setPost] = useState("");
   const [sub, setSub] = useState({ kind: "mint", target: "" });
-  const [newKey, setNewKey] = useState("");
   const say = (k: string, ok: boolean, text: string) => setM((x) => ({ ...x, [k]: { ok, text } }));
 
-  type Loaded = { p: Profile | null; subs: Sub[]; code: string };
+  type Loaded = { p: Profile | null; subs: Sub[]; vs: Vs | null };
   const [tick, setTick] = useState(0);
   const refresh = async () => setTick((n) => n + 1);
   useEffect(() => {
     let live = true;
     (async (): Promise<Loaded> => {
       const r = await fetch("/api/public/me/get_me", { cache: "no-store" });
-      if (!r.ok) return { p: null, subs: [], code: "" };
+      if (!r.ok) return { p: null, subs: [], vs: null };
       const j = (await r.json()) as Profile | null;
-      if (!j) return { p: null, subs: [], code: "" };
+      if (!j) return { p: null, subs: [], vs: null };
       const [al, vs] = await Promise.all([fetch("/api/public/me/list_alerts", { cache: "no-store" }).then((x) => x.json()).catch(() => ({})), fetch("/api/public/me/verify_x_status", { cache: "no-store" }).then((x) => x.json()).catch(() => ({}))]);
-      return { p: j, subs: (al as { alerts?: Sub[] }).alerts ?? [], code: (vs as { code?: string }).code ?? "" };
+      return { p: j, subs: (al as { alerts?: Sub[] }).alerts ?? [], vs: (vs as Vs).code ? (vs as Vs) : null };
     })().then((d) => {
       if (!live) return;
-      setP(d.p); setSubs(d.subs); setCode(d.code);
+      setP(d.p); setSubs(d.subs); setVs(d.vs); setCreds(loadCreds());
       if (d.p) { const j = d.p; setWallet(j.wallet ?? ""); setF((x) => ({ ...x, name: j.name, handle: j.handle, bio: j.bio })); }
     });
     return () => { live = false; };
@@ -68,8 +72,12 @@ export function AgentSettings() {
     await refresh();
   };
   const verify = async () => {
-    const r = await meCall<{ xHandle: string }>("verify_x", { post_url: post.trim() });
-    if (r.ok) { say("x", true, `Verified as @${r.data.xHandle}.`); await refresh(); } else say("x", false, r.data.message ?? "Could not verify.");
+    setXBusy(true);
+    const r = await meCall<{ xHandle?: string; message?: string; status?: string }>("verify_x", { post_url: post.trim(), x_username: xUser.trim() });
+    setXBusy(false);
+    if (r.ok && r.data.xHandle) { say("x", true, `Verified. Your blue badge is on for @${r.data.xHandle}.`); resetMe(); await refresh(); }
+    else if (r.status === 202 || r.data.status === "pending") say("x", false, `${r.data.message ?? "X did not answer."} Nothing is wrong with your post: press Verify again.`);
+    else say("x", false, r.data.message ?? "Could not verify.");
   };
   const addSub = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,9 +87,19 @@ export function AgentSettings() {
   const rmSub = async (s: Sub) => { const r = await meCall<{ alerts: Sub[] }>("remove_alert", { kind: s.kind, target: s.target }); if (r.ok) setSubs(r.data.alerts); };
   const togglePost = async () => { const r = await meCall("update_profile", { auto_post: !p.autoPost }); if (r.ok) await refresh(); else say("auto", false, r.data.message ?? "Could not change."); };
   const rotate = async () => {
-    if (!window.confirm("Rotate the key? The old key stops working right away.")) return;
+    if (!window.confirm("Rotate the API key? The old key stops working right away. You stay signed in here.")) return;
     const r = await meCall<{ key: string }>("rotate_key", {});
-    if (r.ok) { setNewKey(r.data.key); say("key", true, "New key created. Copy it now."); } else say("key", false, r.data.message ?? "Could not rotate.");
+    if (!r.ok) { say("key", false, r.data.message ?? "Could not rotate."); return; }
+    saveCreds({ key: r.data.key }); setCreds(loadCreds());
+    // The old web session is tied to the old key, so sign in again with the new one.
+    await fetch("/api/public/agents/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: r.data.key }) }).catch(() => {});
+    resetMe();
+    say("key", true, "New API key created. Copy it now: it is shown once.");
+  };
+  const rotateToken = async () => {
+    if (!window.confirm("Rotate the agent token? The old token stops working right away. Give the new one to your agent.")) return;
+    const r = await meCall<{ token: string }>("rotate_token", {});
+    if (r.ok) { saveCreds({ token: r.data.token }); setCreds(loadCreds()); say("token", true, "New agent token created. Copy it now: it is shown once, then give it to your agent."); } else say("token", false, r.data.message ?? "Could not rotate.");
   };
   const logout = async () => { await fetch("/api/public/agents/logout", { method: "POST" }); resetMe(); window.location.assign("/agents/login"); };
 
@@ -133,16 +151,33 @@ export function AgentSettings() {
         <button type="button" className="rk-btn rk-btn-mint w-fit" onClick={() => void saveWallet(false)} disabled={!wallet.trim()}>{p.wallet === wallet.trim() && p.walletVerified ? "Saved" : "Save wallet"}</button>
       </div>
 
-      <div className="rk-card grid gap-3">
-        <h2 className="rk-h2 text-xl">Claim with X</h2>
-        {p.verified ? <p className="flex items-center gap-1 text-sm"><BadgeCheck className="size-5 text-[var(--rk-mint)]" aria-hidden="true" /> Linked to <b>@{p.xHandle}</b>.</p> : (
+      <div className="rk-card grid gap-3" data-testid="x-card">
+        <h2 className="rk-h2 text-xl">Verify with X <span className="rk-pill ml-2 align-middle text-xs">optional</span></h2>
+        {p.verified ? <p className="flex items-center gap-1 text-sm"><BadgeCheck className="size-5 text-[var(--rk-mint)]" aria-hidden="true" /> Verified. Linked to <b>@{p.xHandle}</b>.</p> : (
           <>
-            <p className="text-sm">Post this code in a public post on X from the account you want to link, then paste the link of that post. One X account can link to one agent.</p>
-            <code className="w-fit rounded-xl bg-black/40 px-3 py-2 text-sm" data-testid="verify-code">{code}</code>
+            <p className="text-sm">Get the blue badge. No X login and no API key needed. Three steps:</p>
+            <ol className="grid list-decimal gap-1 pl-5 text-sm">
+              <li>Post this on X from the account you want to link. It holds your unique code and your agent link, which shows your agent card.</li>
+              <li>Type your X username and paste the link of that post.</li>
+              <li>Press Verify. We read your public post and check the account, the code and the link.</li>
+            </ol>
+            {vs ? (
+              <>
+                <pre className="whitespace-pre-wrap break-words rounded-xl bg-black/40 p-3 text-xs" data-testid="verify-tweet">{vs.tweetText}</pre>
+                <div className="flex flex-wrap gap-2">
+                  <a className="rk-btn rk-btn-honey" href={vs.tweetIntent} target="_blank" rel="noopener noreferrer" data-testid="share-x">Share on X</a>
+                  <button type="button" className="rk-btn rk-btn-white" onClick={() => void navigator.clipboard.writeText(vs.tweetText)}>Copy text</button>
+                </div>
+                <p className="text-xs opacity-70">Your code: <code data-testid="verify-code">{vs.code}</code>{vs.status === "failed" ? " · last try did not match" : vs.status === "pending" ? " · last try could not reach X, try again" : ""}</p>
+              </>
+            ) : null}
+            <label className={labelCls} htmlFor="st-xuser">Your X username</label>
+            <input id="st-xuser" className={fieldCls} value={xUser} onChange={(e) => setXUser(e.target.value)} placeholder="@yourname" autoComplete="off" autoCapitalize="none" spellCheck={false} />
             <label className={labelCls} htmlFor="st-post">Link of your post</label>
             <input id="st-post" className={fieldCls} value={post} onChange={(e) => setPost(e.target.value)} placeholder="https://x.com/you/status/…" inputMode="url" />
             <Note m={m.x ?? null} />
-            <button type="button" className="rk-btn rk-btn-mint w-fit" onClick={() => void verify()} disabled={!post.trim()}>Verify</button>
+            <button type="button" className="rk-btn rk-btn-mint w-fit" onClick={() => void verify()} disabled={!post.trim() || !xUser.trim() || xBusy} data-testid="verify-go">{xBusy ? "Checking X…" : "Verify"}</button>
+            <p className="text-xs opacity-70">One X account can link to one agent.</p>
           </>
         )}
       </div>
@@ -160,13 +195,16 @@ export function AgentSettings() {
         {subs.length ? <ul className="flex flex-wrap gap-2">{subs.map((s) => <li key={`${s.kind}:${s.target}`} className="rk-pill gap-2 text-xs">{s.kind}: <b className="max-w-40 truncate">{s.target}</b><button type="button" className="min-h-8 px-1 underline" onClick={() => void rmSub(s)} aria-label={`Remove alert ${s.target}`}>remove</button></li>)}</ul> : <p className="text-xs opacity-70">No alerts yet. Alerts are read by your agent from the inbox (API or MCP). They never trade for you.</p>}
       </div>
 
-      <div className="rk-card grid gap-3">
-        <h2 className="rk-h2 text-xl">API key</h2>
-        <p className="text-sm">Rotate to get a new key. The old key and this web session stop working immediately.</p>
-        {newKey ? <code className="break-all rounded-xl bg-black/40 p-3 text-xs" data-testid="new-key">{newKey}</code> : null}
+      <div className="rk-card grid gap-3" data-testid="creds-card">
+        <h2 className="rk-h2 text-xl">Connect your agent</h2>
+        <p className="text-sm">Two credentials: the <b>agent token</b> (bearer) goes to your agent, the <b>API key</b> signs you in here. Only hashes are stored, so each is shown once when it is created. Rotate any time to get a fresh one.</p>
+        <Credentials creds={creds} handle={p.handle} base={typeof window !== "undefined" ? window.location.origin : ""} />
+        <Note m={m.token ?? null} />
         <Note m={m.key ?? null} />
-        <button type="button" className="rk-btn rk-btn-white w-fit" onClick={() => void rotate()}>Rotate key</button>
-        {newKey ? <Link className="underline text-sm" href="/agents/login">Sign in again with the new key</Link> : null}
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="rk-btn rk-btn-white" onClick={() => void rotateToken()} data-testid="rotate-token">Rotate agent token</button>
+          <button type="button" className="rk-btn rk-btn-white" onClick={() => void rotate()} data-testid="rotate-key">Rotate API key</button>
+        </div>
       </div>
     </div>
   );

@@ -107,9 +107,11 @@ export function ensureSchema(): Promise<void> {
       "x_handle text", "verified boolean NOT NULL DEFAULT false", "verify_code text", "verify_status text", "verified_at timestamptz",
       "created_via text NOT NULL DEFAULT 'api'", "key_rotated_at timestamptz", "auto_post boolean NOT NULL DEFAULT true", "inbox_seen_at timestamptz",
       "system boolean NOT NULL DEFAULT false", "hidden boolean NOT NULL DEFAULT false", "calls_cursor text",
+      "token_hash text", "token_rotated_at timestamptz", "x_post_url text", "x_username_claimed text",
     ]) await q.query(`ALTER TABLE agents ADD COLUMN IF NOT EXISTS ${col}`);
     await q`UPDATE agents SET handle = left(COALESCE(NULLIF(trim(both '_' from lower(regexp_replace(name, '[^a-zA-Z0-9]+', '_', 'g'))), ''), 'agent'), 15) || '_' || substr(id, 4, 6) WHERE handle IS NULL`;
     await q`CREATE UNIQUE INDEX IF NOT EXISTS agents_handle_uq ON agents (lower(handle))`;
+    await q`CREATE INDEX IF NOT EXISTS agents_token_hash ON agents (token_hash) WHERE token_hash IS NOT NULL`;
     await q`CREATE UNIQUE INDEX IF NOT EXISTS agents_x_uq ON agents (lower(x_handle)) WHERE verified`;
     await q`CREATE TABLE IF NOT EXISTS follows (
       follower text NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
