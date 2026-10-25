@@ -5,6 +5,9 @@ import { getRoute } from "@/lib/routes";
 export const metadata: Metadata = { title: "Explore" };
 export const dynamic = "force-dynamic";
 
+/** Server actions on this page run under this limit (Vercel function duration). */
+export const maxDuration = 60;
+
 export default function Page() {
   const r = getRoute("/explore");
   return (

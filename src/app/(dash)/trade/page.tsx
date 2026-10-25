@@ -5,6 +5,9 @@ import { getRoute } from "@/lib/routes";
 
 export const metadata: Metadata = { title: "Trade" };
 
+/** Server actions on this page run under this limit (Vercel function duration). */
+export const maxDuration = 60;
+
 export default function Page() {
   const r = getRoute("/trade");
   return (

@@ -8,6 +8,9 @@ import { isExecuteEnabled } from "@/lib/execute-gate";
 export const metadata: Metadata = { title: "Launch" };
 export const dynamic = "force-dynamic";
 
+/** Server actions on this page run under this limit (Vercel function duration). */
+export const maxDuration = 120;
+
 export default function Page() {
   const r = getRoute("/launch");
   const reason = isExecuteEnabled() ? "" : "Execution is off on this server, so nothing can be signed or sent.";

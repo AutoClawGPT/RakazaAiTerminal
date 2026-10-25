@@ -26,6 +26,9 @@ const LINKS: Record<string, string> = {
   PIMLICO_API_KEY: "https://dashboard.pimlico.io",
 };
 
+/** Server actions on this page run under this limit (Vercel function duration). */
+export const maxDuration = 60;
+
 export default async function Page() {
   const health = keyHealth();
   const rows = Object.entries(health);

@@ -20,6 +20,9 @@ const LINKS = [
   { href: "/studio/help", title: "Help", body: "What the Studio never asks for: seed phrases, private keys and DMs.", cta: "Open Help", primary: false },
 ];
 
+/** Server actions on this page run under this limit (Vercel function duration). */
+export const maxDuration = 60;
+
 export default function Page() {
   return (
     <>

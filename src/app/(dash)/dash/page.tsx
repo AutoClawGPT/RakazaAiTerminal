@@ -21,6 +21,9 @@ async function agentCount(): Promise<number | null> {
   } catch { return null; }
 }
 
+/** Server actions on this page run under this limit (Vercel function duration). */
+export const maxDuration = 60;
+
 export default async function Page() {
   const r = getRoute("/dash");
   const health = Object.values(keyHealth());
