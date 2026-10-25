@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ToolHero } from "@/components/tools/tool-frame";
 import { LaunchClient } from "@/components/launch/launch-client";
+import { AgentLaunch } from "@/components/launch/agent-launch";
 import { getRoute } from "@/lib/routes";
 import { publicEnv } from "@/lib/public-env";
 import { isExecuteEnabled } from "@/lib/execute-gate";
@@ -14,6 +15,7 @@ export default function Page() {
     <>
       <ToolHero kicker={r.kicker} title={r.title} blurb={r.blurb} />
       <section className="rk-container grid max-w-3xl gap-5 py-8 md:py-12">
+        <AgentLaunch treasury={publicEnv.treasuryPubkey} network={publicEnv.network} executeBlockedReason={reason} />
         <LaunchClient treasury={publicEnv.treasuryPubkey} network={publicEnv.network} executeBlockedReason={reason} />
       </section>
     </>
