@@ -88,7 +88,8 @@ const tool = async (key: string, name: string, args: unknown = {}) => {
     // That is the guard working, not a defect. Run it against a fresh address or localhost for the 400.
     const loginHtml = await (await fetch(BASE + "/login")).text();
     check("open login page: agent key, register and separate owner sign in", /Sign in with your agent API key/.test(loginHtml) && /New here\? Register for free/.test(loginHtml) && /Owner sign in/.test(loginHtml) && /href="\/register"/.test(loginHtml));
-    check("bad name refused", (await call("POST", "/api/public/register", undefined, { name: "" })).status === 400);
+    const badName = await call("POST", "/api/public/register", undefined, { name: "" });
+    check("bad name refused", badName.status === 400, `got ${badName.status} ${JSON.stringify(badName.json)} (429 slow_down means the per-address registration limit answered first)`);
 
     // registration is limited per address (5 an hour): the 6th from one address is refused
     const lim = fakeIp(); let last = 0; let ra: string | null = null;
