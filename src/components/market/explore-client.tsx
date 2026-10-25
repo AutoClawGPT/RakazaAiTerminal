@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PublicToken } from "@/lib/market/types";
 import { TokenCard } from "./token-card";
+import { startLive } from "@/lib/live/start-live";
 
 type Tab = "new" | "graduating" | "graduated" | "trending";
 const TABS: { id: Tab; label: string; hint: string }[] = [
@@ -43,6 +44,7 @@ export function ExploreClient({ initial, initialNow }: { initial: ListOut | null
     } catch (e) {
       if (my !== seq.current) return;
       if (!silent) setErr(e instanceof Error ? e.message : "Could not load tokens.");
+      return false;
     } finally {
       if (my === seq.current) setLoading(false);
     }
@@ -55,8 +57,7 @@ export function ExploreClient({ initial, initialNow }: { initial: ListOut | null
   }, [load, initial, tab, term]);
 
   useEffect(() => {
-    const i = setInterval(() => { if (document.visibilityState === "visible") void load(true); }, 12000);
-    return () => clearInterval(i);
+    return startLive(() => load(true), 12000);
   }, [load]);
 
   async function loadMore() {

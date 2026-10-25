@@ -6,6 +6,7 @@ import type { PublicToken, PublicTrade } from "@/lib/market/types";
 import { fmtCompact, fmtPrice, fmtSol, fmtUsd, timeAgo } from "./format";
 import { GradBar } from "./grad-bar";
 import { PriceChart } from "./price-chart";
+import { startLive } from "@/lib/live/start-live";
 
 interface Holder { address: string; amount: number; pct: number; isCurve: boolean }
 
@@ -19,12 +20,12 @@ function usePoll<T>(url: string, ms: number, pick: (j: Record<string, unknown>) 
         const r = await fetch(url, { cache: "no-store" });
         const j = (await r.json()) as Record<string, unknown>;
         if (!stop && r.ok && j.ok) { const p = pick(j); if (p !== undefined) setV(p); }
-      } catch { /* keep the last good value */ }
+      } catch { /* keep the last good value */ if (!stop) setDone(true); return false; }
       if (!stop) setDone(true);
     }
     void go();
-    const t = setInterval(() => { if (document.visibilityState === "visible") void go(); }, ms);
-    return () => { stop = true; clearInterval(t); };
+    const stopLive = startLive(() => go(), ms);
+    return () => { stop = true; stopLive(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, ms]);
   return [v, done] as const;

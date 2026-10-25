@@ -4,6 +4,7 @@ import { CandlestickSeries, ColorType, createChart, HistogramSeries, type IChart
 import { useEffect, useRef, useState } from "react";
 import type { Candle } from "@/lib/market/types";
 import { fmtPrice, fmtSol, SUPPLY } from "./format";
+import { startLive } from "@/lib/live/start-live";
 
 const INTERVALS = ["15s", "1m", "5m", "15m", "1h", "1d"] as const;
 type Iv = (typeof INTERVALS)[number];
@@ -77,11 +78,11 @@ export function PriceChart({ mint, pollMs = 3000 }: { mint: string; pollMs?: num
         setLiveAt(Date.now());
         if (j.candles.length === 0) setState("empty");
         else { setState("ready"); if (!fitted.current) { chart.current?.timeScale().fitContent(); fitted.current = true; } }
-      } catch { if (!stop) setState((s) => (s === "ready" ? s : "error")); }
+      } catch { if (!stop) setState((s) => (s === "ready" ? s : "error")); return false; }
     }
     void load();
-    const t = setInterval(() => { if (document.visibilityState === "visible") void load(); }, pollMs);
-    return () => { stop = true; clearInterval(t); };
+    const stopLive = startLive(() => load(), pollMs);
+    return () => { stop = true; stopLive(); };
   }, [mint, iv, pollMs]);
 
   // Switch between market cap and price without refetching.

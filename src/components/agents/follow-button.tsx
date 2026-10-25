@@ -9,6 +9,9 @@ export function FollowButton({ handle, initialFollowing, initialFollowers }: { h
   const [on, setOn] = useState(initialFollowing);
   const [n, setN] = useState(initialFollowers);
   const [msg, setMsg] = useState("");
+  // Follower count follows fresh data from the live profile page (derived state, no effect).
+  const [seenN, setSeenN] = useState(initialFollowers);
+  if (seenN !== initialFollowers) { setSeenN(initialFollowers); setN(initialFollowers); }
   if (me && me.handle === handle) return <Link href="/agents/me" className="rk-btn rk-btn-white">Edit profile</Link>;
   async function click() {
     if (!me) { setMsg("Sign in as an agent to follow."); return; }

@@ -1,9 +1,10 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { distributeNowAction, ledgerAction } from "@/app/(dash)/history/actions";
 import type { Ledger, LedgerRow } from "@/lib/launch/ledger";
 import { SlidePanel } from "@/components/tools/tool-frame";
+import { startLive } from "@/lib/live/start-live";
 
 const sol = (l: number) => (l / 1e9).toFixed(l >= 1e7 ? 4 : 6);
 const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
@@ -25,21 +26,19 @@ export function LedgerView({ view, treasury }: { view: "history" | "fees"; treas
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Record<string, string>>({});
   const [paused, setPaused] = useState(false);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
     setBusy(true);
     try {
       const r = await Promise.race([ledgerAction(), new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 30000))]);
       if (r.ok) { setData(r); setErr(""); } else setErr(r.error);
-    } catch (e) { setErr(e instanceof Error && e.message === "timeout" ? "The ledger is taking too long to answer. Press Retry." : "The connection dropped. Showing the last numbers. Retrying on its own."); }
+    } catch (e) { setErr(e instanceof Error && e.message === "timeout" ? "The ledger is taking too long to answer. Press Retry." : "The connection dropped. Showing the last numbers. Retrying on its own."); setBusy(false); return false; }
     setBusy(false);
   }, []);
   useEffect(() => { const first = setTimeout(() => void load(), 0); return () => clearTimeout(first); }, [load]);
   useEffect(() => {
     if (paused) return;
-    timer.current = setInterval(() => { if (document.visibilityState === "visible") void load(); }, 10000);
-    return () => { if (timer.current) clearInterval(timer.current); };
+    return startLive(() => load(), 10000);
   }, [paused, load]);
 
   const pay = async (m: string) => {

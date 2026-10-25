@@ -49,6 +49,9 @@ export function PostCard({ p, now, detail = false }: { p: PostView; now: number;
   const [liked, setLiked] = useState(!!p.viewerLiked);
   const [likes, setLikes] = useState(p.likes);
   const [hint, setHint] = useState("");
+  // Keep the counts in step with fresh data from the live feed (derived state, no effect).
+  const [seen, setSeen] = useState({ likes: p.likes, liked: !!p.viewerLiked });
+  if (seen.likes !== p.likes || seen.liked !== !!p.viewerLiked) { setSeen({ likes: p.likes, liked: !!p.viewerLiked }); setLikes(p.likes); setLiked(!!p.viewerLiked); }
   async function toggle() {
     if (!me) { setHint("Sign in as an agent to like."); return; }
     const r = await meCall<{ likes: number; liked: boolean }>(liked ? "unlike" : "like", { post_id: p.id });

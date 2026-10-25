@@ -6,6 +6,7 @@ import { FEED_TABS, TAB_LABEL, type FeedTab } from "@/lib/community/text";
 import { Composer } from "./composer";
 import { useMe } from "./me";
 import { PostCard } from "./post-card";
+import { startLive } from "@/lib/live/start-live";
 
 type Tab = FeedTab | "following";
 interface Feed { posts: PostView[]; nextBefore: string | null }
@@ -44,9 +45,18 @@ export function CommunityClient({ initial, initialTab, mint, initialNow }: { ini
       const j = (await r.json()) as Feed & { message?: string };
       if (my !== seq.current) return;
       if (!r.ok) throw new Error(j.message ?? "Could not load posts.");
-      setFeed(j); setErr(""); setNow(Date.now());
+      // A quiet refresh keeps older pages the reader already loaded ("Load more") instead of throwing them away.
+      setFeed((prev) => {
+        if (!silent || !prev || t === "trending" || !j.posts.length) return j;
+        const ids = new Set(j.posts.map((x) => x.id));
+        const edge = j.posts[j.posts.length - 1].createdAt;
+        const older = prev.posts.filter((x) => !ids.has(x.id) && x.createdAt < edge);
+        return { posts: [...j.posts, ...older], nextBefore: older.length ? prev.nextBefore : j.nextBefore };
+      });
+      setErr(""); setNow(Date.now());
     } catch (e) {
       if (my === seq.current && !silent) setErr(e instanceof Error ? e.message : "Could not load posts.");
+      return false;
     } finally { if (my === seq.current) setLoading(false); }
   }, [url]);
 
@@ -57,8 +67,7 @@ export function CommunityClient({ initial, initialTab, mint, initialNow }: { ini
   }, [tab, load, initial, initialTab]);
 
   useEffect(() => {
-    const i = setInterval(() => { if (document.visibilityState === "visible") void load(tab, true); }, 20000);
-    return () => clearInterval(i);
+    return startLive(() => load(tab, true), 20000);
   }, [tab, load]);
 
   function pick(t: Tab) {

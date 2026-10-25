@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ledgerAction } from "@/app/(dash)/history/actions";
 import type { Ledger, LedgerRow } from "@/lib/launch/ledger";
+import { startLive } from "@/lib/live/start-live";
 
 const sol = (l: number) => (l / 1e9).toFixed(l >= 1e7 ? 4 : 6);
 const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
@@ -14,9 +15,9 @@ function useLedger() {
     try {
       const r = await Promise.race([ledgerAction(), new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 30000))]);
       if (r.ok) { setData(r); setErr(""); } else setErr(r.error);
-    } catch (e) { setErr(e instanceof Error && e.message === "timeout" ? "The ledger is taking too long to answer. Press Retry." : "The connection dropped. Showing the last numbers. Retrying on its own."); }
+    } catch (e) { setErr(e instanceof Error && e.message === "timeout" ? "The ledger is taking too long to answer. Press Retry." : "The connection dropped. Showing the last numbers. Retrying on its own."); return false; }
   }, []);
-  useEffect(() => { const first = setTimeout(() => void load(), 0); const t = setInterval(() => { if (document.visibilityState === "visible") void load(); }, 15000); return () => { clearTimeout(first); clearInterval(t); }; }, [load]);
+  useEffect(() => { const first = setTimeout(() => void load(), 0); const stopLive = startLive(() => load(), 15000); return () => { clearTimeout(first); stopLive(); }; }, [load]);
   return { data, err, retry: load };
 }
 

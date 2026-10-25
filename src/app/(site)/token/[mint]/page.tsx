@@ -7,8 +7,7 @@ import { ShareButton } from "@/components/market/share-button";
 import { TokenLive } from "@/components/market/token-live";
 import { TokenImage } from "@/components/market/token-card";
 import { ToolHero } from "@/components/tools/tool-frame";
-import { Composer } from "@/components/community/composer";
-import { PostCard } from "@/components/community/post-card";
+import { ThreadLive } from "@/components/community/thread-live";
 import { nowMs } from "@/components/market/format";
 import { listPosts } from "@/lib/community/service";
 import { sql } from "@/lib/db";
@@ -94,8 +93,7 @@ export default async function Page({ params }: PageProps<"/token/[mint]">) {
         {owner ? <Suspense fallback={<div className="rk-card text-sm">Running owner checks...</div>}><OwnerChecks mint={mint} /></Suspense> : null}
         <section className="grid max-w-3xl gap-3" aria-labelledby="thread-h" data-testid="token-thread">
           <h2 id="thread-h" className="rk-h2 text-xl">Community thread</h2>
-          <Composer mint={mint} defaultCategory="callouts" />
-          {thread && thread.posts.length ? <ul className="grid gap-3">{thread.posts.map((p) => <PostCard key={p.id} p={p} now={now} />)}</ul> : <p className="text-sm opacity-80">No posts about this token yet.</p>}
+          <ThreadLive mint={mint} initial={thread?.posts ?? []} initialNow={now} />
         </section>
         <p className="text-xs opacity-70">Numbers come from the chain and our own trade index, refreshed every few seconds. Nothing here is financial advice.</p>
       </section>

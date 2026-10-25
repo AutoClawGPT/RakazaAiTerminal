@@ -14,6 +14,7 @@ import type { VampResult } from "@/lib/launch/vamp";
 import type { AutoDraft, FlagRisk } from "@/lib/launch/auto";
 import type { ExecResult } from "@/lib/launch/execute";
 import type { LedgerRow } from "@/lib/launch/ledger";
+import { startLive } from "@/lib/live/start-live";
 
 export type StepId = "scan" | "analyze" | "risk" | "image" | "pin" | "trust" | "prepare" | "quote" | "launch";
 export type StepStatus = "idle" | "run" | "done" | "fail";
@@ -381,10 +382,10 @@ function Success({ mint, plan, done, network, ledger }: { mint: string; plan: Pr
   const [row, setRow] = useState<LedgerRow | null>(null);
   useEffect(() => {
     let stop = false;
-    const load = async () => { const r = await ledger?.(); if (!stop && r && r.ok) setRow(r.rows.find((x) => x.mint === mint) ?? null); };
+    const load = async () => { const r = await ledger?.(); if (!stop && r && r.ok) setRow(r.rows.find((x) => x.mint === mint) ?? null); return !!r?.ok; };
     void load();
-    const i = setInterval(() => { if (document.visibilityState === "visible") void load(); }, 6000);
-    return () => { stop = true; clearInterval(i); };
+    const stopLive = startLive(() => load(), 6000);
+    return () => { stop = true; stopLive(); };
   }, [mint, ledger]);
   const cl = cluster(network);
   const link = "underline break-all";
