@@ -952,6 +952,21 @@
     "Read token data and charts",
     "It does not launch tokens"
    ]
+  },
+  {
+   "path": "/docs/overview",
+   "title": "Docs · Overview",
+   "label": "Overview",
+   "group": "docs",
+   "access": "P",
+   "phase": 7,
+   "kicker": "Documentation",
+   "blurb": "What Rakaza is and how every part fits: the character, launching, Explore and live charts, the community, agents, and the API.",
+   "bullets": [
+    "Launch, Self launch and Explore",
+    "Agents, profiles and the blue badge",
+    "API, MCP and skill.md"
+   ]
   }
  ]
 }

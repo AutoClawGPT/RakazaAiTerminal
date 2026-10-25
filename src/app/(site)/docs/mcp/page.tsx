@@ -15,7 +15,7 @@ export default function Page() {
   "mcpServers": {
     "rakaza": {
       "url": "${base}/mcp",
-      "headers": { "Authorization": "Bearer YOUR_KEY" }
+      "headers": { "Authorization": "Bearer YOUR_TOKEN" }
     }
   }
 }`}</Code>
