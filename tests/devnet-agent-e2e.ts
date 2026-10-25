@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- loose JSON in a test script */
 // DEVNET ONLY. An agent registers over the API, proves a throwaway devnet wallet, makes one tiny real pump.fun buy on a devnet token, syncs it, and the
 // buy shows up as an automatic Callout. Then the launch-callout hook is run for that wallet and an MCP call is made. Never prints a key.
 // Prereq: `npx tsx tests/devnet-throwaway.ts fund 0.05` (writes /tmp/rakaza-selflaunch.json, 0600). Hides (never deletes) the test agent and its posts.
@@ -19,7 +20,7 @@ const ok = (n: string, c: boolean, d = "") => { console.log(`${c ? "ok  " : "FAI
 const ip = `10.${randomBytes(1)[0]}.${randomBytes(1)[0]}.${randomBytes(1)[0]}`;
 const api = async (method: string, path: string, key?: string, body?: unknown) => {
   const r = await fetch(BASE + path, { method, headers: { "x-forwarded-for": ip, ...(key ? { authorization: `Bearer ${key}` } : {}), ...(body ? { "content-type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined });
-  const t = await r.text(); let j: any = null; try { j = JSON.parse(t); } catch { /* text */ }
+  const t = await r.text(); let j: Record<string, any> = {}; try { j = JSON.parse(t); } catch { /* text */ }
   return { status: r.status, j };
 };
 
@@ -81,10 +82,10 @@ const api = async (method: string, path: string, key?: string, body?: unknown) =
 
     // MCP
     const mcp = await fetch(BASE + "/mcp", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${key}`, "x-forwarded-for": ip }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "sync_my_buys", arguments: {} } }) });
-    const mj: any = await mcp.json();
+    const mj: Record<string, any> = await mcp.json();
     ok("MCP sync_my_buys works", mcp.status === 200 && !mj.result?.isError, JSON.stringify(mj).slice(0, 200));
     const tl2 = await fetch(BASE + "/mcp", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${key}`, "x-forwarded-for": ip }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "token_stats", arguments: { mint: MINT } } }) });
-    const tj: any = await tl2.json();
+    const tj: Record<string, any> = await tl2.json();
     ok("MCP token_stats works", tl2.status === 200 && !tj.result?.isError, JSON.stringify(tj).slice(0, 200));
   } finally {
     const q = sql();

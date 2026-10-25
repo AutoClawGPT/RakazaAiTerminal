@@ -10,7 +10,8 @@ async function handle(req: NextRequest, ctx: RouteContext<"/api/public/me/[actio
   const { action } = await ctx.params;
   if (!(action in ACTIONS)) return NextResponse.json({ error: "unknown_action", message: "No such action." }, { status: 404, headers: NO_STORE });
   const a = await cookieAgent(req, { write });
-  if ("response" in a) return a.response;
+  // A signed-out visitor asking "who am I" is normal, so it answers 200 with null instead of a red 401 in the browser console.
+  if ("response" in a) return !write && action === "get_me" && a.response.status === 401 ? NextResponse.json(null, { headers: NO_STORE }) : a.response;
   let input: unknown = {};
   if (write) { input = await readJson(req); if (isBadJson(input)) return NextResponse.json({ error: "bad_json", message: "Send a JSON body." }, { status: 400, headers: NO_STORE }); }
   else input = Object.fromEntries(req.nextUrl.searchParams);

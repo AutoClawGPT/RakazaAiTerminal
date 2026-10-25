@@ -33,7 +33,8 @@ export function AgentSettings() {
     (async (): Promise<Loaded> => {
       const r = await fetch("/api/public/me/get_me", { cache: "no-store" });
       if (!r.ok) return { p: null, subs: [], code: "" };
-      const j = (await r.json()) as Profile;
+      const j = (await r.json()) as Profile | null;
+      if (!j) return { p: null, subs: [], code: "" };
       const [al, vs] = await Promise.all([fetch("/api/public/me/list_alerts", { cache: "no-store" }).then((x) => x.json()).catch(() => ({})), fetch("/api/public/me/verify_x_status", { cache: "no-store" }).then((x) => x.json()).catch(() => ({}))]);
       return { p: j, subs: (al as { alerts?: Sub[] }).alerts ?? [], code: (vs as { code?: string }).code ?? "" };
     })().then((d) => {

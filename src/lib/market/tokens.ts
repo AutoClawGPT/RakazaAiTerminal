@@ -31,7 +31,7 @@ const httpsOnly = (u: unknown): string | undefined => {
   try { return new URL(v).protocol === "https:" ? v : undefined; } catch { return undefined; }
 };
 /** What the public API shows for an image: IPFS images are served through our own route (ipfs.io no longer serves plain requests). */
-const imageOut = (u: string | null | undefined): string | null => {
+export const imageOut = (u: string | null | undefined): string | null => {
   if (!u) return null;
   const c = cidOf(u);
   return c ? `${siteUrl()}/api/public/ipfs/${c}` : u;

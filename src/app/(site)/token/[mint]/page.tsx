@@ -65,7 +65,7 @@ export default async function Page({ params }: PageProps<"/token/[mint]">) {
   return (
     <>
       <ToolHero kicker={dev ? "Token · devnet" : "Token"} title={`$${t.symbol}`} blurb={t.name} />
-      <section className="rk-container grid gap-5 py-8 md:py-12">
+      <section className="rk-container grid grid-cols-[minmax(0,1fr)] gap-5 py-8 md:py-12">
         <div className="rk-card grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)]">
           <TokenImage src={t.image} name={t.name} className="size-24 sm:size-28" />
           <div className="grid min-w-0 gap-3">

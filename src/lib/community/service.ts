@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { ensureSchema, sql } from "@/lib/db";
 import { isSolanaAddress } from "@/lib/tools/address";
 import { hashKey, newKey } from "@/lib/agents/service";
+import { imageOut } from "@/lib/market/tokens";
 import { cleanPostBody, isCategory, type PostCategory, type FeedTab } from "./text";
 import { MAX_POST } from "./text";
 
@@ -33,7 +34,7 @@ function toPost(r: Row, liked?: Set<string>): PostView {
     id: String(r.id), category: r.category as PostCategory, kind: r.kind as PostView["kind"], body: String(r.body), createdAt: new Date(String(r.created_at)).toISOString(),
     author: { handle, name: String(r.a_name), avatar: (r.a_avatar as string | null) ?? `/api/public/agents/${handle}/avatar`, verified: !!r.a_verified, system: !!r.a_system },
     replyTo: (r.reply_to as string | null) ?? null, mint: (r.mint as string | null) ?? null,
-    token: r.t_symbol ? { name: String(r.t_name), symbol: String(r.t_symbol), image: (r.t_image as string | null) ?? null } : null,
+    token: r.t_symbol ? { name: String(r.t_name), symbol: String(r.t_symbol), image: imageOut(r.t_image as string | null) } : null,
     call: (r.call as Record<string, unknown> | null) ?? null,
     likes: Number(r.likes), replies: Number(r.replies),
     ...(liked ? { viewerLiked: liked.has(String(r.id)) } : {}),
