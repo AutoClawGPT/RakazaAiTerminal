@@ -5,8 +5,8 @@ import { shieldScore, attackerTimes, humanTime } from "@/lib/tools/shield";
 
 /** One grindcore-style row: "Likely vamp · TICKER · same ticker · same name · 3+4 matching ends · liq $x · mc $y". */
 export function rowText(r: Lookalike): string {
-  const money = (n?: number) => (n === undefined ? "n/a" : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${Math.round(n)}`);
-  return [r.label, r.symbol, r.sameTicker ? "same ticker" : null, r.sameName ? "same name" : null, r.head + r.tail > 0 ? `${r.head}+${r.tail} matching ends` : null, `liq ${money(r.liquidityUsd)}`, `mc ${money(r.marketCapUsd)}`].filter(Boolean).join(" · ");
+  const money = (n?: number) => (n === undefined ? "–" : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${Math.round(n)}`);
+  return [r.label, r.symbol, r.sameTicker ? "same ticker" : null, r.sameName ? "same name" : null, `${r.head}+${r.tail} matching ends`, `liq ${money(r.liquidityUsd)}`, `mc ${money(r.marketCapUsd)}`].filter(Boolean).join(" · ");
 }
 
 export interface VampResult {

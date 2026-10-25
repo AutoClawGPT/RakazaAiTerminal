@@ -1,5 +1,6 @@
 import "server-only";
 import { getEnv } from "@/lib/env";
+import { ensureSchema, sql } from "@/lib/db";
 import { isSolanaAddress } from "@/lib/tools/address";
 
 export interface TokenInfo {
@@ -54,6 +55,19 @@ interface DexPair {
   info?: { imageUrl?: string; websites?: { url?: string }[]; socials?: { type?: string; url?: string }[] };
 }
 
+/** Our own launch record (name, ticker, metadata URI). Covers devnet mints that no indexer knows. */
+async function ledgerLookup(mint: string): Promise<{ name: string; symbol: string; uri: string; network: string } | null> {
+  try {
+    const q = sql();
+    if (!q) return null;
+    await ensureSchema();
+    const r = (await q`SELECT name, symbol, uri, network FROM launches WHERE mint = ${mint} LIMIT 1`) as unknown as { name: string; symbol: string; uri: string; network: string }[];
+    return r[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Collects what we can about one Solana token from DexScreener, Helius (on-chain metadata) and the token's own metadata file. */
 export async function fetchToken(mintRaw: string): Promise<{ ok: true; token: TokenInfo } | { ok: false; error: string }> {
   const mint = mintRaw.trim();
@@ -61,16 +75,20 @@ export async function fetchToken(mintRaw: string): Promise<{ ok: true; token: To
   const env = getEnv();
   const t: TokenInfo = { mint, name: "", symbol: "", description: "", image: "", links: {}, isPump: mint.endsWith("pump"), sources: [], warnings: [] };
 
-  const [dex, das] = await Promise.all([
+  type Das = { result?: { content?: { json_uri?: string; metadata?: { name?: string; symbol?: string; description?: string }; links?: { image?: string } } } };
+  const getAsset = (url?: string) =>
+    url
+      ? getJson<Das>(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: "rk", method: "getAsset", params: { id: mint } }) }, 9_000)
+      : Promise.resolve(null);
+  // Market data is always mainnet (DexScreener). On-chain metadata is read from mainnet first, then devnet, so our own devnet launches resolve too.
+  const [dex, dasMain, dasDev, ledger] = await Promise.all([
     getJson<{ pairs?: DexPair[] }>(`https://api.dexscreener.com/latest/dex/tokens/${mint}`),
-    env.HELIUS_MAINNET
-      ? getJson<{ result?: { content?: { json_uri?: string; metadata?: { name?: string; symbol?: string; description?: string }; links?: { image?: string } } } }>(env.HELIUS_MAINNET, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ jsonrpc: "2.0", id: "rk", method: "getAsset", params: { id: mint } }),
-        })
-      : Promise.resolve(null),
+    getAsset(env.HELIUS_MAINNET),
+    getAsset(env.HELIUS_DEVNET),
+    ledgerLookup(mint),
   ]);
+  const das = dasMain?.result?.content ? dasMain : dasDev?.result?.content ? dasDev : null;
+  if (!dasMain?.result?.content && dasDev?.result?.content) t.warnings.push("This token lives on devnet, so there is no market data for it.");
 
   const pair = (dex?.pairs ?? []).filter((p) => p.baseToken?.address === mint).sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0))[0];
   if (pair) {
@@ -112,10 +130,25 @@ export async function fetchToken(mintRaw: string): Promise<{ ok: true; token: To
         t.links.telegram ||= safeHttp(meta.telegram);
       }
     }
-  } else if (env.HELIUS_MAINNET) {
-    t.warnings.push("Could not read on-chain metadata from Helius.");
+  } else if (env.HELIUS_MAINNET || env.HELIUS_DEVNET) {
+    if (!ledger) t.warnings.push("Could not read on-chain metadata from Helius.");
   } else {
-    t.warnings.push("HELIUS_MAINNET is not set, so on-chain metadata was skipped.");
+    t.warnings.push("No Helius RPC is set, so on-chain metadata was skipped.");
+  }
+
+  if (ledger && (!t.name || !t.symbol)) {
+    t.sources.push("Rakaza launch ledger");
+    t.name ||= clean(ledger.name, 64);
+    t.symbol ||= clean(ledger.symbol, 16);
+    const uri = safeHttp(ledger.uri);
+    if (uri && (!t.image || !t.description)) {
+      const meta = await getJson<{ description?: string; image?: string }>(uri, {}, 8_000);
+      if (meta) {
+        t.description ||= clean(meta.description, 600);
+        t.image ||= safeHttp(meta.image) ?? "";
+      }
+    }
+    if (!t.warnings.some((w) => w.includes("devnet"))) t.warnings.push(`Launched from this platform on ${ledger.network}.`);
   }
 
   if (!t.name && !t.symbol) return { ok: false, error: "I could not find that token on DexScreener or on-chain." };
