@@ -19,6 +19,7 @@ type Props = {
   /** wheel/pinch zoom; off on the home hero so the page can still scroll */
   wheelZoom: boolean;
   visible: boolean;
+  lite?: boolean;
   onReady: () => void;
   onFail: (why: string) => void;
   handleRef: React.RefObject<StageHandle | null>;
@@ -323,7 +324,7 @@ export default function StageCanvas(props: Props) {
   return (
     <Canvas
       frameloop={visible ? "always" : "never"}
-      dpr={[1, 1.75]}
+      dpr={props.lite ? [1, 1.25] : [1, 1.75]}
       camera={{ position: [0, cfg.cy + 0.04, 3.4], fov: cfg.fov, near: 0.1, far: 30 }}
       gl={{ alpha: true, antialias: true, preserveDrawingBuffer: true, powerPreference: "default" }}
       onCreated={({ gl }) => {

@@ -181,6 +181,8 @@ E25 "Row 2: duplicate address." leaked to the user when the fee wallet equalled 
 
 E26 Floating 3D chat widget missing. Fix: src/components/widget (bubble always mounted, panel + VRM lazy-loaded with next/dynamic ssr:false only after first open, 2D CssAvatar fallback on low-end/mobile/no WebGL, voice only after a user send). Mounted in both the (site) and (dash) layouts.
 
+E26b Widget showed the 2D cartoon on Android: a device heuristic (small screen / few cores / low memory) picked 2D by default. Fix: never choose 2D from heuristics. Default is the 3D VRM everywhere (CharacterStage lite = lower pixel ratio on the widget); 2D only on real WebGL/VRM failure or the user's toggle.
+
 E27 Box/shell env vars override .env.local (Next and --env-file never override an existing variable), so a local devnet test silently ran against mainnet values. Fix: start the dev server and test scripts with `env -u NAME` for every name in .env.local. Never `source .env.local` (a value with special characters breaks bash).
 
 E28 Puppeteer fake-Phantom for e2e must set window.isPhantomInstalled = true as well as window.phantom.solana, otherwise the wallet adapter reports "not ready" ("Could not connect the wallet").

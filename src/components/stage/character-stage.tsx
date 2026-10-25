@@ -37,9 +37,13 @@ type Props = {
   wheelZoom?: boolean;
   controlsClassName?: string;
   children?: React.ReactNode;
+  /** lower pixel ratio (phones, small panels). Still renders the full 3D model. */
+  lite?: boolean;
+  /** reports "loading" | "ready" | "fallback" so a parent can show the real state */
+  onState?: (s: "loading" | "ready" | "fallback") => void;
 };
 
-export function CharacterStage({ variant = "panel", className = "", src = DEFAULT_SRC, controls = "basic", wheelZoom = false, controlsClassName = "bottom-3 left-3", children }: Props) {
+export function CharacterStage({ variant = "panel", className = "", src = DEFAULT_SRC, controls = "basic", wheelZoom = false, controlsClassName = "bottom-3 left-3", children, lite = false, onState }: Props) {
   const webgl = useWebGL();
   const [mode, setMode] = useState<"3d" | "2d">("3d");
   const [status, setStatus] = useState<"loading" | "ready" | "failed">("loading");
@@ -72,6 +76,10 @@ export function CharacterStage({ variant = "panel", className = "", src = DEFAUL
   const use3d = webgl === true && mode === "3d" && status !== "failed";
   const state = webgl === null ? "loading" : !use3d ? "fallback" : status === "ready" ? "ready" : "loading";
 
+  useEffect(() => {
+    onState?.(state);
+  }, [state, onState]);
+
   async function toggleMic() {
     setMicErr(null);
     if (audio === "mic") return stopAudio();
@@ -84,7 +92,7 @@ export function CharacterStage({ variant = "panel", className = "", src = DEFAUL
 
   return (
     <div ref={ref} className={`rk-stage relative overflow-hidden ${className}`} data-stage-state={state} data-stage-variant={variant}>
-      {use3d ? <StageCanvas variant={variant} src={src} wheelZoom={wheelZoom} visible={visible} onReady={onReady} onFail={onFail} handleRef={handle} /> : null}
+      {use3d ? <StageCanvas variant={variant} src={src} lite={lite} wheelZoom={wheelZoom} visible={visible} onReady={onReady} onFail={onFail} handleRef={handle} /> : null}
       {!use3d && webgl !== null ? (
         <div className="absolute inset-0 grid place-items-end px-6 pt-10 pb-0">
           <CssAvatar className="max-h-full" />

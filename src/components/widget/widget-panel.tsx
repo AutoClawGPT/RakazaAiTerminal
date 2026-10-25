@@ -10,19 +10,14 @@ import { useVoice } from "@/components/talk/use-voice";
 type Msg = { id: number; who: "me" | "her" | "sys"; text: string };
 const MAX = 500;
 
-/** Phones and low-end devices start in 2D (no VRM download); the 3D button loads it on demand. */
-function lowEnd() {
-  if (typeof window === "undefined") return true;
-  const nav = navigator as Navigator & { deviceMemory?: number };
-  return window.matchMedia("(max-width: 767px)").matches || (nav.hardwareConcurrency ?? 8) <= 4 || (nav.deviceMemory ?? 8) <= 4;
-}
-
 export function WidgetPanel({ open, onMinimize }: { open: boolean; onMinimize: () => void }) {
   const [msgs, setMsgs] = useState<Msg[]>([{ id: 1, who: "her", text: "Hi, I’m Rakaza. Ask me anything about the launchpad, or just chat." }]);
   const [draft, setDraft] = useState("");
   const [thinking, setThinking] = useState(false);
   const [muted, setMuted] = useState(false);
-  const [use3d, setUse3d] = useState(() => !lowEnd());
+  // 3D VRM by default on every device (same model + renderer as /talk). 2D only if the user picks it or WebGL / the VRM load really fails.
+  const [use3d, setUse3d] = useState(true);
+  const [stage, setStage] = useState<"loading" | "ready" | "fallback">("loading");
   const idRef = useRef(2);
   const busy = useRef(false);
   const msgsRef = useRef(msgs);
@@ -87,9 +82,9 @@ export function WidgetPanel({ open, onMinimize }: { open: boolean; onMinimize: (
         </div>
       </header>
 
-      <div className="rk-hero relative h-40 shrink-0 md:h-48" data-testid="widget-stage" data-avatar={use3d ? "3d" : "2d"}>
+      <div className="rk-hero relative h-40 shrink-0 md:h-48" data-testid="widget-stage" data-avatar={use3d && stage !== "fallback" ? "3d" : "2d"} data-stage={use3d ? stage : "off"} data-speaking={voice.speaking ? "1" : "0"}>
         {use3d ? (
-          <CharacterStage variant="bust" controls="none" className="h-full" />
+          <CharacterStage variant="bust" controls="none" className="h-full" lite onState={setStage} />
         ) : (
           <div className="absolute inset-0 grid place-items-end px-6 pt-4">
             <CssAvatar className="max-h-full" />
