@@ -25,13 +25,16 @@ export function SlidePanel({ title, hint, defaultOpen = false, children }: { tit
 }
 
 export function ToolHero({ kicker, title, blurb }: { kicker: string; title: string; blurb: string }) {
+  // Long single words (e.g. "Dashboard") in the wide display face would break mid-word at 390px, so they get a smaller size.
+  const longWord = title.split(/\s+/).some((w) => w.length >= 9);
+  const size = longWord ? "text-[clamp(1.8rem,7.4vw,5rem)]" : "text-[clamp(2.4rem,9vw,5rem)]";
   return (
     <section className="rk-hero rounded-b-[2rem]">
       <div className="rk-rays" aria-hidden="true" />
       <div className="rk-dots" aria-hidden="true" />
       <div className="rk-container py-10 md:py-12">
         <p className="rk-kicker mb-3 text-white/85">{kicker}</p>
-        <h1 className="rk-display text-[clamp(2.4rem,9vw,5rem)]">{title}</h1>
+        <h1 className={`rk-display ${size}`}>{title}</h1>
         <p className="rk-serif mt-4 max-w-2xl text-[clamp(1.2rem,3vw,1.8rem)] text-white">{blurb}</p>
       </div>
     </section>

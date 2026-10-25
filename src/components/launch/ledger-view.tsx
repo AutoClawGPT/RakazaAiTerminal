@@ -122,7 +122,7 @@ export function LedgerView({ view, treasury }: { view: "history" | "fees"; treas
                 <div><dt className="rk-kicker">Sent</dt><dd className="text-base font-bold">{sol(r.shares.reduce((a, x) => a + x.sentLamports, 0))} SOL</dd></div>
               </dl>
               <p className="text-[11px] opacity-70">Claim and send happen in one on-chain step, so claimed and sent move together.</p>
-              {r.note ? <p className="text-xs opacity-80 break-all">{r.note}</p> : null}
+              {r.note ? <p className="max-h-24 overflow-y-auto whitespace-pre-wrap text-xs opacity-80 [overflow-wrap:anywhere]">{r.note}</p> : null}
               <table className="w-full text-left text-sm"><thead><tr className="text-xs uppercase opacity-70"><th className="py-1 pr-3">Receives</th><th className="pr-3">Share</th><th className="pr-3">Waiting</th><th>Sent</th></tr></thead>
                 <tbody>{r.shares.map((s) => (
                   <tr key={s.address} className="border-t border-white/10"><td className="py-1 pr-3">{who(s.address)} <span className="font-mono text-[11px] opacity-70">{short(s.address)}</span></td><td className="pr-3">{s.shareBps / 100}%</td><td className="pr-3">{r.distributableLamports == null ? "unknown" : `${sol(s.pendingLamports)} SOL`}</td><td>{sol(s.sentLamports)} SOL</td></tr>))}</tbody></table>

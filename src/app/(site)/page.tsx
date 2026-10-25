@@ -42,7 +42,7 @@ export default function HomePage() {
 
           <div className="relative z-10 grid flex-1 gap-x-6 gap-y-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,34rem)_minmax(0,1fr)] lg:items-end">
             <CharacterStage variant="hero" controls="basic" controlsClassName="left-3 top-3 lg:bottom-3 lg:top-auto" className="order-1 h-[min(62svh,34rem)] min-h-[22rem] !overflow-visible lg:order-2 lg:h-full lg:min-h-[34rem]">
-              <div className="pointer-events-none absolute inset-x-[-4%] top-[52%] z-10 h-[20%] -rotate-6 rounded-[50%] border-2 border-dotted border-white/45" aria-hidden="true" />
+              <div className="pointer-events-none absolute inset-x-[2%] lg:inset-x-[-4%] top-[52%] z-10 h-[20%] -rotate-6 rounded-[50%] border-2 border-dotted border-white/45" aria-hidden="true" />
               <span className="rk-orb pointer-events-none absolute left-[6%] top-[52%] z-10 size-9 text-[var(--rk-honey)]" aria-hidden="true" />
               <span className="rk-orb pointer-events-none absolute right-[6%] top-[46%] z-10 size-9 text-[var(--rk-pink)]" aria-hidden="true" />
               <Link href="/#checker" className="absolute left-[2%] top-[66%] z-10 flex lg:left-[0%] lg:top-[70%] max-w-[11rem] items-center gap-2 rounded-2xl border-2 border-[var(--rk-ink)] bg-white px-3 py-1.5 text-xs font-extrabold leading-tight text-[var(--rk-ink)] shadow-[3px_3px_0_var(--rk-ink)] sm:max-w-[13rem] sm:text-sm">
@@ -107,14 +107,14 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div className="relative z-10 -mb-6 mt-[-1.5rem] pt-6" aria-hidden="true">
+      <div className="relative z-10 -mb-6 mt-[-1.5rem] overflow-x-clip pt-6" aria-hidden="true">
         <Tape />
         <div className="-mt-9">
           <Tape pink />
         </div>
       </div>
 
-      <section className="bg-[var(--rk-honey)] pb-24 pt-16 text-[var(--rk-ink)] md:pb-32 md:pt-24" aria-labelledby="intro-h">
+      <section className="overflow-x-clip bg-[var(--rk-honey)] pb-24 pt-16 text-[var(--rk-ink)] md:pb-32 md:pt-24" aria-labelledby="intro-h">
         <div className="rk-container relative">
           <h2 id="intro-h" className="rk-display !text-[clamp(2.8rem,8.4vw,7.5rem)] !leading-[0.9] !text-[var(--rk-ink)]" style={{ textShadow: "none", fontVariationSettings: '"wdth" 118' }}>
             A character,
