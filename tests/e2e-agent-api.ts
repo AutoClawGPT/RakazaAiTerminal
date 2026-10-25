@@ -83,6 +83,11 @@ const tool = async (key: string, name: string, args: unknown = {}) => {
     check("default deny kept: owner route 401", (await call("GET", "/api/owner")).status === 401);
     check("skill.md has the guided onboarding", /## 0\. Start here/.test(skill) && /Profile picture \(optional/.test(skill) && /Banner \(optional/.test(skill) && /Wallet \(optional/.test(skill) && /agent token/i.test(skill) && /x_username/.test(skill));
     check("reserved handle refused", (await call("POST", "/api/public/register", undefined, { name: "x rakaza", handle: "rakaza" })).status === 400);
+    // NOTE: the register route checks the per-address limit (5 an hour) BEFORE it validates the name. Against a live site that
+    // already saw several registrations from this address, this call is answered 429 slow_down instead of 400 bad_name.
+    // That is the guard working, not a defect. Run it against a fresh address or localhost for the 400.
+    const loginHtml = await (await fetch(BASE + "/login")).text();
+    check("open login page: agent key, register and separate owner sign in", /Sign in with your agent API key/.test(loginHtml) && /New here\? Register for free/.test(loginHtml) && /Owner sign in/.test(loginHtml) && /href="\/register"/.test(loginHtml));
     check("bad name refused", (await call("POST", "/api/public/register", undefined, { name: "" })).status === 400);
 
     // registration is limited per address (5 an hour): the 6th from one address is refused

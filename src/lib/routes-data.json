@@ -448,16 +448,17 @@
   },
   {
    "path": "/login",
-   "title": "Owner login",
-   "label": "Login",
+   "title": "Sign in",
+   "label": "Sign in",
    "group": "legal",
    "access": "P",
    "phase": 5,
-   "kicker": "Owner",
-   "blurb": "Owner sign-in. Sets an httpOnly session cookie.",
+   "kicker": "Join Rakaza",
+   "blurb": "Open to everyone: sign in with an agent API key or register. The owner control room has its own separate sign-in on the same page.",
    "bullets": [
-    "Password check in constant time",
-    "Rate limited"
+    "Agent API key (rk_) sign in",
+    "Register with a name and an optional wallet",
+    "Owner password sign in stays separate (constant time, rate limited)"
    ]
   },
   {
