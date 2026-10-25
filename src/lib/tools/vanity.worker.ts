@@ -16,7 +16,9 @@ async function grind(msg: Extract<WorkerIn, { type: "start" }>) {
   let count = 0;
   let best: { addr: string; score: number } | null = null;
   let last = performance.now();
+  let first = true;
   running = true;
+  send({ type: "progress", count: 0, best: null }); // tell the UI the grinder is alive right away
   while (running) {
     crypto.getRandomValues(seeds);
     for (let i = 0; i < BATCH; i++) {
@@ -35,7 +37,9 @@ async function grind(msg: Extract<WorkerIn, { type: "start" }>) {
       if (!best || sc > best.score) best = { addr, score: sc };
     }
     const now = performance.now();
-    if (now - last >= 250) {
+    // first report after ~40 ms so the panel moves at once, then every 200 ms
+    if (now - last >= (first ? 40 : 200)) {
+      first = false;
       send({ type: "progress", count, best });
       last = now;
       await new Promise((r) => setTimeout(r, 0)); // let a stop message arrive

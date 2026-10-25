@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { fieldCls, labelCls, SlidePanel } from "./tool-frame";
 import { expectedKeys, tierFor, validatePattern, type Pattern, type WorkerOut } from "@/lib/tools/vanity";
 import { humanTime } from "@/lib/tools/shield";
@@ -10,10 +10,19 @@ interface Found {
   count: number;
 }
 
+const noopSubscribe = () => () => {};
+/** CPU cores: 0 on the server and during hydration, the real count afterwards (no hydration mismatch, no flash of fake numbers). */
+function useCores(): number {
+  return useSyncExternalStore(noopSubscribe, () => navigator.hardwareConcurrency || 4, () => 0);
+}
+
 export function VanityTool() {
   const [pattern, setPattern] = useState<Pattern>({ start: "", end: "", ignoreCase: false });
-  const [threads, setThreads] = useState(2);
-  const [maxThreads, setMaxThreads] = useState(4);
+  const cores = useCores();
+  const [pickedThreads, setPickedThreads] = useState<number | null>(null);
+  const maxThreads = Math.max(1, Math.min(16, cores || 1));
+  const threads = Math.max(1, Math.min(maxThreads, pickedThreads ?? Math.max(1, Math.min(8, cores - 1))));
+  const [started, setStarted] = useState(false);
   const [running, setRunning] = useState(false);
   const [total, setTotal] = useState(0);
   const [rate, setRate] = useState(0);
@@ -25,14 +34,6 @@ export function VanityTool() {
   const workers = useRef<Worker[]>([]);
   const counts = useRef<number[]>([]);
   const t0 = useRef(0);
-
-  useEffect(() => {
-    const cores = navigator.hardwareConcurrency || 4;
-    const cap = Math.min(16, cores);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMaxThreads(cap);
-    setThreads(Math.max(1, Math.min(8, cores - 1)));
-  }, []);
 
   const check = useMemo(() => validatePattern(pattern), [pattern]);
   const expected = check.ok ? expectedKeys(pattern) : 0;
@@ -57,6 +58,7 @@ export function VanityTool() {
     setBest(null);
     setTotal(0);
     setRate(0);
+    setStarted(false);
     counts.current = Array(threads).fill(0);
     t0.current = performance.now();
     setRunning(true);
@@ -67,6 +69,7 @@ export function VanityTool() {
         if (m.type === "ready") w.postMessage({ type: "start", pattern });
         else if (m.type === "progress") {
           counts.current[i] = m.count;
+          setStarted(true);
           const sum = counts.current.reduce((a, b) => a + b, 0);
           setTotal(sum);
           setRate(sum / Math.max(0.001, (performance.now() - t0.current) / 1000));
@@ -112,8 +115,8 @@ export function VanityTool() {
           <input type="checkbox" className="size-5 accent-[var(--rk-honey)]" checked={pattern.ignoreCase} onChange={(e) => setPattern((p) => ({ ...p, ignoreCase: e.target.checked }))} disabled={running} />
           Ignore upper and lower case (much faster)
         </label>
-        <label className={`${labelCls} mt-3`} htmlFor="v-threads">Threads: {threads} of {maxThreads}</label>
-        <input id="v-threads" type="range" min={1} max={maxThreads} value={threads} onChange={(e) => setThreads(Number(e.target.value))} className="w-full accent-[var(--rk-honey)]" disabled={running} />
+        <label className={`${labelCls} mt-3`} htmlFor="v-threads" data-testid="vanity-threads-label">Threads: {cores ? `${threads} of ${maxThreads}` : "detecting…"}</label>
+        <input id="v-threads" type="range" min={1} max={maxThreads} value={threads} onChange={(e) => setPickedThreads(Number(e.target.value))} className="w-full accent-[var(--rk-honey)]" disabled={running || !cores} />
         <div role="status" aria-live="polite" className="mt-3 text-sm" data-testid="vanity-estimate">
           {!check.ok && (pattern.start || pattern.end) ? (
             <ul className="list-disc space-y-1 rounded-xl border-2 border-[var(--rk-pink)] p-3 pl-8">
@@ -132,12 +135,12 @@ export function VanityTool() {
           {running ? (
             <button type="button" className="rk-btn rk-btn-white" onClick={stop}>Stop</button>
           ) : (
-            <button type="button" className="rk-btn rk-btn-honey" onClick={start} disabled={!check.ok}>Start grinding</button>
+            <button type="button" className="rk-btn rk-btn-honey" onClick={start} disabled={!check.ok || !cores}>Start grinding</button>
           )}
         </div>
       </SlidePanel>
 
-      <SlidePanel title="Progress" hint={running ? "Grinding in your browser" : found ? "Found one" : "Idle"} defaultOpen>
+      <SlidePanel title="Progress" hint={running ? (started ? "Grinding in your browser" : "Starting the grinder…") : found ? "Found one" : "Idle"} defaultOpen>
         <dl className="grid grid-cols-2 gap-3 text-sm">
           <div>
             <dt className="rk-kicker text-muted-foreground">Keys tried</dt>
