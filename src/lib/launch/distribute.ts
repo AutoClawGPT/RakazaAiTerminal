@@ -8,6 +8,7 @@ import { ensureSchema, sql } from "@/lib/db";
 import { connectionFor, loadTreasurySigner, LaunchExecError, sendAndConfirm } from "./execute";
 import { withRetry, sleep } from "@/lib/retry";
 import { verifySplitOnChain } from "./verify-split";
+import { clearLedgerCache } from "./ledger";
 import type { LaunchPlan } from "./approval";
 
 /**
@@ -52,6 +53,7 @@ export async function distributeOne(l: L, conn: Connection = connectionFor(l.net
       await withRetry(async () => { await ensureSchema(); for (const p of paid) await q`INSERT INTO fee_payouts (mint, network, wallet, lamports, sig) VALUES (${l.mint}, ${l.network}, ${p.wallet}, ${p.lamports}, ${sig}) ON CONFLICT (sig, wallet) DO NOTHING`; }, { tries: 4 });
     } catch { return { mint: l.mint, ok: true, sig, paid, error: "The fees were sent on-chain but the record could not be saved. Run distribute again: it is safe, the transaction is already on-chain." }; }
   }
+  clearLedgerCache();
   return { mint: l.mint, ok: true, sig, paid };
 }
 

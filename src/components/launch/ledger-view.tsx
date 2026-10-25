@@ -30,9 +30,9 @@ export function LedgerView({ view, treasury }: { view: "history" | "fees"; treas
   const load = useCallback(async () => {
     setBusy(true);
     try {
-      const r = await ledgerAction();
+      const r = await Promise.race([ledgerAction(), new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 30000))]);
       if (r.ok) { setData(r); setErr(""); } else setErr(r.error);
-    } catch { setErr("The connection dropped. Showing the last numbers. Retrying on its own."); }
+    } catch (e) { setErr(e instanceof Error && e.message === "timeout" ? "The ledger is taking too long to answer. Press Retry." : "The connection dropped. Showing the last numbers. Retrying on its own."); }
     setBusy(false);
   }, []);
   useEffect(() => { const first = setTimeout(() => void load(), 0); return () => clearTimeout(first); }, [load]);
@@ -61,7 +61,7 @@ export function LedgerView({ view, treasury }: { view: "history" | "fees"; treas
             <button type="button" className="rk-btn rk-btn-white rk-btn-sm" onClick={() => void load()} disabled={busy} aria-label="Refresh now"><RefreshCw className={`size-4 ${busy ? "animate-spin" : ""}`} /></button>
           </div>
         </div>
-        {err ? <p className="mt-3 text-sm text-red-400" role="alert" data-testid="ledger-err">{err}</p> : null}
+        {err ? <p className="mt-3 flex flex-wrap items-center gap-3 text-sm text-red-400" role="alert" data-testid="ledger-err">{err}<button type="button" className="rk-btn rk-btn-white rk-btn-sm" onClick={() => void load()} disabled={busy}>Retry</button></p> : null}
         {data ? (
           <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4" data-testid="ledger-totals">
             <div><dt className="rk-kicker">Launches</dt><dd className="text-xl font-bold">{data.totals.launches}</dd></div>
@@ -88,6 +88,17 @@ export function LedgerView({ view, treasury }: { view: "history" | "fees"; treas
         </section>
       ) : null}
 
+      {view === "fees" && data && data.rows.length > 0 ? (
+        <section className="rk-card" aria-label="Fees by token">
+          <h2 className="rk-h2 text-xl">Fees by token</h2>
+          <div className="mt-3 overflow-x-auto"><table className="w-full text-left text-sm" data-testid="token-fees-table">
+            <thead><tr className="text-xs uppercase opacity-70"><th className="py-2 pr-3">Token</th><th className="pr-3">Awaiting claim</th><th className="pr-3">Claimed</th><th>Sent</th></tr></thead>
+            <tbody>{data.rows.map((r) => { const sent = r.shares.reduce((a, x) => a + x.sentLamports, 0); return (
+              <tr key={r.mint} className="border-t border-white/10"><td className="py-2 pr-3">{r.name} <span className="opacity-70">({r.symbol})</span></td><td className="pr-3">{r.distributableLamports == null ? "unknown" : `${sol(r.distributableLamports)} SOL`}</td><td className="pr-3">{sol(sent)} SOL</td><td>{sol(sent)} SOL</td></tr>); })}</tbody>
+          </table></div>
+        </section>
+      ) : null}
+
       {data && data.rows.length === 0 ? <section className="rk-card"><p className="text-sm">Nothing launched yet. Launches made from the Launch tab appear here right away, with their transactions and fee split.</p></section> : null}
       {data?.rows.map((r: LedgerRow) => {
         const st = STATUS[r.status] ?? { label: r.status, cls: "bg-white/15" };
@@ -105,6 +116,12 @@ export function LedgerView({ view, treasury }: { view: "history" | "fees"; treas
                 {r.tx2 ? <a className="underline" href={tx(r.tx2, r.network)} target="_blank" rel="noreferrer">Split transaction</a> : <span className="opacity-70">No split transaction yet</span>}
                 {r.devBuyTx ? <a className="underline" href={tx(r.devBuyTx, r.network)} target="_blank" rel="noreferrer">Dev buy transaction</a> : null}
               </p>
+              <dl className="grid grid-cols-3 gap-2 rounded-xl bg-white/5 p-3 text-xs" data-testid="token-fees">
+                <div><dt className="rk-kicker">Awaiting claim</dt><dd className="text-base font-bold">{r.distributableLamports == null ? "unknown" : `${sol(r.distributableLamports)} SOL`}</dd></div>
+                <div><dt className="rk-kicker">Claimed</dt><dd className="text-base font-bold">{sol(r.shares.reduce((a, x) => a + x.sentLamports, 0))} SOL</dd></div>
+                <div><dt className="rk-kicker">Sent</dt><dd className="text-base font-bold">{sol(r.shares.reduce((a, x) => a + x.sentLamports, 0))} SOL</dd></div>
+              </dl>
+              <p className="text-[11px] opacity-70">Claim and send happen in one on-chain step, so claimed and sent move together.</p>
               {r.note ? <p className="text-xs opacity-80 break-all">{r.note}</p> : null}
               <table className="w-full text-left text-sm"><thead><tr className="text-xs uppercase opacity-70"><th className="py-1 pr-3">Receives</th><th className="pr-3">Share</th><th className="pr-3">Waiting</th><th>Sent</th></tr></thead>
                 <tbody>{r.shares.map((s) => (

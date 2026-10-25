@@ -47,9 +47,35 @@ async function onChain(conn: Connection, l: DbLaunch) {
   return v;
 }
 
+const FRESH_MS = 5000;
+const STALE_MS = 120_000;
+const full = new Map<number, { at: number; v: Ledger }>();
+const inflight = new Map<number, Promise<Ledger | { ok: false; error: string }>>();
+
+/** Call after a payout or launch so the next read is live. */
+export function clearLedgerCache() { full.clear(); cache.clear(); }
+
+function refresh(limit: number): Promise<Ledger | { ok: false; error: string }> {
+  const cur = inflight.get(limit);
+  if (cur) return cur;
+  const p = (async () => {
+    try {
+      const v = await withRetry(() => buildLedgerOnce(limit), { tries: 3, baseMs: 700 });
+      if (v.ok) full.set(limit, { at: Date.now(), v });
+      return v;
+    } catch { return { ok: false as const, error: "The ledger could not be read right now (database or network). It retries on its own; try again in a few seconds." }; }
+    finally { inflight.delete(limit); }
+  })();
+  inflight.set(limit, p);
+  return p;
+}
+
+/** Fast path: a recent copy is returned at once; an older one is returned at once while a refresh runs in the background. */
 export async function buildLedger(limit = 25): Promise<Ledger | { ok: false; error: string }> {
-  try { return await withRetry(() => buildLedgerOnce(limit), { tries: 3, baseMs: 700 }); }
-  catch { return { ok: false, error: "The ledger could not be read right now (database or network). It retries on its own; try again in a few seconds." }; }
+  const hit = full.get(limit);
+  if (hit && Date.now() - hit.at < FRESH_MS) return hit.v;
+  if (hit && Date.now() - hit.at < STALE_MS) { void refresh(limit); return hit.v; }
+  return refresh(limit);
 }
 
 async function buildLedgerOnce(limit: number): Promise<Ledger | { ok: false; error: string }> {
@@ -62,8 +88,7 @@ async function buildLedgerOnce(limit: number): Promise<Ledger | { ok: false; err
   const sent = new Map(paid.map((p) => [`${p.mint}:${p.wallet}`, Number(p.s)]));
   const conns: Partial<Record<LaunchPlan["network"], Connection>> = {};
   let rpcNote: string | undefined;
-  const rows: LedgerRow[] = [];
-  for (const l of launches) {
+  const rows: LedgerRow[] = await Promise.all(launches.map(async (l) => {
     let oc = { split: null as boolean | null, dist: null as number | null, can: null as boolean | null };
     try { oc = await onChain((conns[l.network] ??= connectionFor(l.network)), l); } catch (e) { rpcNote = e instanceof Error ? e.message : "RPC unavailable"; }
     const shares = l.shareholders.map((s) => ({
@@ -72,8 +97,8 @@ async function buildLedgerOnce(limit: number): Promise<Ledger | { ok: false; err
       sentLamports: sent.get(`${l.mint}:${s.address}`) ?? 0,
     }));
     const devBuyTx = /dev buy ([1-9A-HJ-NP-Za-km-z]{60,100})/.exec(l.note ?? "")?.[1];
-    rows.push({ mint: l.mint, network: l.network, mode: l.mode, name: l.name, symbol: l.symbol, creator: l.creator, status: l.status, devBuySol: Number(l.dev_buy_sol), tx1: l.tx1 ?? undefined, tx2: l.tx2 ?? undefined, devBuyTx, note: l.note ?? undefined, createdAt: new Date(l.created_at).toISOString(), splitVerified: oc.split, distributableLamports: oc.dist, canDistribute: oc.can, shares });
-  }
+    return { mint: l.mint, network: l.network, mode: l.mode, name: l.name, symbol: l.symbol, creator: l.creator, status: l.status, devBuySol: Number(l.dev_buy_sol), tx1: l.tx1 ?? undefined, tx2: l.tx2 ?? undefined, devBuyTx, note: l.note ?? undefined, createdAt: new Date(l.created_at).toISOString(), splitVerified: oc.split, distributableLamports: oc.dist, canDistribute: oc.can, shares } satisfies LedgerRow;
+  }));
   const byWallet = new Map<string, WalletTotals>();
   for (const r of rows) for (const s of r.shares) {
     const w = byWallet.get(s.address) ?? { wallet: s.address, tokens: 0, pendingLamports: 0, sentLamports: 0 };

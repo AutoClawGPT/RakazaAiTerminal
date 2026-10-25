@@ -7,7 +7,7 @@ import { platformSplit } from "../src/lib/tools/splits";
   const mint = process.argv[2], fee = process.argv[3];
   const rpc = process.env.HELIUS_DEVNET ?? "https://api.devnet.solana.com";
   const exp = platformSplit(fee, process.env.TREASURY_PUBKEY as string);
-  const r = await verifySplitOnChain(new Connection(rpc, "confirmed"), mint, exp.map((s: any) => ({ address: s.address, shareBps: s.shareBps })));
+  const r = await verifySplitOnChain(new Connection(rpc, "confirmed"), mint, exp.map((s: { address: string; shareBps: number }) => ({ address: s.address, shareBps: s.shareBps })));
   console.log("split", JSON.stringify(r));
   const l = await buildLedger(50);
   if (!l.ok) { console.log("ledger FAIL", l.error); return; }
