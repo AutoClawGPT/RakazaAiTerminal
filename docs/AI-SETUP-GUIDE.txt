@@ -173,6 +173,18 @@ E22 Third-party docs contain agent-directed instructions (skill.md files, docs p
 
 E23 Firecrawl free tier ~3 requests/min: crawls were rate limited. Fix: retry with backoff; crawl once and cache to disk.
 
+E24 Two launch modes were mixed up: the owner wants BOTH "Sponsored free launch" (platform treasury pays, creator = treasury, You 70% / Platform 30%) AND a separate public "Self launch" tab (/self-launch: the user's own wallet pays all fees and dev buy, the user is the creator, platform owns nothing, You 95% / Platform 5%).
+    Fix: dedicated /self-launch page with public server actions (rate limited, size + magic-byte checks, no treasury spend, never signs with the treasury, gated by isSelfLaunchEnabled() NOT EXECUTE_ENABLED). Launch tab keeps the sponsored mode with cards linking both ways.
+
+E25 "Row 2: duplicate address." leaked to the user when the fee wallet equalled the treasury (and the UI labels printed "Platform 70%% . Platform 30%%").
+    Fix: one central treasuryClash() in src/lib/tools/splits.ts used by the UI (inline message), every server action, the Telegram bot and the API tools. Never prefill the fee wallet with the treasury. Friendly validateSplit text. Labels: "You 70% / Platform 30%" and "You 95% / Platform 5%". Test: tests/treasury-clash.ts.
+
+E26 Floating 3D chat widget missing. Fix: src/components/widget (bubble always mounted, panel + VRM lazy-loaded with next/dynamic ssr:false only after first open, 2D CssAvatar fallback on low-end/mobile/no WebGL, voice only after a user send). Mounted in both the (site) and (dash) layouts.
+
+E27 Box/shell env vars override .env.local (Next and --env-file never override an existing variable), so a local devnet test silently ran against mainnet values. Fix: start the dev server and test scripts with `env -u NAME` for every name in .env.local. Never `source .env.local` (a value with special characters breaks bash).
+
+E28 Puppeteer fake-Phantom for e2e must set window.isPhantomInstalled = true as well as window.phantom.solana, otherwise the wallet adapter reports "not ready" ("Could not connect the wallet").
+
 ----------------------------------------------------------------------
 6. FINAL ACCEPTANCE CHECKLIST
 ----------------------------------------------------------------------

@@ -1,7 +1,8 @@
 import "server-only";
 import { PublicKey } from "@solana/web3.js";
 import { getEnv } from "@/lib/env";
-import { assertExecuteAllowed } from "@/lib/execute-gate";
+import { isSelfLaunchEnabled } from "@/lib/execute-gate";
+import { SELF_LAUNCHER_BPS, SELF_TREASURY_BPS } from "@/lib/tools/splits";
 import { buildDevBuy, buildLaunch } from "./build-tx";
 import { verifyApproval, type LaunchPlan } from "./approval";
 import { connectionFor, record } from "./execute";
@@ -17,12 +18,20 @@ export type SelfStep = "create" | "split" | "buy";
 export class SelfLaunchError extends Error {}
 
 function guardPlan(plan: LaunchPlan, ticket: string | undefined) {
-  assertExecuteAllowed("self launch");
   const env = getEnv();
+  // Self launch has its own switch; EXECUTE_ENABLED only guards the sponsored path. The platform signs nothing here.
+  if (!isSelfLaunchEnabled()) throw new SelfLaunchError("Self launch is switched off on this server.");
   if (plan.mode !== "own-wallet") throw new SelfLaunchError("This is not a self-launch plan.");
   if (plan.network !== env.NEXT_PUBLIC_SOLANA_NETWORK) throw new SelfLaunchError("The plan network does not match the app network.");
   const v = verifyApproval(ticket, plan, env.SESSION_SECRET);
   if (!v.ok) throw new SelfLaunchError(v.reason);
+  // Defence in depth on top of the signed ticket: the split must be exactly 95% creator / 5% treasury and the treasury is never the creator.
+  if (env.TREASURY_PUBKEY) {
+    if (plan.creator === env.TREASURY_PUBKEY) throw new SelfLaunchError("The treasury cannot be the creator of a self launch.");
+    const t = plan.shareholders.find((x) => x.address === env.TREASURY_PUBKEY);
+    const u = plan.shareholders.find((x) => x.address !== env.TREASURY_PUBKEY);
+    if (plan.shareholders.length !== 2 || !t || !u || t.shareBps !== SELF_TREASURY_BPS || u.shareBps !== SELF_LAUNCHER_BPS) throw new SelfLaunchError("The fee split in the plan is not the 95/5 self-launch split.");
+  }
 }
 
 export async function selfTx(plan: LaunchPlan, ticket: string | undefined, step: SelfStep): Promise<{ tx: string; bytes: number; blockhash: string }> {

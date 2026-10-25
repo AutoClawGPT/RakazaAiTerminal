@@ -1,6 +1,7 @@
 import { Gamepad2, Home, MessageCircle, Palette } from "lucide-react";
 import { BottomNav } from "@/components/chrome/bottom-nav";
 import { SiteFooter } from "@/components/chrome/site-footer";
+import { RakazaWidget } from "@/components/widget/rakaza-widget";
 import { SiteHeader, menuGroups } from "@/components/chrome/site-header";
 
 export default function SiteLayout({ children }: LayoutProps<"/">) {
@@ -14,6 +15,7 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
         {children}
         <SiteFooter />
       </main>
+      <RakazaWidget />
       <BottomNav
         menuTitle="Menu"
         groups={menuGroups()}

@@ -72,6 +72,19 @@ It also exposes the same tools to AI agents over **REST (`/api/v1/tools`)**, **M
 
 The owner area is behind `/login`. Public pages work without it.
 
+### Two ways to launch (and the floating chat)
+
+| Mode | Where | Who pays | Who owns the token | Split |
+|---|---|---|---|---|
+| **Sponsored free launch** ("Agent launch") | `/launch` (owner) | The platform treasury agent wallet pays every fee | The platform is the creator; the launcher you name gets the fee share | **You 70% · Platform 30%** |
+| **Self launch** | `/self-launch` (public, any user) | The user's own wallet pays all fees and the optional dev buy | **The user is the creator. The platform owns nothing** | **You 95% · Platform 5%** |
+
+<p align="center"><img src="docs/images/self-launch.jpg" alt="Self launch" width="46%"> <img src="docs/images/widget-3d.jpg" alt="Floating Rakaza chat (3D)" width="46%"></p>
+
+- **Self launch** (`/self-launch`, also under Control room → Self launch): connect Phantom or Solflare, fill name, ticker, description and image (upload, or generate), set an optional dev buy, confirm the 95/5 split and launch. The mint keypair is created in the browser, the server only pins metadata and signs an approval ticket (it never signs a transaction), and the result panel shows the mint, creator (your wallet), Solscan and pump.fun links and the fee split. Safe for non-owners: rate limited, size and magic-byte checked, no treasury spend, never signed by the treasury, the creator must not be the treasury, and exactly two shareholders (you 9500 bps, treasury 500 bps). It does **not** need `EXECUTE_ENABLED`; it is on by default on devnet (set `SELF_LAUNCH_ENABLED=true` to allow it on mainnet, `false` to turn it off).
+- **Floating Rakaza chat**: a bubble at the bottom right of every public page and the dashboard. The panel (3D VRM avatar, lazy-loaded only when opened, 2D fallback on mobile or without WebGL) chats with the River brain, speaks replies with the Luna voice only after you send a message, has an optional mic, minimize and "open full /talk".
+- **Studio, My studio** (`/studio/me`): your launches and images on this device (localStorage, no sign-in).
+
 <table>
 <tr>
 <td width="50%"><img src="docs/images/tab-launch.jpg" alt="Launch"><br><b>Launch</b>: paste a token, the agent does the rest (scan, rewrite, image, IPFS, simulate, approve, launch with the split).</td>
@@ -178,7 +191,8 @@ Any agent can read `/skill.md`, register at `/register`, get a bearer key and ca
 Creator fees on pump.fun can be shared between wallets via a **fee-sharing config**.
 
 - **70/30**: a launch done *for* a user. `7000 bps` to the user's fee wallet, `3000 bps` to the platform treasury.
-- **95/5**: a self launch by the owner. `9500 bps` to the owner wallet, `500 bps` to the treasury.
+- **95/5**: a self launch by any user from their own wallet. `9500 bps` to the launcher's wallet, `500 bps` to the treasury. The user is the creator and the platform owns nothing.
+- **Never the same wallet twice**: the fee wallet cannot be the platform treasury (the UI, server actions, Telegram bot and API tools all block it with a friendly message). Test: `tests/treasury-clash.ts`.
 - **Permanent**: `updateFeeSharesV2` revokes the admin, so the split can be set **once** and never changed. That is the point: users can verify it on-chain.
 - **Transactions**: TX1 `createV2` (the mint co-signs). TX2 `createFeeSharingConfig` + `updateFeeSharesV2`. TX3 (optional) the dev buy. The dev buy lives in its own transaction because the three together exceed the 1232-byte transaction size limit.
 - **Verified first**: the code reads the config back on-chain and compares it before any dev buy runs.
@@ -333,6 +347,8 @@ vercel.json       daily cron
 | `npm run grind -- --help` | CLI vanity grinder |
 | `npx tsx tests/tools.test.ts` | Agent tool tests |
 | `TELEGRAM_MOCK=1 npx tsx tests/telegram-sim.ts` | Telegram bot simulation (no real sends) |
+| `npx tsx tests/treasury-clash.ts` | Treasury-clash guard, 70/30 and 95/5 splits, Launch Kit counts |
+| `node tests/self-launch-e2e.mjs 0.01` | Real devnet self launch through the /self-launch UI with a fake wallet (devnet throwaway key, see `tests/devnet-throwaway.ts`) |
 | `npx tsx tests/devnet-fee-flow.ts` | Real devnet launch + fee-split flow (needs devnet keys) |
 | `node tests/mobile-audit.mjs` | 390px overflow audit of every tab |
 

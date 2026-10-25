@@ -24,3 +24,16 @@ export function assertExecuteAllowed(action: string): never | void {
     throw new ExecuteBlockedError(`EXECUTE_ENABLED is not set to true (action: ${action})`);
   }
 }
+
+/**
+ * Self launch (the user's own wallet signs and pays; the platform never signs or spends here).
+ * It is NOT governed by EXECUTE_ENABLED, which only guards the sponsored/treasury path.
+ * Default: on for devnet, off for mainnet until SELF_LAUNCH_ENABLED is explicitly "true". "false" always turns it off.
+ */
+export function isSelfLaunchEnabled(): boolean {
+  const e = getEnv();
+  const v = (e.SELF_LAUNCH_ENABLED ?? "").toLowerCase();
+  if (v === "false") return false;
+  if (v === "true") return true;
+  return e.NEXT_PUBLIC_SOLANA_NETWORK === "devnet";
+}

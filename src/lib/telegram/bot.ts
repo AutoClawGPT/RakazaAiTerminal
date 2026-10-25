@@ -1,6 +1,7 @@
 import "server-only";
 import { getEnv } from "@/lib/env";
 import { isSolanaAddress } from "@/lib/tools/address";
+import { treasuryClash } from "@/lib/tools/splits";
 import { fetchToken } from "@/lib/launch/token-fetch";
 import { optimizeToken } from "@/lib/launch/optimize";
 import { generateImage } from "@/lib/pollinations";
@@ -124,6 +125,7 @@ async function cmdLaunch(chat: number, text: string) {
   if (!mint) return sendText(chat, "Usage: /launch <token mint> [fee wallet] [dev buy SOL]\nSave your fee wallet once with /wallet <address>.");
   const feeWallet = addrs[1] ?? (await savedWallet());
   if (!feeWallet) return sendText(chat, "Which wallet gets the 70% fees? Send /wallet <address> or add it after the mint.");
+  { const clash = treasuryClash(feeWallet, getEnv().TREASURY_PUBKEY); if (clash) return sendText(chat, clash); }
   const devBuy = nums[0] ? Number(nums[0]) : 0;
 
   await sendText(chat, "Step 1 of 5: checking the fee wallet.");

@@ -1,0 +1,123 @@
+"use client";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Box, ExternalLink, Mic, MicOff, Minus, SendHorizontal, Square, Volume2, VolumeX } from "lucide-react";
+import { CharacterStage } from "@/components/stage/character-stage";
+import { CssAvatar } from "@/components/stage/css-avatar";
+import { fieldCls } from "@/components/tools/tool-frame";
+import { useVoice } from "@/components/talk/use-voice";
+
+type Msg = { id: number; who: "me" | "her" | "sys"; text: string };
+const MAX = 500;
+
+/** Phones and low-end devices start in 2D (no VRM download); the 3D button loads it on demand. */
+function lowEnd() {
+  if (typeof window === "undefined") return true;
+  const nav = navigator as Navigator & { deviceMemory?: number };
+  return window.matchMedia("(max-width: 767px)").matches || (nav.hardwareConcurrency ?? 8) <= 4 || (nav.deviceMemory ?? 8) <= 4;
+}
+
+export function WidgetPanel({ open, onMinimize }: { open: boolean; onMinimize: () => void }) {
+  const [msgs, setMsgs] = useState<Msg[]>([{ id: 1, who: "her", text: "Hi, I’m Rakaza. Ask me anything about the launchpad, or just chat." }]);
+  const [draft, setDraft] = useState("");
+  const [thinking, setThinking] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [use3d, setUse3d] = useState(() => !lowEnd());
+  const idRef = useRef(2);
+  const busy = useRef(false);
+  const msgsRef = useRef(msgs);
+  msgsRef.current = msgs;
+  const logRef = useRef<HTMLDivElement>(null);
+  const voiceRef = useRef<ReturnType<typeof useVoice> | null>(null);
+
+  const send = useCallback(async (text: string) => {
+    const t = text.trim().slice(0, MAX);
+    if (!t || busy.current) return;
+    busy.current = true;
+    const mine: Msg = { id: idRef.current++, who: "me", text: t };
+    const history = [...msgsRef.current, mine].filter((m) => m.who !== "sys").map((m) => ({ role: m.who === "me" ? "user" : "assistant", content: m.text }));
+    setMsgs((m) => [...m, mine]);
+    setDraft("");
+    setThinking(true);
+    try {
+      const res = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: history }) });
+      const data = (await res.json()) as { reply?: string; message?: string };
+      if (!res.ok || !data.reply) throw new Error(data.message ?? "She didn’t answer. Try again.");
+      const reply = data.reply;
+      setMsgs((m) => [...m, { id: idRef.current++, who: "her", text: reply }]);
+      void voiceRef.current?.speak(reply); // only ever after the visitor sent a message, so the browser allows the sound
+    } catch (e) {
+      setMsgs((m) => [...m, { id: idRef.current++, who: "sys", text: e instanceof Error ? e.message : "Something went wrong." }]);
+    } finally {
+      busy.current = false;
+      setThinking(false);
+    }
+  }, []);
+  const voice = useVoice({ onFinalText: (t) => void send(t), muted });
+  voiceRef.current = voice;
+
+  const { stopSpeaking, stopListening } = voice;
+  useEffect(() => {
+    if (!open) {
+      stopSpeaking();
+      stopListening();
+    }
+  }, [open, stopSpeaking, stopListening]);
+  useEffect(() => {
+    logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
+  }, [msgs, thinking]);
+
+  return (
+    <section className={`rk-widget-panel ${open ? "" : "hidden"}`} role="dialog" aria-label="Chat with Rakaza" data-testid="widget-panel" aria-hidden={!open}>
+      <header className="flex items-center justify-between gap-2 border-b-2 border-[var(--rk-line)] px-3 py-2">
+        <p className="rk-kicker !m-0">Rakaza · {voice.listening ? "listening" : voice.speaking ? "talking" : "online"}</p>
+        <div className="flex gap-1.5">
+          <button type="button" className="rk-icon-btn !size-8" aria-pressed={use3d} aria-label={use3d ? "Switch to the 2D avatar" : "Switch to the 3D avatar"} title={use3d ? "2D avatar" : "3D avatar"} onClick={() => setUse3d((v) => !v)} data-testid="widget-3d">
+            <Box className="size-4" />
+          </button>
+          <button type="button" className="rk-icon-btn !size-8" aria-pressed={muted} aria-label={muted ? "Turn her voice on" : "Mute her voice"} onClick={() => { if (!muted) stopSpeaking(); setMuted((m) => !m); }} data-testid="widget-mute">
+            {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+          </button>
+          <Link href="/talk" className="rk-icon-btn !size-8" aria-label="Open the full Talk page" title="Open the full Talk page" data-testid="widget-expand">
+            <ExternalLink className="size-4" />
+          </Link>
+          <button type="button" className="rk-icon-btn !size-8" aria-label="Minimize" onClick={onMinimize} data-testid="widget-min">
+            <Minus className="size-4" />
+          </button>
+        </div>
+      </header>
+
+      <div className="rk-hero relative h-40 shrink-0 md:h-48" data-testid="widget-stage" data-avatar={use3d ? "3d" : "2d"}>
+        {use3d ? (
+          <CharacterStage variant="bust" controls="none" className="h-full" />
+        ) : (
+          <div className="absolute inset-0 grid place-items-end px-6 pt-4">
+            <CssAvatar className="max-h-full" />
+          </div>
+        )}
+      </div>
+
+      <div ref={logRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-2" role="log" aria-live="polite" data-testid="widget-log">
+        {msgs.map((m) => (
+          <p key={m.id} className={`mb-2 max-w-[90%] rounded-2xl px-3 py-2 text-sm ${m.who === "me" ? "ml-auto bg-[var(--rk-honey)] text-[var(--rk-ink)]" : m.who === "sys" ? "border border-red-400 text-red-400" : "bg-white/10"}`}>{m.text}</p>
+        ))}
+        {thinking ? <p className="mb-2 animate-pulse text-xs opacity-70">Rakaza is thinking…</p> : null}
+        {voice.error ? <p className="text-xs opacity-70">Voice: {voice.error}</p> : null}
+        {voice.interim ? <p className="text-xs italic opacity-70">{voice.interim}</p> : null}
+      </div>
+
+      <form className="flex items-center gap-2 border-t-2 border-[var(--rk-line)] p-2" onSubmit={(e) => { e.preventDefault(); void send(draft); }}>
+        <input className={`${fieldCls} min-w-0 flex-1`} value={draft} maxLength={MAX} onChange={(e) => setDraft(e.target.value)} placeholder="Say something…" aria-label="Message Rakaza" data-testid="widget-input" />
+        <button type="button" className="rk-icon-btn !size-10" aria-pressed={voice.listening} aria-label={voice.listening ? "Stop the microphone" : "Talk with the microphone"} onClick={() => (voice.listening ? voice.stopListening() : void voice.startListening())} data-testid="widget-mic">
+          {voice.listening ? <MicOff className="size-4" /> : <Mic className="size-4" />}
+        </button>
+        {voice.speaking ? (
+          <button type="button" className="rk-icon-btn !size-10" aria-label="Stop talking" onClick={voice.stopSpeaking}><Square className="size-4" /></button>
+        ) : null}
+        <button type="submit" className="rk-btn rk-btn-honey !min-h-10 !px-3" disabled={!draft.trim() || thinking} aria-label="Send" data-testid="widget-send">
+          <SendHorizontal className="size-4" />
+        </button>
+      </form>
+    </section>
+  );
+}

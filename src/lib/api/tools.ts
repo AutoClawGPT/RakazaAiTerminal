@@ -7,7 +7,7 @@ import { vampScan } from "@/lib/launch/vamp";
 import { integrationsHealth } from "@/lib/health";
 import { currentDiary } from "@/lib/diary";
 import { generateImage } from "@/lib/pollinations";
-import { platformSplit, validateSplit } from "@/lib/tools/splits";
+import { platformSplit, treasuryClash, validateSplit } from "@/lib/tools/splits";
 import { simulate } from "@/lib/tools/curve";
 import { compareAddresses, shieldScore } from "@/lib/tools/shield";
 import { isSolanaAddress } from "@/lib/tools/address";
@@ -110,6 +110,8 @@ export const TOOLS: Tool[] = [
     run: async ({ launcherWallet }) => {
       const t = publicEnv.treasuryPubkey;
       if (!t) return { ok: false, error: "The platform treasury address is not set on this server." };
+      const clash = treasuryClash(launcherWallet, t);
+      if (clash) return { ok: false, error: clash };
       const rows = platformSplit(launcherWallet, t);
       return { ok: true, shareholders: rows, check: validateSplit(rows) };
     },
@@ -143,6 +145,8 @@ export const TOOLS: Tool[] = [
     run: async (i) => {
       const t = publicEnv.treasuryPubkey;
       if (!t) return { ok: false, error: "The platform treasury address is not set on this server." };
+      const clash = treasuryClash(i.launcherWallet, t);
+      if (clash) return { ok: false, error: clash };
       const split = platformSplit(i.launcherWallet, t);
       const check = validateSplit(split);
       if (!check.ok) return { ok: false, error: check.errors[0] };

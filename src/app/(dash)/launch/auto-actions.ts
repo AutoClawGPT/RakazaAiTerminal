@@ -10,7 +10,7 @@ import { buildLaunch, simulateOnly, LaunchBuildError } from "@/lib/launch/build-
 import { signApproval, type LaunchPlan } from "@/lib/launch/approval";
 import { sealBytes } from "@/lib/launch/seal";
 import { connectionFor, LaunchExecError } from "@/lib/launch/execute";
-import { platformSplit, validateSplit } from "@/lib/tools/splits";
+import { platformSplit, treasuryClash, validateSplit } from "@/lib/tools/splits";
 import { trustCheck } from "@/lib/api/agent-kit-tools";
 import type { PrepareOut } from "./actions";
 
@@ -92,6 +92,8 @@ export async function autoPrepareAction(input: AutoPrepareInput): Promise<{ ok: 
     if (!env.TREASURY_PUBKEY) return { ok: false, error: "The treasury address is not set (TREASURY_PUBKEY)." };
     if (!isSolanaAddress(input.feeWallet)) return { ok: false, error: "The fee wallet is not a valid Solana address." };
     if (!/^(https:\/\/|ipfs:\/\/)/.test(input.uri ?? "")) return { ok: false, error: "Upload the metadata first." };
+    const clash = treasuryClash(input.feeWallet, env.TREASURY_PUBKEY);
+    if (clash) return { ok: false, error: clash };
     const shareholders = platformSplit(input.feeWallet, env.TREASURY_PUBKEY);
     const chk = validateSplit(shareholders);
     if (!chk.ok) return { ok: false, error: chk.errors?.[0] ?? "The fee split is not valid." };

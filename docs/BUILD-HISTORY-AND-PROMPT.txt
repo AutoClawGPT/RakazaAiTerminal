@@ -89,6 +89,9 @@ LAUNCH FLOW (the heart)
 Splits in one constants file: platform launch 7000 bps launcher / 3000 bps treasury; self launch 9500 / 500. updateFeeSharesV2 revokes the admin, so the split is PERMANENT: verify before irreversible steps.
 TX1 createV2 (the mint keypair co-signs; use bondingCurveComplete:false) -> TX2 createFeeSharingConfig + updateFeeSharesV2 (decode the on-chain config and require shareholders+bps equal the plan, sum 10000) -> TX3 optional dev buy. Three txs because one tx exceeds the 1232-byte limit. Make TX2 resumable if TX1 landed. Metadata: pin to Pinata IPFS (pump's endpoint is deprecated). Re-fetch the bonding curve right before any buy and pad max cost (avoids error 0x1772 TooMuchSolRequired). Seal mint keys server-side (AES-GCM).
 
+PHASE 7 (owner correction after the first push)
+The owner wanted two launch modes and the floating chat: (1) Sponsored free launch on /launch (treasury pays, 70/30 shown as "You 70% / Platform 30%"); (2) a separate public /self-launch tab where any user connects their wallet, pays all fees and the optional dev buy, is the creator, and the platform owns nothing (95/5, "You 95% / Platform 5%"); (3) a floating mini 3D Rakaza chat (bubble bottom-right on every page, VRM lazy-loaded only when opened, 2D fallback). Also: never let the fee wallet equal the treasury (central treasuryClash guard + test), self launch is gated by SELF_LAUNCH_ENABLED (default on for devnet) and NOT by EXECUTE_ENABLED, /studio/me is real (localStorage). Verified with a real devnet self launch through the UI (fake Phantom in puppeteer).
+
 QUALITY GATES
 tsc --noEmit = 0 errors; eslint = 0 errors; a tools audit that calls every agent tool; a mobile audit at 390px (no horizontal overflow: clip x on rotated decor, no mid-word breaks); hydration safe (use useSyncExternalStore for client-only values like navigator.hardwareConcurrency); retry with backoff for Neon fetch; DB-less pages show "not configured" not a crash.
 

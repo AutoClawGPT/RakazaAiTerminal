@@ -9,7 +9,7 @@ import { imageAction, launchAction, type PrepareOut } from "@/app/(dash)/launch/
 import { autoAnalyzeAction, autoPinAction, autoPrepareAction, autoRiskAction, autoTrustAction, type AutoTrust } from "@/app/(dash)/launch/auto-actions";
 import { ledgerAction } from "@/app/(dash)/history/actions";
 import { autoKit, fillCa, threadText, type AutoState } from "@/lib/launch/auto-kit";
-import { bpsToPercent, platformSplit } from "@/lib/tools/splits";
+import { bpsToPercent, platformSplit, treasuryClash } from "@/lib/tools/splits";
 import { isSolanaAddress } from "@/lib/tools/address";
 import type { VampResult } from "@/lib/launch/vamp";
 import type { AutoDraft, FlagRisk } from "@/lib/launch/auto";
@@ -77,7 +77,8 @@ export function AgentLaunch({ treasury, network, executeBlockedReason }: { treas
   const set = (id: StepId, s: StepStatus, note = "") => setSteps((x) => ({ ...x, [id]: { s, note } }));
 
   const blockedWhy = executeBlockedReason;
-  const split = treasury && isSolanaAddress(wallet.trim()) ? platformSplit(wallet.trim(), treasury) : null;
+  const clash = treasuryClash(wallet, treasury);
+  const split = treasury && !clash && isSolanaAddress(wallet.trim()) ? platformSplit(wallet.trim(), treasury) : null;
   const mint = prep?.out.plan.mint ?? "";
 
   const reset = () => { run.current++; setSteps(init()); setVamp(null); setDraft(null); setRisk(null); setTries([]); setImage(""); setPinned(null); setTrust(null); setPrep(null); setDone(null); setErr(""); setBusy(false); setWatched(false); };
@@ -264,7 +265,7 @@ export function AgentLaunch({ treasury, network, executeBlockedReason }: { treas
 
       {draft ? (
         <div className="grid gap-2 rounded-2xl border border-white/15 p-3" data-testid="al-kit">
-          <p className="rk-kicker">Launch Kit · {kitDone}/9 ticked</p>
+          <p className="rk-kicker">Launch Kit · {kitDone}/9 ticked (the vanity address is optional)</p>
           <ul className="grid gap-1 text-sm">
             {kit.map((k) => (
               <li key={k.id} className="flex items-start gap-2" data-kit={k.id} data-state={k.state}>
@@ -285,14 +286,14 @@ export function AgentLaunch({ treasury, network, executeBlockedReason }: { treas
         <div className="grid gap-3 rounded-2xl border border-white/15 p-3" data-testid="al-wallet">
           <p className="rk-kicker">Your fee wallet</p>
           <div>
-            <label className={labelCls} htmlFor="al-wallet">Solana wallet that gets 70% of the creator fees, forever</label>
+            <label className={labelCls} htmlFor="al-wallet">Your own Solana wallet: you get 70% of the creator fees, forever (the platform treasury pays the launch and keeps 30%)</label>
             <input id="al-wallet" className={fieldCls} value={wallet} onChange={(e) => { setWallet(e.target.value); setPrep(null); }} placeholder="Your wallet address" spellCheck={false} autoComplete="off" data-testid="al-wallet-input" />
           </div>
-          {split ? <p className="text-sm" data-testid="al-split">{split.map((s) => `${s.address === treasury ? "Platform" : "You"} ${bpsToPercent(s.shareBps)}%`).join(" · ")}. The split is set on-chain and cannot be changed.</p> : wallet ? <p className="text-xs text-amber-300">That is not a valid Solana address.</p> : null}
+          {clash ? <p className="text-sm text-amber-300" role="alert" data-testid="al-clash">{clash}</p> : split ? <p className="text-sm" data-testid="al-split">{split.map((s, i) => `${i === 0 ? "You" : "Platform"} ${bpsToPercent(s.shareBps)}%`).join(" · ")}. You are the fee wallet, the platform is the sponsor. The split is set on-chain and cannot be changed.</p> : wallet ? <p className="text-xs text-amber-300">That is not a valid Solana address.</p> : null}
           <details className="text-sm">
             <summary className="cursor-pointer font-semibold">Optional: use a ground vanity address</summary>
             <p className="mt-1 text-xs opacity-80">Make one on the Dev tab with <code>node cli/rakaza-grind.mjs --end pump --count 1 --out ./keys</code>, then pick the key file. It signs the create transaction once.</p>
-            <input type="file" accept="application/json,.json" className="mt-2 text-xs" onChange={(e) => void readGround(e.target.files?.[0])} data-testid="al-ground" />
+            <label className="rk-btn rk-btn-white rk-btn-sm mt-2 inline-flex cursor-pointer">Choose the key file (optional)<input type="file" accept="application/json,.json" className="sr-only" onChange={(e) => void readGround(e.target.files?.[0])} data-testid="al-ground" /></label>
             {groundAddr ? <p className="mt-1 break-all text-xs">Will launch at <span className="font-mono">{groundAddr}</span></p> : null}
           </details>
           <div className="grid gap-1 sm:max-w-xs">

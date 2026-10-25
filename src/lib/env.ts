@@ -63,6 +63,8 @@ const schema = z.object({
   // Safety gates. EXECUTE_ENABLED must be literally "true" to ever allow a signature.
   EXECUTE_ENABLED: boolFlag,
   SPONSORED_ENABLED: boolFlag,
+  // Public self launch (the user's own wallet pays). Default: ON for devnet, OFF for mainnet until set to "true". Never spends treasury funds.
+  SELF_LAUNCH_ENABLED: z.string().trim().optional(),
   MAX_LAUNCH_SOL: numStr(0.5),
   MAX_DAILY_SPEND_SOL: numStr(1),
 

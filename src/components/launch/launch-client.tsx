@@ -1,5 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- generated data URL, next/image cannot optimise it */
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Mic, MicOff, SendHorizontal, Volume2, VolumeX } from "lucide-react";
 import { fieldCls, labelCls, SlidePanel } from "@/components/tools/tool-frame";
@@ -8,7 +9,7 @@ import { VanityTool } from "@/components/tools/vanity-tool";
 import { useVoice } from "@/components/talk/use-voice";
 import { draftAction, imageAction, launchAction, prepareLaunchAction, retrySplitAction, scanTokenAction, type PrepareOut } from "@/app/(dash)/launch/actions";
 import { parseIntent } from "@/lib/launch/intent";
-import { bpsToPercent, platformSplit, validateSplit } from "@/lib/tools/splits";
+import { bpsToPercent, platformSplit, treasuryClash, validateSplit } from "@/lib/tools/splits";
 import { simulate } from "@/lib/tools/curve";
 import { buildMetadata, emptyKit } from "@/lib/tools/kit";
 import { isSolanaAddress } from "@/lib/tools/address";
@@ -20,7 +21,7 @@ type Mode = "own" | "sponsored";
 
 const usd = (n?: number) => (n == null ? "unknown" : n >= 1000 ? `$${Math.round(n).toLocaleString()}` : `$${n.toPrecision(3)}`);
 
-export function LaunchClient({ treasury, network, executeBlockedReason }: { treasury?: string; network: "devnet" | "mainnet-beta"; executeBlockedReason: string }) {
+export function LaunchClient({ treasury, network, executeBlockedReason, selfBlockedReason = "" }: { treasury?: string; network: "devnet" | "mainnet-beta"; executeBlockedReason: string; selfBlockedReason?: string }) {
   const [log, setLog] = useState<Say[]>([{ id: 1, who: "her", text: "Paste a token address or tell me what to launch. I’ll scan it, rewrite it with River, make the image, and set the 70/30 split. You approve the last step." }]);
   const [input, setInput] = useState("");
   const [muted, setMuted] = useState(false);
@@ -47,7 +48,8 @@ export function LaunchClient({ treasury, network, executeBlockedReason }: { trea
     if (who === "her") void voiceRef.current?.speak(text);
   }, []);
 
-  const split = useMemo(() => (treasury && isSolanaAddress(wallet.trim()) ? platformSplit(wallet, treasury) : null), [treasury, wallet]);
+  const clash = treasuryClash(wallet, treasury);
+  const split = useMemo(() => (treasury && !treasuryClash(wallet, treasury) && isSolanaAddress(wallet.trim()) ? platformSplit(wallet, treasury) : null), [treasury, wallet]);
   const splitCheck = useMemo(() => (split ? validateSplit(split) : null), [split]);
   const sim = useMemo(() => {
     const n = Number(devSol);
@@ -262,6 +264,7 @@ export function LaunchClient({ treasury, network, executeBlockedReason }: { trea
           <div><label className={labelCls} htmlFor="l-wallet">Your fee wallet</label><input id="l-wallet" className={`${fieldCls} font-mono`} value={wallet} onChange={(e) => setWallet(e.target.value.trim())} spellCheck={false} autoComplete="off" /></div>
           {!treasury ? <p className="text-sm text-amber-300" role="alert">The platform treasury address is not set. Set NEXT_PUBLIC_TREASURY_PUBKEY in the environment.</p> : null}
           {wallet && !isSolanaAddress(wallet) ? <p className="text-sm text-red-400" role="alert">That is not a valid Solana address.</p> : null}
+          {clash ? <p className="text-sm text-amber-300" role="alert" data-testid="split-clash">{clash}</p> : null}
           {split ? <ul className="text-sm" data-testid="split-rows">{split.map((s) => <li key={s.label} className="break-all"><b>{bpsToPercent(s.shareBps)}</b> {s.label}: <span className="font-mono text-xs">{s.address}</span></li>)}</ul> : null}
         </div>
       ))}
@@ -282,9 +285,10 @@ export function LaunchClient({ treasury, network, executeBlockedReason }: { trea
           <ul className="grid gap-1 text-sm">
             {([["scan", "Token scanned"], ["draft", "River draft"], ["image", "Image"], ["fees", "Fee wallet and 70/30 split"], ["sim", "Simulation safe"]] as const).map(([k, l]) => <li key={k} className="flex items-center gap-2">{chip(ready[k])} {l}</li>)}
           </ul>
-          <p className="text-sm" data-testid="exec-blocked">{executeBlockedReason}</p>
+          {mode === "sponsored" ? <p className="text-sm" data-testid="exec-blocked">{executeBlockedReason}</p> : null}
+          <p className="text-sm" data-testid="mode-help">{mode === "sponsored" ? "Agent launch: the platform treasury agent wallet pays. You get 70%, the platform 30%." : "Self launch: your wallet pays and you are the creator. You get 95%, the platform 5%."} Prefer a clean standalone page that anyone can use? <Link href="/self-launch" className="underline" data-testid="goto-self-launch">Open the Self launch page</Link>.</p>
           {mode === "own" ? (
-            <SelfLaunch name={draft?.name ?? ""} ticker={draft?.ticker ?? ""} description={draft?.description ?? ""} image={image} links={{ website: token?.links.website, twitter: token?.links.twitter, telegram: token?.links.telegram }} feeWallet={wallet} devBuySol={Number(devSol) || 0} ready={allReady} blockedReason={executeBlockedReason} onUseWallet={setWallet} say={say} />
+            <SelfLaunch name={draft?.name ?? ""} ticker={draft?.ticker ?? ""} description={draft?.description ?? ""} image={image} links={{ website: token?.links.website, twitter: token?.links.twitter, telegram: token?.links.telegram }} feeWallet={wallet} devBuySol={Number(devSol) || 0} ready={allReady} blockedReason={selfBlockedReason} onUseWallet={setWallet} say={say} />
           ) : null}
           <div className={mode === "own" ? "hidden" : "flex flex-wrap gap-2"}>
             <button type="button" className="rk-btn rk-btn-white" disabled={!pkg} onClick={download} data-testid="pkg-btn">Download launch package</button>

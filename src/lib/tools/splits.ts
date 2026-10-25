@@ -26,13 +26,20 @@ export function validateSplit(rows: Shareholder[]): SplitCheck {
     const n = i + 1;
     const addr = r.address.trim();
     if (!isSolanaAddress(addr)) errors.push(`Row ${n}: not a valid Solana address.`);
-    else if (seen.has(addr)) errors.push(`Row ${n}: duplicate address.`);
+    else if (seen.has(addr)) errors.push(`Row ${n}: this wallet is already in the list. Each shareholder needs a different wallet.`);
     seen.add(addr);
     if (!Number.isInteger(r.shareBps) || r.shareBps <= 0) errors.push(`Row ${n}: share must be a whole number of basis points above 0.`);
     else total += r.shareBps;
   });
   if (total !== TOTAL_BPS) errors.push(`Shares add up to ${total} bps, they must add up to ${TOTAL_BPS} (100%).`);
   return { ok: errors.length === 0, errors, totalBps: total };
+}
+
+/** Shown whenever a launcher / fee wallet is the same as the platform treasury (the 2nd shareholder would be a duplicate). */
+export const TREASURY_CLASH_MSG = "Use a different wallet than the platform treasury. The platform wallet already receives its own share, so your fee wallet must be your own wallet.";
+/** Returns the friendly message when the launcher wallet equals the treasury, else null. Run this before building any split. */
+export function treasuryClash(launcher: string | undefined | null, treasury: string | undefined | null): string | null {
+  return launcher && treasury && launcher.trim() === treasury.trim() ? TREASURY_CLASH_MSG : null;
 }
 
 /** Splits 10000 bps evenly across `n` rows. The remainder goes to the first rows, one bp each. */

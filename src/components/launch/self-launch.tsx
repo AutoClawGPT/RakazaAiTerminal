@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Keypair, VersionedTransaction } from "@solana/web3.js";
 import { ConnectionProvider, WalletProvider, useWallet } from "@solana/wallet-adapter-react";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
@@ -11,7 +11,13 @@ export interface SelfLaunchProps {
   name: string; ticker: string; description: string; image: string;
   links: { website?: string; twitter?: string; telegram?: string };
   feeWallet: string; devBuySol: number; ready: boolean; blockedReason: string;
+  /** Shown while `ready` is false. */
+  notReadyHint?: string;
   onUseWallet: (addr: string) => void; say: (t: string) => void;
+  /** Server actions to call. Default = the owner Launch tab actions. The public /self-launch page passes its own rate-limited ones. */
+  actions?: { prepare: typeof prepareSelfLaunchAction; tx: typeof selfTxAction; relay: typeof selfRelayAction };
+  /** Called once all steps are done, with the plan and the transaction signatures. */
+  onDone?: (r: { plan: LaunchPlan; sigs: { create?: string; split?: string; buy?: string }; imageUrl?: string }) => void;
 }
 
 /** Network blips on the RPC are retried a few times. A real rejection from the chain or the server is never retried. */
@@ -34,6 +40,7 @@ const fresh = (): Step[] => [{ label: "Prepare and approve the plan", state: "to
 
 function Inner(p: SelfLaunchProps) {
   const w = useWallet();
+  const A = p.actions ?? { prepare: prepareSelfLaunchAction, tx: selfTxAction, relay: selfRelayAction };
   const [steps, setSteps] = useState<Step[]>(fresh);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -42,8 +49,15 @@ function Inner(p: SelfLaunchProps) {
   const set = (i: number, patch: Partial<Step>) => setSteps((s) => s.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const addr = w.publicKey?.toBase58() ?? "";
   // Kept so a stopped launch can resume from the failed step instead of starting a second token.
-  const session = useRef<{ plan: LaunchPlan; ticket: string; mintKp: Keypair; next: 1 | 2 | 3 } | null>(null);
+  const session = useRef<{ plan: LaunchPlan; ticket: string; mintKp: Keypair; next: 1 | 2 | 3; imageUrl?: string; sigs: { create?: string; split?: string; buy?: string } } | null>(null);
   const [canResume, setCanResume] = useState(false);
+  // The mint key lives only in this page, so warn before a reload while a launch is in progress.
+  useEffect(() => {
+    if (!busy) return;
+    const f = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", f);
+    return () => window.removeEventListener("beforeunload", f);
+  }, [busy]);
 
   const run = async (resume = false) => {
     if (!w.publicKey || !w.signTransaction) { setErr("Connect a wallet first."); return; }
@@ -58,24 +72,25 @@ function Inner(p: SelfLaunchProps) {
         setSteps(fresh());
         mintKp = Keypair.generate(); // generated here; the secret never leaves this page
         set(0, { state: "doing" });
-        const prep = await prepareSelfLaunchAction({ name: p.name, ticker: p.ticker, description: p.description, imageDataUrl: p.image, links: p.links, feeWallet: p.feeWallet || addr, devBuySol: p.devBuySol, wallet: addr, mint: mintKp.publicKey.toBase58(), confirmSplit: confirmed });
+        const prep = await A.prepare({ name: p.name, ticker: p.ticker, description: p.description, imageDataUrl: p.image, links: p.links, feeWallet: p.feeWallet || addr, devBuySol: p.devBuySol, wallet: addr, mint: mintKp.publicKey.toBase58(), confirmSplit: confirmed });
         if (!prep.ok) throw new Error(prep.error);
         plan = prep.plan; ticket = prep.ticket; from = 1;
-        session.current = { plan, ticket, mintKp, next: 1 };
+        session.current = { plan, ticket, mintKp, next: 1, imageUrl: prep.imageUrl, sigs: {} };
         set(0, { state: "done" });
       }
 
       const signStep = async (step: "create" | "split" | "buy", i: 1 | 2 | 3, mintSigner?: Keypair) => {
         at = i; set(i, { state: "doing" });
-        const t = await withRetry(() => selfTxAction(plan, ticket, step));
+        const t = await withRetry(() => A.tx(plan, ticket, step));
         if (!t.ok) throw new Error(t.error);
         const tx = VersionedTransaction.deserialize(Uint8Array.from(atob(t.tx), (c) => c.charCodeAt(0)));
         if (mintSigner) tx.sign([mintSigner]); // the mint signs first, then the wallet
         const signed = await w.signTransaction!(tx);
         let bin = ""; for (const b of signed.serialize()) bin += String.fromCharCode(b);
-        const r = await selfRelayAction(plan, ticket, step, btoa(bin));
+        const r = await A.relay(plan, ticket, step, btoa(bin));
         if (!r.ok) throw new Error(r.error);
         set(i, { state: "done", sig: r.sig });
+        if (session.current) session.current.sigs[step] = r.sig;
         if (session.current) session.current.next = Math.min(3, i + 1) as 1 | 2 | 3;
         return r;
       };
@@ -88,6 +103,7 @@ function Inner(p: SelfLaunchProps) {
       if (p.devBuySol > 0) await signStep("buy", 3); else set(3, { state: "done" });
       const msg = `Launched from your wallet. Token ${plan.mint} is live with the 95/5 split verified on-chain.`;
       setDone(msg); p.say(msg);
+      p.onDone?.({ plan, sigs: session.current?.sigs ?? {}, imageUrl: session.current?.imageUrl });
       session.current = null;
     } catch (e) {
       const m = e instanceof Error ? e.message : "Stopped.";
@@ -127,7 +143,7 @@ function Inner(p: SelfLaunchProps) {
       </button>
       {canResume ? <button type="button" className="rk-btn rk-btn-honey" data-testid="self-resume" disabled={busy || !w.connected} onClick={() => void run(true)}>Resume from the failed step</button> : null}
       {p.blockedReason ? <p className="text-sm text-amber-300">{p.blockedReason}</p> : null}
-      {!p.ready ? <p className="text-xs opacity-80">Finish steps 1 to 6 first (scan, draft, image, fee wallet, simulation).</p> : null}
+      {!p.ready ? <p className="text-xs opacity-80">{p.notReadyHint ?? "Finish steps 1 to 6 first (scan, draft, image, fee wallet, simulation)."}</p> : null}
       <ol className="grid gap-1 text-sm" data-testid="self-steps">
         {steps.map((s) => (
           <li key={s.label} className="flex flex-wrap items-center gap-2">

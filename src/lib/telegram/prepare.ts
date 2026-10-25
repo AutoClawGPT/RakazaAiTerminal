@@ -6,7 +6,7 @@ import { buildLaunch, simulateOnly } from "@/lib/launch/build-tx";
 import { signApproval, type LaunchPlan } from "@/lib/launch/approval";
 import { sealBytes } from "@/lib/launch/seal";
 import { connectionFor } from "@/lib/launch/execute";
-import { platformSplit } from "@/lib/tools/splits";
+import { platformSplit, treasuryClash } from "@/lib/tools/splits";
 
 export interface Prepared { plan: LaunchPlan; ticket: string; sealedMint: string; imageUrl: string; simNote: string; simOk: boolean }
 
@@ -14,6 +14,8 @@ export interface Prepared { plan: LaunchPlan; ticket: string; sealedMint: string
 export async function prepareSponsored(i: { name: string; ticker: string; description: string; image: Uint8Array; links?: { website?: string; twitter?: string; telegram?: string }; feeWallet: string; devBuySol: number }): Promise<Prepared> {
   const env = getEnv();
   if (!env.TREASURY_PUBKEY) throw new Error("The treasury address is not set (TREASURY_PUBKEY).");
+  const clash = treasuryClash(i.feeWallet, env.TREASURY_PUBKEY);
+  if (clash) throw new Error(clash);
   const shareholders = platformSplit(i.feeWallet, env.TREASURY_PUBKEY);
   const img = await pinImage(i.image, `${i.ticker.toLowerCase()}.png`, "image/png");
   const meta = await pinMetadata({ name: i.name, symbol: i.ticker, description: i.description, image: img.url, ...i.links });

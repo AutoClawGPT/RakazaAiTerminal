@@ -237,10 +237,10 @@
    "access": "P",
    "phase": 8,
    "kicker": "Studio",
-   "blurb": "Your characters, credits and tickets once you sign in with a wallet.",
+   "blurb": "Your recent images and launches, saved only in this browser.",
    "bullets": [
-    "Wallet sign-in",
-    "Your creations"
+    "No sign-in",
+    "Recent generations and self launches from this device"
    ]
   },
   {
@@ -514,7 +514,23 @@
     "Metadata pinned to IPFS",
     "Optional vanity mint",
     "Simulation and exact preview before any signature",
-    "Fee split fixed at 70% creator / 30% treasury"
+    "Sponsored launch: fee split fixed at 70% you / 30% platform. Launching from your own wallet? Use Self launch."
+   ]
+  },
+  {
+   "path": "/self-launch",
+   "title": "Self launch",
+   "label": "Self launch",
+   "group": "site",
+   "access": "P",
+   "phase": 6,
+   "kicker": "Your wallet · your token",
+   "blurb": "Connect your own wallet and launch a full pump.fun token yourself. You pay the fees, you are the creator, the platform owns nothing.",
+   "bullets": [
+    "Your wallet signs and pays every fee",
+    "Optional dev buy from your wallet",
+    "You keep 95% of creator fees, 5% sponsors the platform",
+    "Open to everyone, no login"
    ]
   },
   {

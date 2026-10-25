@@ -5,6 +5,7 @@ import { BottomNav } from "@/components/chrome/bottom-nav";
 import { DashNav } from "@/components/chrome/dash-nav";
 import type { MenuGroup } from "@/components/chrome/menu-sheet";
 import { MenuSheet } from "@/components/chrome/menu-sheet";
+import { RakazaWidget } from "@/components/widget/rakaza-widget";
 import { ThemeControls } from "@/components/chrome/theme-controls";
 import { getEnv } from "@/lib/env";
 import { isExecuteEnabled } from "@/lib/execute-gate";
@@ -70,6 +71,7 @@ export default function DashLayout({ children }: LayoutProps<"/">) {
         ) : null}
         <main id="main" className="rk-page-pad-lg">{children}</main>
       </div>
+      <RakazaWidget />
       <BottomNav
         visibleFrom="lg"
         menuTitle="Dashboard menu"

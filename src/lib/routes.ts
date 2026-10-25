@@ -72,9 +72,11 @@ export const publicMenu = (): { title: string; items: RouteDef[] }[] => {
 
 export const dashMenu = (): { title: string; items: RouteDef[] }[] => {
   const vis = ROUTES.filter((r) => r.group === "dash" && !r.hidden);
-  const pick = (paths: string[]) => paths.map((p) => vis.find((r) => r.path === p)).filter((r): r is RouteDef => Boolean(r));
+  // /self-launch is a public page (group "site") that also lives in the dashboard menu, right after Launch.
+  const all = [...vis, ...ROUTES.filter((r) => r.path === "/self-launch")];
+  const pick = (paths: string[]) => paths.map((p) => all.find((r) => r.path === p)).filter((r): r is RouteDef => Boolean(r));
   return [
-    { title: "Control room", items: pick(["/dash", "/launch", "/vanity", "/keyvault", "/pool", "/splits", "/shield", "/lab", "/kit", "/dev"]) },
+    { title: "Control room", items: pick(["/dash", "/launch", "/self-launch", "/vanity", "/keyvault", "/pool", "/splits", "/shield", "/lab", "/kit", "/dev"]) },
     { title: "Money", items: pick(["/vault", "/fees", "/trade", "/rewards", "/revenue", "/history"]) },
     { title: "Intelligence", items: pick(["/explore", "/scanner", "/dash/agents"]) },
     { title: "System", items: pick(["/infra", "/settings"]) },
