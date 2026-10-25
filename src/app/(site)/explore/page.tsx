@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   title: "Explore tokens",
   description: "Every token launched through Rakaza on pump.fun. New, graduating soon, graduated and trending, with live charts.",
   alternates: { canonical: "/explore" },
+  openGraph: { title: "Explore tokens · Rakaza", description: "Every token launched through Rakaza. New, graduating soon, graduated and trending, with live charts.", url: "/explore", type: "website", images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Rakaza Explore" }] },
+  twitter: { card: "summary_large_image", images: ["/twitter-image"], title: "Explore tokens · Rakaza", description: "Every token launched through Rakaza. New, graduating soon, graduated and trending, with live charts." },
 };
 export const dynamic = "force-dynamic";
 export const maxDuration = 20;
