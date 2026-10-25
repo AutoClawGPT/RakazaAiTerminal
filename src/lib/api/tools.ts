@@ -18,6 +18,8 @@ import { AGENT_KNOWLEDGE } from "@/lib/brain/knowledge";
 import { feeDestination, rugcheckToken, tokenAuthorities, trustCheck } from "./agent-kit-tools";
 import { jupiterPrice, jupiterQuote, treasuryHealth, verifyLaunch, walletBalance, walletFees } from "./chain-tools";
 import type { Caller } from "@/lib/auth/agent-keys";
+import { COMMUNITY_TOOLS } from "./community-tools";
+import { ToolFail } from "./tool-types";
 
 const addr = z.string().refine(isSolanaAddress, "Not a valid Solana address");
 
@@ -35,7 +37,7 @@ function tool<S extends z.ZodRawShape>(t: { name: string; title: string; descrip
   return { name: t.name, title: t.title, description: t.description, schema: z.object(t.shape), heavy: t.heavy, run: t.run as Tool["run"] };
 }
 
-export const TOOLS: Tool[] = [
+const BASE_TOOLS: Tool[] = [
   tool({
     name: "platform_info",
     title: "Platform info",
@@ -242,10 +244,14 @@ export const TOOLS: Tool[] = [
   }),
 ];
 
+/** Every tool: the original launch-research tools first (unchanged), then community and token-reading tools. */
+export const TOOLS: Tool[] = [...BASE_TOOLS, ...COMMUNITY_TOOLS];
+const READ_ONLY = new Set<string>([...COMMUNITY_TOOLS.filter((t) => t.readOnly).map((t) => t.name), "platform_info", "scan_token", "scan_lookalikes", "vamp_scan", "integrations_health", "preview_fee_split", "simulate_launch", "compare_addresses", "vanity_shield_score", "project_knowledge", "verify_launch", "wallet_fees", "wallet_balance", "jupiter_quote", "jupiter_price", "treasury_health", "rugcheck_token", "token_authorities", "fee_destination", "trust_check", "latest_diary"]);
+
 export function describeTool(t: Tool) {
   const js = z.toJSONSchema(t.schema, { io: "input" }) as Record<string, unknown>;
   delete js.$schema;
-  return { name: t.name, title: t.title, description: t.description, inputSchema: js };
+  return { name: t.name, title: t.title, description: t.description, inputSchema: js, annotations: { title: t.title, readOnlyHint: READ_ONLY.has(t.name), destructiveHint: false, openWorldHint: true } };
 }
 
 export async function callTool(name: string, input: unknown, caller: Caller): Promise<{ ok: true; result: unknown } | { ok: false; status: number; error: string; message: string }> {
@@ -255,7 +261,8 @@ export async function callTool(name: string, input: unknown, caller: Caller): Pr
   if (!parsed.success) return { ok: false, status: 400, error: "bad_input", message: parsed.error.issues.map((i) => `${i.path.join(".") || "input"}: ${i.message}`).join("; ") };
   try {
     return { ok: true, result: await t.run(parsed.data as never, caller) };
-  } catch {
+  } catch (e) {
+    if (e instanceof ToolFail) return { ok: false, status: e.status, error: e.code, message: e.message };
     return { ok: false, status: 500, error: "tool_failed", message: "The tool failed. Try again." };
   }
 }

@@ -25,7 +25,7 @@ const FILE = "/tmp/rakaza-selflaunch.json";
   } else if (cmd === "return" && existsSync(FILE)) {
     const kp = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(FILE, "utf8"))));
     const bal = await conn.getBalance(kp.publicKey);
-    const back = bal - 10000;
+    const back = bal - 5000; // empty the account exactly: one signature costs 5000 lamports, and a leftover below rent-exempt minimum is refused
     if (back > 0) console.log("returned lamports", back, "sig", await send(kp, treasury.publicKey, back)); else console.log("nothing to return", bal);
   } else console.log("usage: fund [sol] | return");
 })().catch((e) => { console.error("FAIL", e instanceof Error ? e.message : e); process.exit(1); });
