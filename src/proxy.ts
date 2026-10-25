@@ -52,6 +52,9 @@ function hasBearer(req: NextRequest): boolean {
   return /^Bearer\s+\S+/i.test(req.headers.get("authorization") ?? "");
 }
 
+/** First path segment of every /api route that exists (or is reserved). Anything else under /api gets a clean JSON 404, not a 401. */
+const KNOWN_API = new Set(["auth", "chat", "voice", "diary", "live", "memes", "checker", "public", "telegram", "cron", "health", "v1", "agent", "owner"]);
+
 function isApiLike(pathname: string): boolean {
   return pathname.startsWith("/api/") || pathname === "/api" || pathname === "/mcp" || pathname.startsWith("/mcp/");
 }
@@ -61,6 +64,11 @@ export function proxy(req: NextRequest) {
   const api = isApiLike(pathname);
 
   if (api) {
+    // Discovery: GET /mcp answers 405 (POST only) from the route itself, so a browser or crawler sees a clear message, not a 401.
+    if (pathname === "/mcp" && (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS")) return NextResponse.next();
+    if (pathname.startsWith("/api/") && !KNOWN_API.has(pathname.split("/")[2] ?? "")) {
+      return NextResponse.json({ error: "not_found", message: "No such API route. See /openapi.json." }, { status: 404, headers: { "Cache-Control": "no-store" } });
+    }
     if (PUBLIC_API.some((p) => (p.endsWith("/") ? pathname.startsWith(p) : pathname === p || pathname.startsWith(p + "/")))) {
       return NextResponse.next();
     }
