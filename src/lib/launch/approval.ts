@@ -14,6 +14,11 @@ export interface LaunchPlan {
   uri: string;
   devBuySol: number;
   shareholders: { address: string; shareBps: number }[];
+  /**
+   * Self launch only: the flat service fee the user pays to the platform treasury inside the create transaction.
+   * It is part of the plan, so the signed ticket covers the exact amount, destination and quote time.
+   */
+  serviceFee?: { lamports: number; to: string; quoteAt: number; usd: number; source: "jupiter" | "fallback" };
 }
 
 const TTL_MS = 10 * 60 * 1000;

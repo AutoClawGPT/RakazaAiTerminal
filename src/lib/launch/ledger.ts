@@ -28,7 +28,7 @@ async function onChain(conn: Connection, l: DbLaunch) {
   const hit = cache.get(l.mint);
   if (hit && Date.now() - hit.at < TTL) return hit.v;
   let split: boolean | null = null, dist: number | null = null, can: boolean | null = null;
-  if (["live", "split_mismatch", "created_unsplit"].includes(l.status)) {
+  if (l.shareholders.length > 0 && ["live", "split_mismatch", "created_unsplit"].includes(l.status)) {
     try { split = (await verifySplitOnChain(conn, l.mint, l.shareholders)).ok; } catch { split = null; }
     // The chain is the source of truth. If the split landed but the app never heard back (a dropped connection), fix the record.
     if (split && l.status !== "live") {

@@ -525,11 +525,11 @@
    "access": "P",
    "phase": 6,
    "kicker": "Your wallet · your token",
-   "blurb": "Connect your own wallet and launch a full pump.fun token yourself. You pay the fees, you are the creator, the platform owns nothing.",
+   "blurb": "Connect your own wallet and launch a full pump.fun token yourself. You pay, you are the creator, you keep the token, the contract and 100% of the creator fees.",
    "bullets": [
-    "Your wallet signs and pays every fee",
+    "Full agent pipeline: scan, River, image, IPFS, quote, launch",
     "Optional dev buy from your wallet",
-    "You keep 95% of creator fees, 5% sponsors the platform",
+    "You keep 100% of creator fees, one flat service fee",
     "Open to everyone, no login"
    ]
   },

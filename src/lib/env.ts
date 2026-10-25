@@ -65,6 +65,10 @@ const schema = z.object({
   SPONSORED_ENABLED: boolFlag,
   // Public self launch (the user's own wallet pays). Default: ON for devnet, OFF for mainnet until set to "true". Never spends treasury funds.
   SELF_LAUNCH_ENABLED: z.string().trim().optional(),
+  // Flat service fee for a self launch, in USD (default 2.00). Converted to SOL with the Jupiter price when the quote is made.
+  SELF_LAUNCH_SERVICE_FEE_USD: numStr(2),
+  // Used only when the live SOL price cannot be fetched (default 0.015 SOL).
+  SELF_LAUNCH_SERVICE_FEE_SOL: numStr(0.015),
   MAX_LAUNCH_SOL: numStr(0.5),
   MAX_DAILY_SPEND_SOL: numStr(1),
 

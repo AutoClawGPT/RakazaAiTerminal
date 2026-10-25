@@ -17,6 +17,8 @@ const ALLOWED = new Set([
   ASSOCIATED_TOKEN_PROGRAM_ID.toBase58(),
   PUMP_PROGRAM_ID.toBase58(),
   PUMP_FEE_PROGRAM_ID.toBase58(),
+  // Lighthouse: Phantom may add balance assertions to a transaction it signs. They can only assert, never move funds.
+  "L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95",
 ]);
 
 export function decodeTx(b64: string): VersionedTransaction {

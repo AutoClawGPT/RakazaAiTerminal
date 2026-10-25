@@ -6,11 +6,11 @@ export const AGENT_KNOWLEDGE = `# How Rakaza launches tokens
 
 ## Two launch types
 - Agent launch (free): the platform treasury is the creator and pays. The user only gives the wallet that should receive fees.
-- Self launch: the user connects their own wallet, which becomes the creator, signs every step and pays. The platform never holds that key. The split is 95% to the launcher and 5% to the platform as a sponsorship, and the user must confirm it before anything is signed.
+- Self launch (the separate /self-launch tab): the user connects Phantom or Solflare first, runs the same agent pipeline (scan, River, image, IPFS), and launches from their own wallet, which becomes the creator and pays. The platform never holds that key. There is no fee split: the user keeps the token, the contract and 100% of the creator fees. The platform charges one flat service fee (about $2 in SOL, quoted live) paid inside the same transaction, on top of the pump.fun launch cost (about $1.5). The user sees the full cost breakdown and must confirm it before anything is signed.
 
 ## On-chain steps (pump.fun SDK v4)
 - Create: createV2Instruction. The mint keypair co-signs. Creator is the treasury (agent launch) or the user's wallet (self launch).
-- Split: createFeeSharingConfig then updateFeeSharesV2 with 7000 and 3000 basis points. Admin rights are revoked by that update, so the split can be set only once and is permanent. Do not combine it with holder rewards.
+- Split (agent launch only; a self launch has no split at all): createFeeSharingConfig then updateFeeSharesV2 with 7000 and 3000 basis points. Admin rights are revoked by that update, so the split can be set only once and is permanent. Do not combine it with holder rewards.
 - Dev buy: a separate third transaction, sent after the split is verified, so the buy's creator fees already go through the split.
 - Each transaction is kept under 1232 bytes. Priority fee 100000 micro-lamports.
 - Un-swept creator fees block updateFeeSharesV2 (error 6095). Sweep first.

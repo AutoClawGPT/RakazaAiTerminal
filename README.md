@@ -27,7 +27,7 @@ Clone it, add your API keys, and run it as your own launchpad.</p>
 2. [Feature highlights](#feature-highlights)
 3. [The dashboard and every tab](#the-dashboard-and-every-tab)
 4. [Launching a coin](#launching-a-coin)
-5. [The 70/30 and 95/5 splits](#the-7030-and-955-splits)
+5. [Fees: the 70/30 split and the self-launch service fee](#fees-the-7030-split-and-the-self-launch-service-fee)
 6. [Architecture](#architecture)
 7. [Security model](#security-model)
 8. [Quick start](#quick-start)
@@ -60,7 +60,7 @@ It also exposes the same tools to AI agents over **REST (`/api/v1/tools`)**, **M
 | | |
 |---|---|
 | **One-paste agent launch** | Paste a contract address. The agent runs Vamp Radar/Shield, studies the token, writes a new name/ticker/description, generates an image (FLUX), pins metadata to IPFS, simulates, and waits for your approval. |
-| **Permanent fee split** | 70/30 for launches done for a user, 95/5 for self launches. Verified on-chain before any dev buy. |
+| **Fees that are easy to explain** | Sponsored launches: permanent 70/30 split, verified on-chain before any dev buy. Self launches: **no split**, you keep 100% of creator fees and pay one flat service fee (about $2 in SOL) inside the launch transaction. |
 | **Vanity grinder** | Grind mint addresses in browser Web Workers (libsodium). The secret key never leaves the browser. Also a CLI and a shareable "grind pool". |
 | **Safety gates** | Approval tickets, per-launch and daily spend caps, kill switch, default-deny proxy. |
 | **Agent platform** | 24 tools over REST and MCP, per-user agent keys, `skill.md` for self-onboarding. |
@@ -77,11 +77,12 @@ The owner area is behind `/login`. Public pages work without it.
 | Mode | Where | Who pays | Who owns the token | Split |
 |---|---|---|---|---|
 | **Sponsored free launch** ("Agent launch") | `/launch` (owner) | The platform treasury agent wallet pays every fee | The platform is the creator; the launcher you name gets the fee share | **You 70% · Platform 30%** |
-| **Self launch** | `/self-launch` (public, any user) | The user's own wallet pays all fees and the optional dev buy | **The user is the creator. The platform owns nothing** | **You 95% · Platform 5%** |
+| **Self launch** | `/self-launch` (public, any user) | The user's own wallet pays all fees and the optional dev buy | **The user is the creator. The platform owns nothing** | **You keep 100% of creator fees** · flat service fee (default $2, paid in SOL) |
 
 <p align="center"><img src="docs/images/self-launch.jpg" alt="Self launch" width="46%"> <img src="docs/images/widget-3d.jpg" alt="Floating Rakaza chat (3D)" width="46%"></p>
 
-- **Self launch** (`/self-launch`, also under Control room → Self launch): connect Phantom or Solflare, fill name, ticker, description and image (upload, or generate), set an optional dev buy, confirm the 95/5 split and launch. The mint keypair is created in the browser, the server only pins metadata and signs an approval ticket (it never signs a transaction), and the result panel shows the mint, creator (your wallet), Solscan and pump.fun links and the fee split. Safe for non-owners: rate limited, size and magic-byte checked, no treasury spend, never signed by the treasury, the creator must not be the treasury, and exactly two shareholders (you 9500 bps, treasury 500 bps). It does **not** need `EXECUTE_ENABLED`; it is on by default on devnet (set `SELF_LAUNCH_ENABLED=true` to allow it on mainnet, `false` to turn it off).
+- **Sponsored launcher** (`/launch`, owner only) is only the sponsored agent launcher. It asks for exactly one thing, the wallet that should receive the 70% fee share (never prefilled with the treasury). The treasury agent wallet does the rest and pays. There is no self-launch step, chip or panel on it, only a small link to `/self-launch`.
+- **Self launch** (`/self-launch`, public) is a complete standalone tab with the same agentic pipeline for someone paying from their own wallet: (1) connect Phantom or Solflare, (2) paste a token address, (3) Vamp Radar/Shield scan, (4) River analysis, rewrite and copy-risk check, (5) image (Pollinations FLUX, limited per wallet and IP, or upload your own), (6) metadata pinned to IPFS server side, (7) Launch Kit checklist, (8) edit anything, optional vanity mint address and mint-key backup download (keys never leave the browser), optional dev buy, (9) **Get my quote**: pump.fun cost + network fees + service fee (+ dev buy) = total, simulated first, (10) confirm and approve once in your wallet. The platform never signs: the mint signs first, then your wallet. You are the creator, you keep the token, the contract and **100% of the creator fees**. Safe for non-owners: rate limited, no treasury spend, no owner session, size and magic-byte checked images, the server checks the transaction before relaying it (service fee goes to the exact treasury address, amount within 2% of the quote, you are the creator). It does **not** need `EXECUTE_ENABLED`; it is on by default on devnet (`SELF_LAUNCH_ENABLED=true` allows it on mainnet, `false` turns it off).
 - **Floating Rakaza chat**: a bubble at the bottom right of every public page and the dashboard. The panel (the same 3D VRM avatar as `/talk` on every device including phones, lazy-loaded only when opened with a "Waking Rakaza up…" state and a lower pixel ratio on small screens; the 2D avatar is only a fallback when WebGL or the VRM load fails, or if you tap the 3D/2D toggle) chats with the River brain, speaks replies with the Luna voice only after you send a message, has an optional mic, minimize and "open full /talk".
 - **Studio, My studio** (`/studio/me`): your launches and images on this device (localStorage, no sign-in).
 
@@ -180,18 +181,19 @@ Any agent can read `/skill.md`, register at `/register`, get a bearer key and ca
 2. **Rewrite**: the River AI brain proposes a new name, ticker and description.
 3. **Image**: Pollinations FLUX generates art; metadata is pinned to IPFS (Pinata).
 4. **Vanity (optional)**: grind a custom mint address in the browser.
-5. **Fee split**: choose the split (70/30 or 95/5).
+5. **Fees**: sponsored launches use the 70/30 split; self launches have no split (you keep 100%) and show a quote with the flat service fee.
 6. **Simulate**: the transactions are simulated against the RPC.
 7. **Approve and launch**: an approval ticket is signed; the transactions are sent.
 
-## The 70/30 and 95/5 splits
+## Fees: the 70/30 split and the self-launch service fee
 
 <p align="center"><img src="docs/images/share-card.jpg" alt="70/30 split" width="80%"></p>
 
 Creator fees on pump.fun can be shared between wallets via a **fee-sharing config**.
 
-- **70/30**: a launch done *for* a user. `7000 bps` to the user's fee wallet, `3000 bps` to the platform treasury.
-- **95/5**: a self launch by any user from their own wallet. `9500 bps` to the launcher's wallet, `500 bps` to the treasury. The user is the creator and the platform owns nothing.
+- **Sponsored launch, 70/30**: a launch done *for* a user, paid by the platform treasury agent wallet. `7000 bps` to the user's fee wallet, `3000 bps` to the platform treasury.
+- **Self launch, no split**: the user launches from their own wallet. There is **no fee-sharing config**, so pump.fun's default applies: the creator (the user) gets 100% of the creator fees. The platform charges one flat **service fee**, `SELF_LAUNCH_SERVICE_FEE_USD` (default `2`), converted to SOL with the Jupiter price at quote time and sent as a `SystemProgram.transfer` to the treasury **inside the same create transaction** (if the token is not created, the fee is not paid). A quote is valid for 5 minutes. If the price lookup fails, `SELF_LAUNCH_SERVICE_FEE_SOL` (default `0.015`) is used and the UI says so. Typical total: pump.fun cost (about $1.5) + service fee ($2) = about $3.5, plus network fees and an optional dev buy. The quote screen shows every line, and the user ticks a confirmation before the wallet opens.
+- **Self-launch safety**: the platform never signs for the user, the creator is the user's wallet, the mint signs first, and the server verifies the signed transaction (exactly one transfer to the exact treasury pubkey, amount within 2% of the quote, nothing else moves SOL) before relaying. Honest limit: because the platform does not co-sign, a user can always bypass our relay and send a transaction to the RPC themselves; they then simply skip our fee, and nothing else changes for them. Test: `tests/service-fee.ts`.
 - **Never the same wallet twice**: the fee wallet cannot be the platform treasury (the UI, server actions, Telegram bot and API tools all block it with a friendly message). Test: `tests/treasury-clash.ts`.
 - **Permanent**: `updateFeeSharesV2` revokes the admin, so the split can be set **once** and never changed. That is the point: users can verify it on-chain.
 - **Transactions**: TX1 `createV2` (the mint co-signs). TX2 `createFeeSharingConfig` + `updateFeeSharesV2`. TX3 (optional) the dev buy. The dev buy lives in its own transaction because the three together exceed the 1232-byte transaction size limit.
@@ -288,6 +290,7 @@ Names only: values go in `.env.local` (git-ignored) or in Vercel → Settings �
 | `UPCLOUD_API_TOKEN` | Optional | `/infra` server status | [upcloud.com](https://upcloud.com/) |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_ID` | Optional | Admin bot | [@BotFather](https://t.me/BotFather), [@userinfobot](https://t.me/userinfobot) |
 | `EXECUTE_ENABLED`, `SPONSORED_ENABLED`, `MAX_LAUNCH_SOL`, `MAX_DAILY_SPEND_SOL` | Optional | Safety gates and caps | n/a |
+| `SELF_LAUNCH_SERVICE_FEE_USD` (default `2`), `SELF_LAUNCH_SERVICE_FEE_SOL` (default `0.015`) | Optional | Flat self-launch service fee in USD (paid in SOL, Jupiter price) and its SOL fallback | n/a |
 | `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_X_URL`, `NEXT_PUBLIC_TELEGRAM_URL`, `NEXT_PUBLIC_TOKEN_MINT` | Optional | Branding and links | n/a |
 
 ## One-go Vercel deploy
@@ -347,7 +350,9 @@ vercel.json       daily cron
 | `npm run grind -- --help` | CLI vanity grinder |
 | `npx tsx tests/tools.test.ts` | Agent tool tests |
 | `TELEGRAM_MOCK=1 npx tsx tests/telegram-sim.ts` | Telegram bot simulation (no real sends) |
-| `npx tsx tests/treasury-clash.ts` | Treasury-clash guard, 70/30 and 95/5 splits, Launch Kit counts |
+| `npx tsx tests/treasury-clash.ts` | Treasury-clash guard, 70/30 split, `70%%` label regression, Launch Kit counts |
+| `npx tsx tests/service-fee.ts` | Self-launch service fee: quote maths, fallback, clamps, expiry, signed-transaction verification |
+| `node tests/sponsored-e2e.mjs <feeWallet> --launch` | Real devnet sponsored launch through the /launch UI (owner preview), checks the 70/30 split and that no self-launch text is on the page |
 | `node tests/self-launch-e2e.mjs 0.01` | Real devnet self launch through the /self-launch UI with a fake wallet (devnet throwaway key, see `tests/devnet-throwaway.ts`) |
 | `npx tsx tests/devnet-fee-flow.ts` | Real devnet launch + fee-split flow (needs devnet keys) |
 | `node tests/mobile-audit.mjs` | 390px overflow audit of every tab |

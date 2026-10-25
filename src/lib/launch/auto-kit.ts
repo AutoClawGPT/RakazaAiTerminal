@@ -19,6 +19,8 @@ export interface AutoState {
   splitChecked: boolean;
   /** The one-time mint key was sealed on the server for this launch. */
   mintSealed: boolean;
+  /** "self" = the user launches from their own wallet (100% of creator fees, flat service fee). Default "sponsored". */
+  variant?: "sponsored" | "self";
 }
 
 export type KitState = "done" | "optional" | "pending";
@@ -36,12 +38,13 @@ export function autoKit(s: AutoState): KitItem[] {
   const threadOk = s.thread.length > 0 && fillCa(s.thread, "x".repeat(44)).every((p) => p.length <= POST_MAX) && Boolean(cleanTicker(s.ticker));
   const metaOk = Boolean(s.name.trim() && cleanTicker(s.ticker) && s.description.trim());
   const hasUri = /^(https:\/\/|ipfs:\/\/)/.test(s.uri);
+  const self = s.variant === "self";
   const t: Record<CheckId, { ok: boolean; optional?: boolean; yes: string; no: string }> = {
     grind: { ok: !!s.groundMint && isSolanaAddress(s.groundMint), optional: true, yes: `Ground address ${s.groundMint?.slice(0, 4)}…${s.groundMint?.slice(-4)}`, no: "Not used. A normal random address is fine." },
     shield: { ok: s.vampScanned, yes: "Vamp Shield and Radar scan done on the source token.", no: "Waiting for the scan." },
-    backup: { ok: s.mintSealed, yes: "The one-time mint key is sealed on the server and used once. A ground key stays in your own file.", no: "Made when the launch is prepared." },
-    lab: { ok: s.dryRunOk, yes: "Dry run of the real transaction passed.", no: "Runs when the launch is prepared." },
-    splits: { ok: s.splitChecked, yes: "Fee split checked: 70% you, 30% platform, permanent.", no: "Checked when the launch is prepared." },
+    backup: { ok: s.mintSealed, yes: self ? "The mint key was made in your browser and never leaves it. Download the backup if you used a vanity address." : "The one-time mint key is sealed on the server and used once. A ground key stays in your own file.", no: self ? "Made in your browser when you get the quote." : "Made when the launch is prepared." },
+    lab: { ok: s.dryRunOk, yes: "Dry run of the real transaction passed.", no: self ? "Runs when you get the quote." : "Runs when the launch is prepared." },
+    splits: { ok: s.splitChecked, yes: self ? "Fee model checked: you keep 100% of the creator fees, no platform shareholder. One flat service fee, quoted and confirmed by you." : "Fee split checked: 70% you, 30% platform, permanent.", no: self ? "Checked when you get the quote." : "Checked when the launch is prepared." },
     image: { ok: /^https?:\/\/|^ipfs:\/\//.test(s.imageUrl), yes: "Image made and pinned to IPFS.", no: "Waiting for the image and upload." },
     meta: { ok: metaOk && hasUri, yes: "Name, ticker and description pinned as metadata JSON.", no: "Waiting for the metadata upload." },
     thread: { ok: threadOk, yes: `${s.thread.length} posts, each within ${POST_MAX} characters.`, no: "Waiting for the thread." },

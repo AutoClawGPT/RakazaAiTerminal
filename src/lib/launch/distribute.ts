@@ -78,7 +78,7 @@ export async function distributeAll(): Promise<DistributeResult[]> {
   if (!q) throw new LaunchExecError("The database is not configured.");
   await ensureSchema();
   const net = getEnv().NEXT_PUBLIC_SOLANA_NETWORK;
-  const rows = (await q`SELECT mint, network, shareholders FROM launches WHERE status = 'live' AND network = ${net} ORDER BY updated_at DESC LIMIT 50`) as unknown as L[];
+  const rows = (await q`SELECT mint, network, shareholders FROM launches WHERE status = 'live' AND network = ${net} AND jsonb_array_length(shareholders) > 0 ORDER BY updated_at DESC LIMIT 50`) as unknown as L[];
   const conn = connectionFor(net);
   const out: DistributeResult[] = [];
   for (const l of rows) {

@@ -4,8 +4,16 @@ import { getEnv } from "./env";
 const BASE = "https://gen.pollinations.ai";
 
 export type PollinationsResult =
-  | { ok: true; mime: "image/png"; b64: string; ms: number; model: string }
+  | { ok: true; mime: "image/png" | "image/jpeg" | "image/webp"; b64: string; ms: number; model: string }
   | { ok: false; status: number; error: string };
+
+/** The service answers JPEG for some models even though the field is called PNG: label the bytes by what they are (a wrong label breaks pinning and wallets). */
+export function sniffMime(b64: string): "image/png" | "image/jpeg" | "image/webp" {
+  const b = Buffer.from(b64.slice(0, 64), "base64");
+  if (b[0] === 0xff && b[1] === 0xd8) return "image/jpeg";
+  if (b.length > 12 && b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP") return "image/webp";
+  return "image/png";
+}
 
 /** One image (FLUX family). The key goes only in the Authorization header. */
 async function generateImageOnce(
@@ -31,7 +39,7 @@ async function generateImageOnce(
     const json = (await res.json()) as { data?: { b64_json?: string }[] };
     const b64 = json.data?.[0]?.b64_json;
     if (!b64) return { ok: false, status: res.status, error: "No image in response" };
-    return { ok: true, mime: "image/png", b64, ms: Date.now() - t0, model };
+    return { ok: true, mime: sniffMime(b64), b64, ms: Date.now() - t0, model };
   } catch (e) {
     return { ok: false, status: 0, error: e instanceof Error ? e.message : "request failed" };
   }

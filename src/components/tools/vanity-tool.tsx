@@ -16,7 +16,8 @@ function useCores(): number {
   return useSyncExternalStore(noopSubscribe, () => navigator.hardwareConcurrency || 4, () => 0);
 }
 
-export function VanityTool() {
+/** `onFound` lets a parent (the Self launch page) use the ground address as the token mint. The key still never leaves the browser. */
+export function VanityTool({ onFound }: { onFound?: (addr: string, secretBase58: string) => void } = {}) {
   const [pattern, setPattern] = useState<Pattern>({ start: "", end: "", ignoreCase: false });
   const cores = useCores();
   const [pickedThreads, setPickedThreads] = useState<number | null>(null);
@@ -31,6 +32,8 @@ export function VanityTool() {
   const [error, setError] = useState("");
   const [reveal, setReveal] = useState(false);
   const [copied, setCopied] = useState("");
+  const onFoundRef = useRef(onFound);
+  useEffect(() => { onFoundRef.current = onFound; }, [onFound]);
   const workers = useRef<Worker[]>([]);
   const counts = useRef<number[]>([]);
   const t0 = useRef(0);
@@ -78,6 +81,7 @@ export function VanityTool() {
           counts.current[i] = m.count;
           setTotal(counts.current.reduce((a, b) => a + b, 0));
           setFound({ addr: m.addr, secret: m.secret, count: m.count });
+          onFoundRef.current?.(m.addr, m.secret);
           stop();
         } else if (m.type === "error") {
           setError(m.message);

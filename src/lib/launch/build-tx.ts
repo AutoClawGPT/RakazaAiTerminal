@@ -1,5 +1,5 @@
 import "server-only";
-import { ComputeBudgetProgram, Connection, Keypair, PublicKey, TransactionMessage, VersionedTransaction, type TransactionInstruction } from "@solana/web3.js";
+import { ComputeBudgetProgram, Connection, Keypair, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction, type TransactionInstruction } from "@solana/web3.js";
 import { NATIVE_MINT, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import BN from "bn.js";
 import { OnlinePumpSdk, PUMP_SDK, getBuyTokenAmountFromSolAmount } from "@pump-fun/pump-sdk";
@@ -95,4 +95,30 @@ export async function buildDevBuy(conn: Connection, creator: PublicKey, mint: Pu
   const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash("confirmed");
   const tx = new VersionedTransaction(new TransactionMessage({ payerKey: creator, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message());
   return { tx, bytes: tx.serialize().length, blockhash, lastValidBlockHeight };
+}
+
+/**
+ * Self launch: ONE create transaction. The user's wallet is the creator and pays. pump.fun's own default applies, so 100% of the
+ * creator fees go to the creator: there is no fee-sharing config and no platform shareholder.
+ * The flat service fee is a plain SystemProgram transfer to the treasury inside the same transaction, so it is paid if and only if the token is created.
+ */
+export async function buildSelfCreate(conn: Connection, i: { creator: PublicKey; mint: PublicKey; name: string; symbol: string; uri: string; treasury: PublicKey; serviceFeeLamports: number }): Promise<{ tx: VersionedTransaction; bytes: number; blockhash: string; lastValidBlockHeight: number }> {
+  if (i.name.length < 1 || i.name.length > 32) throw new LaunchBuildError("Name must be 1 to 32 characters.");
+  if (i.symbol.length < 2 || i.symbol.length > 10) throw new LaunchBuildError("Ticker must be 2 to 10 characters.");
+  if (!/^https:\/\/.{5,190}$/.test(i.uri)) throw new LaunchBuildError("Metadata link must be an https link under 200 characters.");
+  if (i.creator.equals(i.treasury)) throw new LaunchBuildError("The treasury cannot be the creator of a self launch.");
+  const ixs: TransactionInstruction[] = [ComputeBudgetProgram.setComputeUnitLimit({ units: CU_TX1 }), ComputeBudgetProgram.setComputeUnitPrice({ microLamports: PRIORITY_MICROLAMPORTS })];
+  if (i.serviceFeeLamports > 0) ixs.push(SystemProgram.transfer({ fromPubkey: i.creator, toPubkey: i.treasury, lamports: i.serviceFeeLamports }));
+  ixs.push(await PUMP_SDK.createV2Instruction({ mint: i.mint, name: i.name, symbol: i.symbol, uri: i.uri, creator: i.creator, user: i.creator, mayhemMode: false }));
+  const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash("confirmed");
+  const tx = new VersionedTransaction(new TransactionMessage({ payerKey: i.creator, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message());
+  return { tx, bytes: tx.serialize().length, blockhash, lastValidBlockHeight };
+}
+
+/** Dry-runs a transaction and returns how many lamports the payer would lose (fees, rent, transfers). Null if it could not be measured. */
+export async function simulateCost(conn: Connection, tx: VersionedTransaction, payer: PublicKey): Promise<{ err: unknown; costLamports: number | null; unitsConsumed: number | null; balance: number }> {
+  const balance = await conn.getBalance(payer, "confirmed");
+  const r = await conn.simulateTransaction(tx, { sigVerify: false, replaceRecentBlockhash: true, commitment: "confirmed", accounts: { encoding: "base64", addresses: [payer.toBase58()] } });
+  const post = r.value.accounts?.[0]?.lamports;
+  return { err: r.value.err, costLamports: typeof post === "number" ? balance - post : null, unitsConsumed: r.value.unitsConsumed ?? null, balance };
 }

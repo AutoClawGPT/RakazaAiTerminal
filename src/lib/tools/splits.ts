@@ -54,16 +54,6 @@ export function splitEvenly(n: number): number[] {
 export const PLATFORM_LAUNCHER_BPS = 7000;
 export const PLATFORM_TREASURY_BPS = 3000;
 
-/** Self launch: the launcher keeps 95%, 5% sponsors the platform. Permanent once set. */
-export const SELF_LAUNCHER_BPS = 9500;
-export const SELF_TREASURY_BPS = 500;
-export function selfSplit(launcher: string, treasury: string): Shareholder[] {
-  return [
-    { address: launcher.trim(), shareBps: SELF_LAUNCHER_BPS, label: "Launcher" },
-    { address: treasury.trim(), shareBps: SELF_TREASURY_BPS, label: "Platform sponsorship" },
-  ];
-}
-
 export function platformSplit(launcher: string, treasury: string): Shareholder[] {
   return [
     { address: launcher.trim(), shareBps: PLATFORM_LAUNCHER_BPS, label: "Launcher" },

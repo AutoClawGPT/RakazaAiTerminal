@@ -6,7 +6,7 @@ Rule zero: NEVER print, commit or paste a secret. Names only. Everything below i
 ----------------------------------------------------------------------
 0. WHAT YOU ARE BUILDING
 ----------------------------------------------------------------------
-A Next.js 16 app: public site with an AI character + owner dashboard + pump.fun launcher with a permanent fee split (70/30 platform launches, 95/5 self launches), vanity address grinder, agent API (/mcp, /api/v1/tools, /skill.md), Telegram admin bot. See README.md for screenshots and the tab list.
+A Next.js 16 app: public site with an AI character + owner dashboard + pump.fun launcher with a permanent fee split (70/30 on platform-sponsored launches; self launches have no split: the user keeps 100% and pays one flat service fee), vanity address grinder, agent API (/mcp, /api/v1/tools, /skill.md), Telegram admin bot. See README.md for screenshots and the tab list.
 
 ----------------------------------------------------------------------
 1. PREREQUISITES
@@ -177,7 +177,7 @@ E24 Two launch modes were mixed up: the owner wants BOTH "Sponsored free launch"
     Fix: dedicated /self-launch page with public server actions (rate limited, size + magic-byte checks, no treasury spend, never signs with the treasury, gated by isSelfLaunchEnabled() NOT EXECUTE_ENABLED). Launch tab keeps the sponsored mode with cards linking both ways.
 
 E25 "Row 2: duplicate address." leaked to the user when the fee wallet equalled the treasury (and the UI labels printed "Platform 70%% . Platform 30%%").
-    Fix: one central treasuryClash() in src/lib/tools/splits.ts used by the UI (inline message), every server action, the Telegram bot and the API tools. Never prefill the fee wallet with the treasury. Friendly validateSplit text. Labels: "You 70% / Platform 30%" and "You 95% / Platform 5%". Test: tests/treasury-clash.ts.
+    Fix: one central treasuryClash() in src/lib/tools/splits.ts used by the UI (inline message), every server action, the Telegram bot and the API tools. Never prefill the fee wallet with the treasury. Friendly validateSplit text. Label: "You 70% / Platform 30%" (see E29 for the 70%% bug). Test: tests/treasury-clash.ts.
 
 E26 Floating 3D chat widget missing. Fix: src/components/widget (bubble always mounted, panel + VRM lazy-loaded with next/dynamic ssr:false only after first open, 2D CssAvatar fallback on low-end/mobile/no WebGL, voice only after a user send). Mounted in both the (site) and (dash) layouts.
 
@@ -187,13 +187,29 @@ E27 Box/shell env vars override .env.local (Next and --env-file never override a
 
 E28 Puppeteer fake-Phantom for e2e must set window.isPhantomInstalled = true as well as window.phantom.solana, otherwise the wallet adapter reports "not ready" ("Could not connect the wallet").
 
+E29 The Launch tab and the Self-launch tab were still mixed (owner correction 2): the sponsored page asked for the fee wallet AFTER the agent had finished, showed a "Check wallet and prepare" button, rendered a second manual 7-step wizard under the agent, and printed "You 70%% . Platform 30%%" ("%%" because bpsToPercent() already returns "70%" and the label added another "%").
+    Fix: /launch is ONLY the sponsored agent. The fee wallet is the one input, asked BEFORE the agent starts (the Run button stays disabled until it is a valid wallet that is not the treasury). Scan, River, risk, image, IPFS, trust check and build + dry-run all run inside the one agent run, and the single final button is "Launch with the agent". The manual wizard component was deleted. /self-launch is its own page with its own state. Regression asserts: tests/treasury-clash.ts (no "%%") and tests/sponsored-e2e.mjs (fails if "Self launch ->", "Check wallet and prepare", "Approve and launch", "%%" or a 95/5 label appears on /launch).
+
+E30 The 95% / 5% platform fee share on self launch was removed on the owner's order. The user keeps the token, the creator role and 100% of the creator fees. The platform only charges a FLAT service fee (SELF_LAUNCH_SERVICE_FEE_USD, default 2.00, converted to SOL with the Jupiter price at prepare time, 5 minute quote, fallback SELF_LAUNCH_SERVICE_FEE_SOL 0.015). pump.fun costs about 1.5 USD, so the user pays about 3.5 USD of SOL in total, shown as a breakdown with an explicit confirm.
+    Design: ONE atomic transaction [ComputeBudget x2, SystemProgram.transfer(creator -> treasury, fee), createV2]: if the create fails the fee is not charged. The mint signs first, then the user's wallet. No fee-sharing config is created, so pump.fun defaults to 100% creator fees. The server relay verifies exactly one transfer to the exact treasury pubkey within 2% of the quote (src/lib/launch/service-fee-core.ts, tests/service-fee.ts). Honest limit: the platform never signs, so a user can bypass our relay and send straight to the RPC; the fee is therefore a service price, not an enforced tax.
+
+E31 Pollinations returns JPEG bytes in a field the code called PNG, so the IPFS pin refused it ("not a valid PNG, JPEG or WebP"). Fix: sniff the real mime from the magic bytes (sniffMime in src/lib/pollinations.ts) and never trust the label.
+
+E32 React "Maximum update depth exceeded" on /self-launch: the stage component called a parent setKit() inside an effect and the parent re-created the callback on every render. Fix: useCallback for the callback and make it a no-op when nothing changed.
+
+E33 "Press Save changes to IPFS first." blocked the quote: changing the dev-buy amount marked the metadata dirty. Only name, ticker, description, links and image change the pinned metadata; the dev buy only invalidates the quote.
+
+E34 How to keep two tabs from mixing: one shared pipeline component (LaunchFlow) with variant "sponsored" | "self", an INJECTED api object (owner server actions vs public rate-limited actions) and a render-prop stage for the self-only part. The two pages never share state or actions. Verify with a devnet browser run of each: tests/sponsored-e2e.mjs <feeWallet> --launch and tests/self-launch-e2e.mjs 0.01, then tests/verify-self-onchain.mjs <mint> <creator> (creator = wallet, no fee-sharing program call, treasury received the service fee, mint exists).
+
+E35 The free image allowance can be used up on a wallet during repeated tests. The self flow must not stop: it asks the user to upload a picture (no limit). The e2e script falls back to uploading /tmp/test-token.png.
+
 ----------------------------------------------------------------------
 6. FINAL ACCEPTANCE CHECKLIST
 ----------------------------------------------------------------------
 [ ] env -i keyless build is green on Node 22 and `next start` serves public pages (no 500)
 [ ] tsc 0 errors, eslint 0 errors, tools audit 24/24
 [ ] secret scan clean (tree + history)
-[ ] devnet launch verified on chain (split 7000/3000)
+[ ] devnet launch verified on chain (split 7000/3000), and a devnet self launch verified (creator = wallet, no fee-sharing config, service fee to treasury)
 [ ] Vercel production URL returns 200 for public pages, 307 for owner pages, 401 for APIs
 [ ] keys added in Vercel (Sensitive), redeployed
 [ ] EXECUTE_ENABLED unset until the mainnet checklist is done
