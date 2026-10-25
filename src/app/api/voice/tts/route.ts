@@ -20,14 +20,16 @@ export async function POST(req: NextRequest) {
   const lim = limiter("tts", 30, "1 m");
   if (lim && !(await lim.limit(ip)).success) return NextResponse.json({ error: "slow_down" }, { status: 429 });
   const { text } = (await req.json().catch(() => ({}))) as { text?: string };
-  const t = typeof text === "string" ? text.trim().slice(0, 600) : "";
+  // Emoji and markdown marks are not spoken: she would read them out loud or stumble on them.
+  const t = typeof text === "string" ? text.replace(/[\p{Extended_Pictographic}\uFE0F\u200D*_`#~]/gu, "").replace(/\s+/g, " ").trim().slice(0, 600) : "";
   if (!t) return NextResponse.json({ error: "text_required" }, { status: 400 });
-  const res = await fetch(`https://api.deepgram.com/v1/speak?model=${pickVoice()}&encoding=mp3`, {
+  const voice = pickVoice();
+  const res = await fetch(`https://api.deepgram.com/v1/speak?model=${voice}&encoding=mp3`, {
     method: "POST",
     headers: { authorization: `Token ${key}`, "content-type": "application/json" },
     body: JSON.stringify({ text: t }),
     cache: "no-store",
   });
   if (!res.ok || !res.body) return NextResponse.json({ error: "tts_failed" }, { status: 502 });
-  return new Response(res.body, { headers: { "content-type": "audio/mpeg", "Cache-Control": "no-store" } });
+  return new Response(res.body, { headers: { "content-type": "audio/mpeg", "Cache-Control": "no-store", "x-rakaza-voice": voice } });
 }

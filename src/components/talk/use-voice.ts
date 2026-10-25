@@ -32,7 +32,7 @@ export function useVoice(opts: { onFinalText: (text: string) => void; muted: boo
 
   const speak = useCallback(
     async (text: string) => {
-      if (opts.muted) return;
+      if (opts.muted || !/[\p{L}\p{N}]/u.test(text)) return;
       try {
         stopSpeaking();
         const res = await fetch("/api/voice/tts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
