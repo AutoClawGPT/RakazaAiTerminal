@@ -13,7 +13,7 @@ async function guard(): Promise<Fail | null> {
 export async function scanTokenAction(mint: string): Promise<{ ok: true; token: TokenInfo } | Fail> {
   const g = await guard();
   if (g) return g;
-  return fetchToken(String(mint ?? ""));
+  try { return await fetchToken(String(mint ?? "")); } catch { return { ok: false, error: "The token lookup failed. Try again in a moment." }; }
 }
 
 export async function draftAction(token: TokenInfo): Promise<{ ok: true; draft: Draft } | Fail> {
@@ -21,9 +21,11 @@ export async function draftAction(token: TokenInfo): Promise<{ ok: true; draft: 
   if (g) return g;
   if (!token || typeof token.mint !== "string") return { ok: false, error: "Scan a token first." };
   // Re-fetch on the server so the browser cannot feed the brain forged facts.
-  const fresh = await fetchToken(token.mint);
-  if (!fresh.ok) return fresh;
-  return { ok: true, draft: await optimizeToken(fresh.token) };
+  try {
+    const fresh = await fetchToken(token.mint);
+    if (!fresh.ok) return fresh;
+    return { ok: true, draft: await optimizeToken(fresh.token) };
+  } catch { return { ok: false, error: "The draft could not be made right now. Try again in a moment." }; }
 }
 
 export async function imageAction(prompt: string): Promise<{ ok: true; dataUrl: string; ms: number } | Fail> {
@@ -31,7 +33,8 @@ export async function imageAction(prompt: string): Promise<{ ok: true; dataUrl: 
   if (g) return g;
   const p = String(prompt ?? "").trim();
   if (p.length < 5) return { ok: false, error: "Write an image prompt first." };
-  const r = await generateImage(p, { size: "512x512" });
+  let r: Awaited<ReturnType<typeof generateImage>>;
+  try { r = await generateImage(p, { size: "512x512" }); } catch { return { ok: false, error: "The image service did not answer. Try again in a moment." }; }
   if (!r.ok) return { ok: false, error: r.error };
   return { ok: true, dataUrl: `data:${r.mime};base64,${r.b64}`, ms: r.ms };
 }

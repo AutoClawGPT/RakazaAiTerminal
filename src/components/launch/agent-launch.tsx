@@ -35,6 +35,22 @@ const cluster = (n: string) => (n === "mainnet-beta" ? "" : `?cluster=${n}`);
 const ago = (ms: number) => `${Math.max(0, Math.round(ms / 1000))}s`;
 const RISK_RETRIES = 2;
 
+/** Runs one server step. A thrown error (lost connection, restart) or a temporary failure is retried twice, then reported in plain words. Never throws. */
+const TEMP = /timed out|timeout|try again|fetch failed|network|temporar|429|502|503|504|unreachable|rate limit/i;
+async function step<T extends { ok: boolean }>(fn: () => Promise<T>, onRetry?: (n: number) => void): Promise<T | { ok: false; error: string }> {
+  let last = "The connection dropped.";
+  for (let n = 0; n < 3; n++) {
+    try {
+      const r = await fn();
+      if (r.ok) return r;
+      last = (r as unknown as { error?: string }).error ?? "Failed.";
+      if (!TEMP.test(last)) return r;
+    } catch { last = "The connection to the server dropped. Check your internet and try again."; }
+    if (n < 2) { onRetry?.(n + 2); await new Promise((x) => setTimeout(x, 1500 * (n + 1))); }
+  }
+  return { ok: false, error: last };
+}
+
 export function AgentLaunch({ treasury, network, executeBlockedReason }: { treasury?: string; network: "devnet" | "mainnet-beta"; executeBlockedReason: string }) {
   const [ca, setCa] = useState("");
   const [steps, setSteps] = useState(init);
@@ -75,7 +91,7 @@ export function AgentLaunch({ treasury, network, executeBlockedReason }: { treas
     const fail = (s: StepId, e: string) => { if (live()) { set(s, "fail", e); setErr(e); setBusy(false); } };
 
     set("scan", "run", "Searching DexScreener for lookalikes…");
-    const v = await vampScanAction(addr);
+    const v = await step(() => vampScanAction(addr), (n) => set("scan", "run", `Retrying, attempt ${n} of 3…`));
     if (!live()) return;
     if (!v.ok) return fail("scan", v.error);
     setVamp(v.result);
@@ -86,12 +102,12 @@ export function AgentLaunch({ treasury, network, executeBlockedReason }: { treas
     const avoid: string[] = [];
     for (let i = 0; i <= RISK_RETRIES; i++) {
       set("analyze", "run", i === 0 ? "River is reading the flagged tokens…" : `Trying again, attempt ${i + 1}, avoiding ${avoid.length} names…`);
-      const a = await autoAnalyzeAction(addr, avoid);
+      const a = await step(() => autoAnalyzeAction(addr, avoid), (n) => set("analyze", "run", `Retrying, attempt ${n} of 3…`));
       if (!live()) return;
       if (!a.ok) return fail("analyze", a.error);
       set("analyze", "done", a.draft.fromRiver ? `${a.draft.name} ($${a.draft.ticker})` : "River was unreachable. Plain template used, review it.");
       set("risk", "run", `Checking ${a.draft.name} / ${a.draft.ticker} for copycats…`);
-      const k = await autoRiskAction(a.draft.name, a.draft.ticker);
+      const k = await step(() => autoRiskAction(a.draft.name, a.draft.ticker), (n) => set("risk", "run", `Retrying, attempt ${n} of 3…`));
       if (!live()) return;
       if (!k.ok) return fail("risk", k.error);
       if (!best || k.risk.score < best.r.score) best = { d: a.draft, r: k.risk };
@@ -106,14 +122,14 @@ export function AgentLaunch({ treasury, network, executeBlockedReason }: { treas
     set("risk", "done", `Best of ${Math.min(RISK_RETRIES + 1, avoid.length / 2 + 1)} tries: risk ${best.r.level} (score ${best.r.score}).`);
 
     set("image", "run", "Pollinations is drawing the logo…");
-    const im = await imageAction(best.d.imagePrompt);
+    const im = await step(() => imageAction(best!.d.imagePrompt), (n) => set("image", "run", `Retrying, attempt ${n} of 3…`));
     if (!live()) return;
     if (!im.ok) return fail("image", im.error);
     setImage(im.dataUrl);
     set("image", "done", `${ago(im.ms)} of drawing.`);
 
     set("pin", "run", "Uploading image, then metadata JSON…");
-    const p = await autoPinAction({ name: best.d.name, ticker: best.d.ticker, description: best.d.description, imageDataUrl: im.dataUrl, links: {} });
+    const p = await step(() => autoPinAction({ name: best!.d.name, ticker: best!.d.ticker, description: best!.d.description, imageDataUrl: im.dataUrl, links: {} }), (n) => set("pin", "run", `Retrying the upload, attempt ${n} of 3…`));
     if (!live()) return;
     if (!p.ok) return fail("pin", p.error);
     setPinned({ imageUrl: p.imageUrl, uri: p.uri });
@@ -141,14 +157,14 @@ export function AgentLaunch({ treasury, network, executeBlockedReason }: { treas
     const live = () => run.current === id;
     setErr(""); setBusy(true); setTrust(null); setPrep(null); setDone(null);
     set("trust", "run", "Checking the wallet…"); set("prepare", "idle"); set("launch", "idle");
-    const t = await autoTrustAction(wallet.trim());
+    const t = await step(() => autoTrustAction(wallet.trim()), (n) => set("trust", "run", `Retrying, attempt ${n} of 3…`));
     if (!live()) return;
     if (!t.ok) { set("trust", "fail", t.error); setErr(t.error); setBusy(false); return; }
     setTrust(t.trust);
     if (t.trust.blocked) { const e = t.trust.notes.join(" ") || "That wallet cannot receive fees."; set("trust", "fail", e); setErr(e); setBusy(false); return; }
     set("trust", "done", t.trust.notes[0] ?? "Wallet looks normal.");
     set("prepare", "run", "Building the transactions and dry-running them…");
-    const p = await autoPrepareAction({ name: draft.name, ticker: draft.ticker, description: draft.description, uri: pinned.uri, imageUrl: pinned.imageUrl, feeWallet: wallet.trim(), devBuySol: Number(devSol) || 0, groundMint: ground || undefined });
+    const p = await step(() => autoPrepareAction({ name: draft.name, ticker: draft.ticker, description: draft.description, uri: pinned.uri, imageUrl: pinned.imageUrl, feeWallet: wallet.trim(), devBuySol: Number(devSol) || 0, groundMint: ground || undefined }), (n) => set("prepare", "run", `Retrying, attempt ${n} of 3…`));
     if (!live()) return;
     if (!p.ok) { set("prepare", "fail", p.error); setErr(p.error); setBusy(false); return; }
     setPrep({ out: p.out, grounded: p.grounded });
@@ -159,7 +175,9 @@ export function AgentLaunch({ treasury, network, executeBlockedReason }: { treas
   const launch = async () => {
     if (!prep) return;
     setBusy(true); setSecs(0); setErr(""); set("launch", "run", "Signing and sending…");
-    const r = await launchAction(prep.out.plan, prep.out.ticket, prep.out.sealedMint);
+    let r: Awaited<ReturnType<typeof launchAction>>;
+    try { r = await launchAction(prep.out.plan, prep.out.ticket, prep.out.sealedMint); }
+    catch { r = { ok: false, error: "The connection dropped while launching. The launch may have gone through: open History to check before you try again." }; }
     if (!r.ok) { set("launch", "fail", r.error); setErr(r.error); setBusy(false); return; }
     setDone(r.result);
     set("launch", r.result.ok ? "done" : "fail", r.result.ok ? "Live." : (r.result.error ?? "Stopped."));

@@ -1,4 +1,5 @@
 import "server-only";
+import { withRetry } from "@/lib/retry";
 import { compareAddresses, type Verdict } from "@/lib/tools/shield";
 
 export interface Lookalike {
@@ -51,7 +52,11 @@ export async function radarScan(input: { mint?: string; name: string; ticker: st
   const seen = new Map<string, DexPair>();
   try {
     for (const q of queries) {
-      const res = await fetch(`https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(q)}`, { cache: "no-store", signal: AbortSignal.timeout(12000) });
+      const res = await withRetry(async () => {
+        const r = await fetch(`https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(q)}`, { cache: "no-store", signal: AbortSignal.timeout(12000) });
+        if (r.status === 429 || r.status >= 500) throw new Error(`DexScreener answered ${r.status}`);
+        return r;
+      }, { tries: 3, baseMs: 800 });
       if (!res.ok) return { ok: false, error: `DexScreener answered ${res.status}. Try again in a minute.` };
       const j = (await res.json()) as { pairs?: DexPair[] };
       for (const p of j.pairs ?? []) if (p.chainId === "solana" && p.baseToken && !seen.has(p.baseToken.address)) seen.set(p.baseToken.address, p);

@@ -23,18 +23,21 @@ export async function autoAnalyzeAction(mint: string, avoid: string[] = []): Pro
   if (g) return g;
   const m = String(mint ?? "").trim();
   if (!isSolanaAddress(m)) return { ok: false, error: "That is not a valid Solana address." };
-  const v = await vampScan(m);
+  let v: Awaited<ReturnType<typeof vampScan>>;
+  try { v = await vampScan(m); } catch { return { ok: false, error: "The scan failed to run. Try again in a moment." }; }
   if (!v.ok) return v;
   const safeAvoid = (Array.isArray(avoid) ? avoid : []).filter((x) => typeof x === "string").map((x) => x.slice(0, 40)).slice(0, 12);
-  return { ok: true, draft: await analyzeAndDraft(v.result, safeAvoid) };
+  try { return { ok: true, draft: await analyzeAndDraft(v.result, safeAvoid) }; } catch { return { ok: false, error: "The analysis failed to run. Try again in a moment." }; }
 }
 
 /** Step: how likely is the new name and ticker to be flagged as a copy? */
 export async function autoRiskAction(name: string, ticker: string): Promise<{ ok: true; risk: FlagRisk } | Fail> {
   const g = await guard();
   if (g) return g;
-  const r = await flagRisk(String(name ?? "").slice(0, 40), String(ticker ?? "").slice(0, 12));
-  return r.ok ? { ok: true, risk: r.risk } : r;
+  try {
+    const r = await flagRisk(String(name ?? "").slice(0, 40), String(ticker ?? "").slice(0, 12));
+    return r.ok ? { ok: true, risk: r.risk } : r;
+  } catch { return { ok: false, error: "The copycat check failed to run. Try again in a moment." }; }
 }
 
 /** Step: pin the image, then the metadata JSON, to IPFS through Pinata. */

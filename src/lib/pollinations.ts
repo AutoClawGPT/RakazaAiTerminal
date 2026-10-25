@@ -8,7 +8,7 @@ export type PollinationsResult =
   | { ok: false; status: number; error: string };
 
 /** One image (FLUX family). The key goes only in the Authorization header. */
-export async function generateImage(
+async function generateImageOnce(
   prompt: string,
   opts: { size?: "512x512" | "1024x1024"; keyOverride?: string; model?: string } = {},
 ): Promise<PollinationsResult> {
@@ -50,4 +50,14 @@ export async function checkBalance(keyOverride?: string): Promise<{ ok: true; ba
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "request failed" };
   }
+}
+
+/** Image with up to 3 tries on a network error, a timeout, 429 or 5xx. A rejected key or a bad prompt is not retried. */
+export async function generateImage(prompt: string, opts: { size?: "512x512" | "1024x1024"; keyOverride?: string; model?: string } = {}): Promise<PollinationsResult> {
+  let r = await generateImageOnce(prompt, opts);
+  for (let n = 1; n < 3 && !r.ok && (r.status === 0 || r.status === 429 || r.status >= 500); n++) {
+    await new Promise((x) => setTimeout(x, 1200 * n));
+    r = await generateImageOnce(prompt, opts);
+  }
+  return r;
 }

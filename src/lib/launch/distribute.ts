@@ -5,7 +5,8 @@ import { OnlinePumpSdk } from "@pump-fun/pump-sdk";
 import { getEnv } from "@/lib/env";
 import { assertExecuteAllowed } from "@/lib/execute-gate";
 import { ensureSchema, sql } from "@/lib/db";
-import { connectionFor, loadTreasurySigner, LaunchExecError } from "./execute";
+import { connectionFor, loadTreasurySigner, LaunchExecError, sendAndConfirm } from "./execute";
+import { withRetry, sleep } from "@/lib/retry";
 import { verifySplitOnChain } from "./verify-split";
 import type { LaunchPlan } from "./approval";
 
@@ -25,26 +26,32 @@ export async function distributeOne(l: L, conn: Connection = connectionFor(l.net
   const env = getEnv();
   if (l.network !== env.NEXT_PUBLIC_SOLANA_NETWORK) return { mint: l.mint, ok: false, skipped: "other network" };
   const mint = new PublicKey(l.mint);
-  const sp = await verifySplitOnChain(conn, l.mint, l.shareholders);
+  const sp = await withRetry(() => verifySplitOnChain(conn, l.mint, l.shareholders), { tries: 3 });
   if (!sp.ok) return { mint: l.mint, ok: false, skipped: `split not verified: ${sp.problems.join(" ")}` };
   const sdk = new OnlinePumpSdk(conn);
-  const min = await sdk.getMinimumDistributableFee(mint, simulationSigner());
+  const min = await withRetry(() => sdk.getMinimumDistributableFee(mint, simulationSigner()), { tries: 3 });
   // Below this the network fee eats the payout. The amount keeps building up and goes out later.
   if (min.canDistribute && Number(min.distributableFees.toString()) < MIN_PAYOUT_LAMPORTS) return { mint: l.mint, ok: true, skipped: `too small to send yet (${Number(min.distributableFees.toString())} lamports)` };
   if (!min.canDistribute) return { mint: l.mint, ok: true, skipped: `nothing to send yet (${Number(min.distributableFees.toString())} of ${Number(min.minimumRequired.toString())} lamports needed)` };
   const treasury = loadTreasurySigner();
-  const built = await sdk.buildDistributeCreatorFeesInstructions(mint, { payer: treasury.publicKey });
-  const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash("confirmed");
+  const built = await withRetry(() => sdk.buildDistributeCreatorFeesInstructions(mint, { payer: treasury.publicKey }), { tries: 3 });
+  const { blockhash, lastValidBlockHeight } = await withRetry(() => conn.getLatestBlockhash("confirmed"), { tries: 3 });
   const msg = new TransactionMessage({ payerKey: treasury.publicKey, recentBlockhash: blockhash, instructions: [ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 }), ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 }), ...built.instructions] }).compileToV0Message();
   const tx = new VersionedTransaction(msg);
   if (tx.serialize().length > 1232) throw new LaunchExecError("The distribution transaction is too large for one send.");
   tx.sign([treasury]);
-  const sig = await conn.sendTransaction(tx, { skipPreflight: false, maxRetries: 3 });
-  const res = await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
-  if (res.value.err) return { mint: l.mint, ok: false, sig, error: `Transaction failed on-chain: ${JSON.stringify(res.value.err)}` };
-  const paid = await readPayouts(conn, sig, l.shareholders.map((s) => s.address));
+  let sig: string;
+  try { sig = await sendAndConfirm(conn, tx, blockhash, lastValidBlockHeight); }
+  catch (e) { return { mint: l.mint, ok: false, error: e instanceof Error ? e.message.slice(0, 220) : "send failed" }; }
+  // The confirmed transaction can take a moment to be readable. Wait and retry so the payout is never recorded as empty.
+  let paid: { wallet: string; lamports: number }[] = [];
+  for (let i = 0; i < 5 && !paid.length; i++) { try { paid = await readPayouts(conn, sig, l.shareholders.map((s) => s.address)); } catch { /* retry */ } if (!paid.length) await sleep(1000 * (i + 1)); }
   const q = sql();
-  if (q) { await ensureSchema(); for (const p of paid) await q`INSERT INTO fee_payouts (mint, network, wallet, lamports, sig) VALUES (${l.mint}, ${l.network}, ${p.wallet}, ${p.lamports}, ${sig}) ON CONFLICT (sig, wallet) DO NOTHING`; }
+  if (q) {
+    try {
+      await withRetry(async () => { await ensureSchema(); for (const p of paid) await q`INSERT INTO fee_payouts (mint, network, wallet, lamports, sig) VALUES (${l.mint}, ${l.network}, ${p.wallet}, ${p.lamports}, ${sig}) ON CONFLICT (sig, wallet) DO NOTHING`; }, { tries: 4 });
+    } catch { return { mint: l.mint, ok: true, sig, paid, error: "The fees were sent on-chain but the record could not be saved. Run distribute again: it is safe, the transaction is already on-chain." }; }
+  }
   return { mint: l.mint, ok: true, sig, paid };
 }
 

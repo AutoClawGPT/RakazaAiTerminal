@@ -10,8 +10,8 @@ const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
 function useLedger() {
   const [data, setData] = useState<Ledger | null>(null);
   const [err, setErr] = useState("");
-  const load = useCallback(async () => { const r = await ledgerAction(); if (r.ok) { setData(r); setErr(""); } else setErr(r.error); }, []);
-  useEffect(() => { void load(); const t = setInterval(() => { if (document.visibilityState === "visible") void load(); }, 15000); return () => clearInterval(t); }, [load]);
+  const load = useCallback(async () => { try { const r = await ledgerAction(); if (r.ok) { setData(r); setErr(""); } else setErr(r.error); } catch { setErr("The connection dropped. Showing the last numbers. Retrying on its own."); } }, []);
+  useEffect(() => { const first = setTimeout(() => void load(), 0); const t = setInterval(() => { if (document.visibilityState === "visible") void load(); }, 15000); return () => { clearTimeout(first); clearInterval(t); }; }, [load]);
   return { data, err };
 }
 

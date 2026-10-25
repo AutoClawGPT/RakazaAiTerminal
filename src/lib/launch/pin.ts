@@ -1,4 +1,5 @@
 import "server-only";
+import { withRetry } from "@/lib/retry";
 
 /** Pins token images and metadata to IPFS through Pinata (API key + secret, set in env by the owner). */
 const API = "https://api.pinata.cloud";
@@ -33,7 +34,7 @@ export async function pinImage(bytes: Uint8Array, filename: string, contentType:
   const form = new FormData();
   form.append("file", new Blob([bytes as BlobPart], { type: contentType }), filename);
   form.append("pinataMetadata", JSON.stringify({ name: `rakaza-${filename}` }));
-  const j = (await ok(await fetch(`${API}/pinning/pinFileToIPFS`, { method: "POST", headers: headers(), body: form, signal: AbortSignal.timeout(60000) }))) as { IpfsHash: string };
+  const j = (await withRetry(async () => ok(await fetch(`${API}/pinning/pinFileToIPFS`, { method: "POST", headers: headers(), body: form, signal: AbortSignal.timeout(60000) })), { tries: 3, baseMs: 800 })) as { IpfsHash: string };
   return { cid: j.IpfsHash, url: `${GATEWAY}/${j.IpfsHash}` };
 }
 
@@ -45,7 +46,7 @@ export function metadataDoc(m: TokenMeta) {
 }
 
 export async function pinMetadata(m: TokenMeta): Promise<{ cid: string; uri: string }> {
-  const j = (await ok(await fetch(`${API}/pinning/pinJSONToIPFS`, { method: "POST", headers: { ...headers(), "content-type": "application/json" }, body: JSON.stringify({ pinataContent: metadataDoc(m), pinataMetadata: { name: `rakaza-meta-${m.symbol}` } }), signal: AbortSignal.timeout(30000) }))) as { IpfsHash: string };
+  const j = (await withRetry(async () => ok(await fetch(`${API}/pinning/pinJSONToIPFS`, { method: "POST", headers: { ...headers(), "content-type": "application/json" }, body: JSON.stringify({ pinataContent: metadataDoc(m), pinataMetadata: { name: `rakaza-meta-${m.symbol}` } }), signal: AbortSignal.timeout(30000) })), { tries: 3, baseMs: 800 })) as { IpfsHash: string };
   return { cid: j.IpfsHash, uri: `${GATEWAY}/${j.IpfsHash}` };
 }
 

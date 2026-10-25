@@ -16,5 +16,5 @@ export async function vampScanAction(mintRaw: string): Promise<{ ok: true; resul
   if (!(await isOwnerRequest())) return { ok: false, error: "The scanner is for the owner and the agent only." };
   const mint = String(mintRaw ?? "").trim();
   if (!isSolanaAddress(mint)) return { ok: false, error: "That is not a valid Solana address." };
-  return vampScan(mint);
+  try { return await vampScan(mint); } catch { return { ok: false, error: "The scan failed to run. Try again in a moment." }; }
 }

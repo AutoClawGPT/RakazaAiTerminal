@@ -6,6 +6,7 @@ import { ensureSchema, sql } from "@/lib/db";
 import { connectionFor } from "./execute";
 import type { LaunchPlan } from "./approval";
 import { verifySplitOnChain } from "./verify-split";
+import { withRetry } from "@/lib/retry";
 
 export interface LedgerShare { address: string; shareBps: number; pendingLamports: number; sentLamports: number }
 export interface LedgerRow {
@@ -47,6 +48,11 @@ async function onChain(conn: Connection, l: DbLaunch) {
 }
 
 export async function buildLedger(limit = 25): Promise<Ledger | { ok: false; error: string }> {
+  try { return await withRetry(() => buildLedgerOnce(limit), { tries: 3, baseMs: 700 }); }
+  catch { return { ok: false, error: "The ledger could not be read right now (database or network). It retries on its own; try again in a few seconds." }; }
+}
+
+async function buildLedgerOnce(limit: number): Promise<Ledger | { ok: false; error: string }> {
   const q = sql();
   if (!q) return { ok: false, error: "The database is not configured (DATABASE_URL)." };
   await ensureSchema();

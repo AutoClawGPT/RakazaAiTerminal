@@ -29,11 +29,13 @@ export function LedgerView({ view, treasury }: { view: "history" | "fees"; treas
 
   const load = useCallback(async () => {
     setBusy(true);
-    const r = await ledgerAction();
-    if (r.ok) { setData(r); setErr(""); } else setErr(r.error);
+    try {
+      const r = await ledgerAction();
+      if (r.ok) { setData(r); setErr(""); } else setErr(r.error);
+    } catch { setErr("The connection dropped. Showing the last numbers. Retrying on its own."); }
     setBusy(false);
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { const first = setTimeout(() => void load(), 0); return () => clearTimeout(first); }, [load]);
   useEffect(() => {
     if (paused) return;
     timer.current = setInterval(() => { if (document.visibilityState === "visible") void load(); }, 10000);
