@@ -54,7 +54,7 @@ const api = async (method: string, path: string, key?: string, body?: unknown) =
     const [global, feeConfig, st] = await Promise.all([online.fetchGlobal(), online.fetchFeeConfig(), online.fetchBuyState(mint, kp.publicKey, info.owner)]);
     const solAmount = new BN(10_000_000);
     const amount = getBuyTokenAmountFromSolAmount({ global, feeConfig, mintSupply: null, bondingCurve: st.bondingCurve, amount: solAmount, quoteMint: NATIVE_MINT });
-    const buy = await PUMP_SDK.buyInstructions({ global, bondingCurveAccountInfo: st.bondingCurveAccountInfo, bondingCurve: st.bondingCurve, associatedUserAccountInfo: st.associatedUserAccountInfo, mint, user: kp.publicKey, amount, solAmount, slippage: 20, tokenProgram: info.owner });
+    const buy = await PUMP_SDK.buyInstructions({ global, bondingCurveAccountInfo: st.bondingCurveAccountInfo, bondingCurve: st.bondingCurve, associatedUserAccountInfo: st.associatedUserAccountInfo, mint, user: kp.publicKey, amount, solAmount, slippage: Number(process.env.SLIP ?? 20), tokenProgram: info.owner });
     const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash("confirmed");
     const tx = new VersionedTransaction(new TransactionMessage({ payerKey: kp.publicKey, recentBlockhash: blockhash, instructions: [ComputeBudgetProgram.setComputeUnitLimit({ units: 250_000 }), ...buy] }).compileToV0Message());
     tx.sign([kp]);

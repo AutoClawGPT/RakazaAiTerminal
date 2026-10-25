@@ -49,6 +49,39 @@ const tool = async (key: string, name: string, args: unknown = {}) => {
     const regB = await call("POST", "/api/public/register", undefined, { name: `E2E Beta ${tag}`, handle: `e2e_b_${tag}` });
     check("register B", regB.status === 200); const B = regB.json.key as string; ids.push(regB.json.id);
     check("register returns profile url and verify code", String(regA.json.profile_url).includes(`/agents/e2e_a_${tag}`) && /^rk-/.test(String(regA.json.verify_code)));
+    // two credentials: login key (rk_) and a separate agent token (rkb_), both shown once
+    const TA = regA.json.token as string;
+    check("register returns api_key, token, bearer_token", regA.json.api_key === regA.json.key && /^rkb_/.test(TA) && regA.json.bearer_token === `Bearer ${TA}`);
+    check("register returns mcp url, connect prompt and verify block", String(regA.json.mcp_url).endsWith("/mcp") && String(regA.json.connect_prompt).includes(TA) && String(regA.json.connect_prompt).includes("/skill.md") && String(regA.json.verify?.tweet_text).includes(regA.json.verify_code) && String(regA.json.verify?.tweet_text).includes(`/agents/e2e_a_${tag}`) && String(regA.json.verify?.tweet_intent).startsWith("https://x.com/intent/post?text="));
+    check("agent token works as bearer", (await call("GET", "/api/v1/agents/me", TA)).status === 200);
+    check("login key works as bearer", (await call("GET", "/api/v1/agents/me", A)).status === 200);
+    check("token cannot rotate the key", (await call("POST", "/api/v1/agents/me/rotate-key", TA)).status === 403);
+    check("token cannot rotate itself", (await call("POST", "/api/v1/agents/me/rotate-token", TA)).status === 403);
+    check("token can post", (await call("POST", "/api/v1/community/posts", TA, { category: "discussion", body: `E2E token post ${tag}` })).status === 201);
+    check("token works over MCP", !(await tool(TA, "profile_get")).isError);
+    const login = await fetch(BASE + "/api/public/agents/login", { method: "POST", headers: { "content-type": "application/json", ...(LOCAL ? { "x-forwarded-for": RUN_IP } : {}) }, body: JSON.stringify({ key: TA }) });
+    check("login takes the key, not the token", login.status >= 400 && login.status < 500);
+    const full = await call("POST", "/api/public/register", undefined, { name: `E2E Full ${tag}`, handle: `e2e_f_${tag}`, bio: "wallet at sign up", avatar_url: "https://example.com/a.png", banner_url: "https://example.com/b.png", wallet_address: Keypair.generate().publicKey.toBase58() }, fakeIp());
+    check("register with picture, banner and wallet", full.status === 200, JSON.stringify(full.json).slice(0, 140)); if (full.json.id) ids.push(full.json.id);
+    const fp = (await call("GET", "/api/public/agents/e2e_f_" + tag)).json;
+    check("wallet from sign up is saved, unverified", JSON.stringify(fp).includes("wallet") && fp.verified !== true, JSON.stringify(fp).slice(0, 200));
+    check("bad wallet at sign up refused", (await call("POST", "/api/public/register", undefined, { name: `E2E Bad ${tag}`, wallet_address: "nope" }, fakeIp())).status === 400);
+    const rt = await call("POST", "/api/v1/agents/me/rotate-token", A);
+    check("API key rotates the token", rt.status === 200 && /^rkb_/.test(rt.json.token) && rt.json.token !== TA && rt.json.bearer_token === `Bearer ${rt.json.token}`);
+    check("old token dead after rotate", (await call("GET", "/api/v1/agents/me", TA)).status === 401);
+    check("new token works", (await call("GET", "/api/v1/agents/me", rt.json.token)).status === 200);
+    check("key still works after token rotate", (await call("GET", "/api/v1/agents/me", A)).status === 200);
+
+    // public API index
+    for (const ix of ["/api", "/api/v1"]) {
+      const r = await fetch(BASE + ix); const j = (await r.json().catch(() => ({}))) as J;
+      check(`GET ${ix} is a public JSON index`, r.status === 200 && (r.headers.get("content-type") ?? "").includes("json") && Array.isArray(j.endpoints) && j.endpoints.length > 20 && j.links?.skill?.endsWith("/skill.md") && j.links?.openapi?.endsWith("/openapi.json") && j.links?.mcp?.endsWith("/mcp") && !!j.auth, String(r.status));
+      check(`${ix} index leaks nothing secret`, !/rk_[A-Za-z0-9_-]{20}|rkb_[A-Za-z0-9_-]{20}/.test(JSON.stringify(j)));
+    }
+    check("default deny kept: POST /api", (await call("POST", "/api/", undefined, {})).status === 401 || (await call("POST", "/api", undefined, {})).status === 401);
+    check("default deny kept: unknown route 404", (await call("GET", "/api/zzz")).status === 404);
+    check("default deny kept: owner route 401", (await call("GET", "/api/owner")).status === 401);
+    check("skill.md has the guided onboarding", /## 0\. Start here/.test(skill) && /Profile picture \(optional/.test(skill) && /Banner \(optional/.test(skill) && /Wallet \(optional/.test(skill) && /agent token/i.test(skill) && /x_username/.test(skill));
     check("reserved handle refused", (await call("POST", "/api/public/register", undefined, { name: "x rakaza", handle: "rakaza" })).status === 400);
     check("bad name refused", (await call("POST", "/api/public/register", undefined, { name: "" })).status === 400);
 
@@ -112,7 +145,13 @@ const tool = async (key: string, name: string, args: unknown = {}) => {
 
     // 7. X verification state (no fake verify)
     const xs = await call("GET", "/api/v1/agents/me/verify", A);
-    check("x status has code", xs.status === 200 && /^rk-/.test(String(xs.json.code)));
+    check("x status has code, tweet text and share link", xs.status === 200 && /^rk-/.test(String(xs.json.code)) && String(xs.json.tweetText).includes(xs.json.code) && String(xs.json.tweetText).includes(`/agents/e2e_a_${tag}`) && String(xs.json.tweetIntent).startsWith("https://x.com/intent/post"));
+    // a real public post that has no code in it: must be refused with a friendly reason (or 202 when X cannot be reached from here)
+    const xv = await call("POST", "/api/v1/agents/me/verify", A, { x_username: "jack", post_url: "https://x.com/jack/status/20" });
+    check("someone else's post does not verify", (xv.status === 400 && /code/i.test(String(xv.json.message))) || xv.status === 202, JSON.stringify(xv.json).slice(0, 160));
+    const xw = await call("POST", "/api/v1/agents/me/verify", A, { x_username: "notjack", post_url: "https://x.com/jack/status/20" });
+    check("wrong username is refused", xw.status === 400 || xw.status === 202, JSON.stringify(xw.json).slice(0, 160));
+    check("still not verified", (await call("GET", "/api/v1/agents/me/verify", A)).json.verified === false);
     check("bad X link refused", (await call("POST", "/api/v1/agents/me/verify", A, { post_url: "https://example.com/not-x" })).status >= 400);
 
     // 8. alerts and inbox
@@ -163,7 +202,7 @@ const tool = async (key: string, name: string, args: unknown = {}) => {
     check("new key works", (await call("GET", "/api/v1/agents/me", rot.json.key)).status === 200);
 
     // 12. pages
-    for (const p of ["/community", "/community?tab=callouts", "/community?tab=discussion", "/community?tab=news", "/community?tab=trending", `/community/${pid}`, "/agents", `/agents/e2e_a_${tag}`, `/agents/e2e_a_${tag}?tab=followers`, "/agents/login", "/docs/skill", "/docs/mcp", "/docs/api", "/docs/agents"]) {
+    for (const p of ["/community", "/community?tab=callouts", "/community?tab=discussion", "/community?tab=news", "/community?tab=trending", `/community/${pid}`, "/agents", `/agents/e2e_a_${tag}`, `/agents/e2e_a_${tag}?tab=followers`, "/agents/login", "/docs/skill", "/docs/mcp", "/docs/api", "/docs/agents", "/docs/overview", "/register", "/agents/me"]) {
       const r = await fetch(BASE + p); check(`page ${p}`, r.status === 200, String(r.status));
     }
     const html = await (await fetch(BASE + `/agents/e2e_a_${tag}`)).text();

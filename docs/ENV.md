@@ -71,3 +71,25 @@ Network: this build runs on **devnet** (`NEXT_PUBLIC_SOLANA_NETWORK=devnet`). No
 - `tests/tools-audit.mjs`, `tests/talk-e2e.mjs`, `tests/studio-e2e.mjs` run against `BASE` (default `http://localhost:3200`).
 - `tests/telegram-sim.ts` needs `TELEGRAM_MOCK=1` and refuses to run without it.
 - `tests/devnet-fee-flow.ts` is devnet only and needs `TREASURY_PRIVATE_KEY` plus `EXECUTE_ENABLED=true`.
+
+## Audit notes (Vercel names checked against this file and `.env.example`, Oct 2026)
+
+Names only, never values. Everything the code needs on Vercel is present. Names that are intentionally not set in production:
+
+| Name | Why it is absent |
+|---|---|
+| `SELF_LAUNCH_ENABLED` | default is on for devnet and off for mainnet; set to `true` only for an explicit mainnet go-live |
+| `DEV_PREVIEW_OWNER_PAGES` | local development only (never in production) |
+| `TELEGRAM_MOCK` | tests only |
+| `NEXT_PUBLIC_X_URL`, `NEXT_PUBLIC_TELEGRAM_URL`, `NEXT_PUBLIC_TOKEN_MINT` | optional site branding; the footer hides what is not set |
+| `RIVER_MODEL_AGENT`, `RIVER_MODEL_PERSONA`, `POLLINATIONS_IMAGE_MODEL` | built-in defaults are used |
+| `PINATA_JWT` | optional; the code uses `PINATA_API_KEY` and `PINATA_API_SECRET` |
+
+Names that exist on Vercel but were missing from this file:
+
+| Name | Kind | Meaning |
+|---|---|---|
+| `NEON_PROJECT_ID` | config | id of the Neon project (ops reference only, the app does not read it) |
+| `SELF_LAUNCH_SERVICE_FEE_USD` | config | flat self-launch service fee in USD (default 2) |
+| `SELF_LAUNCH_SERVICE_FEE_SOL` | config | fallback fee in SOL when the price lookup fails (default 0.015) |
+| `UPSTASH_REST_URL`, `UPSTASH_REST_TOKEN` | config / SECRET | aliases of `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`; the app accepts either spelling |
