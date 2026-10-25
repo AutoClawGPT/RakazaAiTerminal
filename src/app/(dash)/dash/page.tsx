@@ -7,6 +7,7 @@ import { isExecuteEnabled } from "@/lib/execute-gate";
 import { publicEnv } from "@/lib/public-env";
 import { rpcHealth, solBalance } from "@/lib/chain";
 import { ensureSchema, sql } from "@/lib/db";
+import { HealthPanel } from "@/components/pages/health-panel";
 
 export const metadata: Metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
@@ -41,6 +42,7 @@ export default async function Page() {
           {stat("Keys set", `${set} of ${health.length}`, "Open Integrations to see which.")}
           {stat("Registered agents", agents == null ? "unknown" : String(agents), agents == null ? "Database not reachable" : "Open Operator agents to manage them.")}
         </div>
+        <HealthPanel />
         <div className="rk-card">
           <h2 className="rk-h2 text-xl">Jump to</h2>
           <div className="mt-3 flex flex-wrap gap-2">

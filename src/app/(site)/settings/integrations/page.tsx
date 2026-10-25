@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { HealthPanel } from "@/components/pages/health-panel";
 import { PollinationsCard } from "@/components/pages/pollinations-card";
 import { keyHealth } from "@/lib/env";
 
@@ -40,6 +41,7 @@ export default async function Page() {
         </div>
       </section>
       <section className="rk-container grid gap-6 py-10 md:grid-cols-2 md:py-14">
+        <HealthPanel />
         <PollinationsCard />
         <div className="rk-card rk-card-hard" data-testid="key-health">
           <h2 className="rk-h2 text-2xl">Key status</h2>

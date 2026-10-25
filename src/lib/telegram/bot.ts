@@ -42,6 +42,7 @@ async function voiceOn(): Promise<boolean> { return (await getKey<boolean>("voic
 const HELP = `Rakaza launcher control room (${"devnet/mainnet follows the platform network"}). Only you can use me.
 
 /status  treasury, network and switches
+/health  real check of every integration (keys never shown)
 /balance [wallet]  SOL balance (treasury by default)
 /scan <mint>  full scan of a token
 /draft <mint>  my improved take on a token
@@ -83,6 +84,15 @@ async function cmdStatus(chat: number) {
     lines.push(`Treasury balance: ${typeof h.balanceSol === "number" ? h.balanceSol.toFixed(4) + " SOL" : "unknown"}`, `Signing key ready: ${h.signerReady ?? h.keyReady ?? "see /tools"}`, `RPC: ${h.rpc?.ok === false ? "problem" : "ok"}`);
   } else lines.push(`Treasury check failed: ${health.message}`);
   await sendText(chat, lines.join("\n"));
+}
+
+async function cmdHealth(chat: number) {
+  await sendText(chat, "Checking every integration with a real call…");
+  const r = await tool("integrations_health");
+  if (!r.ok) return sendText(chat, `Health check failed: ${r.message}`);
+  const h = r.result as { network: string; counts: { ok: number; missing: number; failed: number }; rows: { label: string; status: string; detail: string; ms: number; envNames: string[] }[] };
+  const mark: Record<string, string> = { ok: "OK", missing: "MISSING", failed: "FAILED" };
+  await sendText(chat, [`Integrations on ${h.network}: ${h.counts.ok} ok, ${h.counts.missing} missing, ${h.counts.failed} failed`, ...h.rows.map((x) => `${mark[x.status] ?? x.status}  ${x.label}: ${x.detail}${x.status === "ok" ? ` (${x.ms} ms)` : x.envNames.length ? ` [${x.envNames.join(", ")}]` : ""}`)].join("\n"));
 }
 
 async function cmdBalance(chat: number, text: string) {
@@ -245,6 +255,7 @@ async function handleText(chat: number, text: string) {
   switch (cmd) {
     case "/start": case "/help": return sendText(chat, HELP);
     case "/status": return cmdStatus(chat);
+    case "/health": return cmdHealth(chat);
     case "/balance": return cmdBalance(chat, text);
     case "/scan": { const m = firstArgs(text).addrs[0]; return m ? cmdScan(chat, m, false) : sendText(chat, "Usage: /scan <token mint>"); }
     case "/draft": { const m = firstArgs(text).addrs[0]; return m ? cmdScan(chat, m, true) : sendText(chat, "Usage: /draft <token mint>"); }

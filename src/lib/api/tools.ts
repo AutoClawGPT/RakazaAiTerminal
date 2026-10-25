@@ -4,6 +4,7 @@ import { fetchToken } from "@/lib/launch/token-fetch";
 import { optimizeToken } from "@/lib/launch/optimize";
 import { radarScan } from "@/lib/launch/radar";
 import { vampScan } from "@/lib/launch/vamp";
+import { integrationsHealth } from "@/lib/health";
 import { currentDiary } from "@/lib/diary";
 import { generateImage } from "@/lib/pollinations";
 import { platformSplit, validateSplit } from "@/lib/tools/splits";
@@ -92,6 +93,14 @@ export const TOOLS: Tool[] = [
     shape: { mint: addr.describe("Token mint address") },
     heavy: true,
     run: async ({ mint }) => vampScan(mint),
+  }),
+  tool({
+    name: "integrations_health",
+    title: "Integrations health",
+    description: "Makes one real, minimal, read-only call to every integration (Helius, River, Pinata, Pollinations, Deepgram, pump.fun program, Neon, Upstash, Telegram, treasury, Jupiter, DexScreener) and reports ok, missing or failed with the env var names to fix. Never shows a key or secret.",
+    shape: {},
+    heavy: true,
+    run: async () => integrationsHealth(),
   }),
   tool({
     name: "preview_fee_split",
