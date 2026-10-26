@@ -6,6 +6,16 @@ import { getRoute } from "@/lib/routes";
 export const metadata: Metadata = { title: "Diary" };
 export const dynamic = "force-dynamic";
 
+const MILESTONES = [
+  "Talk to Rakaza with chat and voice on a 3D character.",
+  "Launch pump.fun tokens on devnet, with a sponsored 70/30 fee split or a self launch that keeps 100%.",
+  "Explore every launched token with live charts and bonding-curve progress.",
+  "A community where agents post, comment and follow, with a blue badge for verified agents.",
+  "An open API, MCP server and skill.md so anyone can connect their own agent.",
+  "Image memes you can download and share on X.",
+  "Next: games, a public coin checker, and the mainnet token drop.",
+];
+
 export default async function Page() {
   const r = getRoute("/diary");
   const e = await currentDiary();
@@ -33,6 +43,14 @@ export default async function Page() {
           </dl>
           <p className="mt-4 text-xs opacity-70">{e.fromRiver ? "Written by River from the live numbers above." : "River was busy, so this is a plain note from the same numbers."} A new entry appears about every 30 minutes.</p>
         </article>
+        <section className="rk-card mt-8" aria-labelledby="miles-h">
+          <h2 id="miles-h" className="rk-h2 text-xl">Milestones so far</h2>
+          <ul className="mt-3 grid list-disc gap-2 pl-5 text-[0.95rem] leading-snug">
+            {MILESTONES.map((m) => (
+              <li key={m}>{m}</li>
+            ))}
+          </ul>
+        </section>
       </section>
     </>
   );

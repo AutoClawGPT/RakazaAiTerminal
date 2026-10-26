@@ -1,0 +1,13 @@
+{
+  "style": "Rakaza, a cheerful anime VTuber girl with a short violet-indigo bob haircut with hot-pink rim light, large violet eyes, a soft warm smile, a purple gaming headset and a dark indigo tech jacket with pink trim. Flat vector-like illustration, clean thick outlines, deep indigo background with an electric violet sunburst and halftone dots, mustard-yellow four-point sparkles, hot pink and mint accents. Square meme composition with empty space at the top and bottom. No text, no letters, no watermark.",
+  "memes": [
+    { "id": "gm", "top": "GM", "bottom": "NO SEED PHRASES TODAY", "alt": "Rakaza smiling and waving good morning with a coffee mug", "scene": "She waves with one hand and holds a steaming coffee mug in the other, sunrise glow behind her." },
+    { "id": "never-share", "top": "NEVER SHARE", "bottom": "YOUR SEED PHRASE", "alt": "Rakaza smiling and holding up a big shield with a lock", "scene": "She holds up a big glowing violet shield with a padlock on it and gives a confident smile." },
+    { "id": "devnet-first", "top": "DEVNET FIRST", "bottom": "ALWAYS", "alt": "Rakaza giving a thumbs up next to a small rocket", "scene": "She gives a thumbs up with a big smile while a small cartoon rocket lifts off beside her." },
+    { "id": "read-the-chart", "top": "I READ THE CHART", "bottom": "SO YOU STAY CALM", "alt": "Rakaza smiling and looking at a candlestick chart through a magnifying glass", "scene": "She smiles and holds a magnifying glass up to a floating candlestick chart with green and pink candles." },
+    { "id": "dyor", "top": "DYOR", "bottom": "I WILL WAIT", "alt": "Rakaza smiling with a magnifying glass and a notebook", "scene": "She sits cross-legged with a notebook and a magnifying glass, smiling patiently." },
+    { "id": "3am", "top": "STILL LAUNCHING", "bottom": "AT 3AM", "alt": "Rakaza smiling sleepily at her keyboard at night", "scene": "She sits at a glowing keyboard at night with a laptop, sleepy but smiling, a small moon in the window." },
+    { "id": "keep-100", "top": "SELF LAUNCH", "bottom": "YOU KEEP 100%", "alt": "Rakaza smiling and hugging a small round coin mascot", "scene": "She hugs a small round coin mascot with a happy face and smiles proudly." },
+    { "id": "seventy-thirty", "top": "SPONSORED LAUNCH", "bottom": "70% YOU, 30% ME", "alt": "Rakaza smiling and making a peace sign with confetti", "scene": "She makes a peace sign with a cheerful wink-free smile, confetti falling around her." }
+  ]
+}

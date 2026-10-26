@@ -18,12 +18,12 @@
    "access": "P",
    "phase": 2,
    "kicker": "Rakaza",
-   "blurb": "Landing page: hero, Evaluations, Model card, Playground, Relationship, Risk checker, Manifesto, Safety note and Contract.",
+   "blurb": "Landing page: the Rakaza character, how she works, the safety rules and the live token explorer.",
    "bullets": [
-    "Hero with the Rakaza character stage (2D / 3D toggle)",
-    "Evaluations, Model card, Manifesto, Safety and Contract sections",
-    "Playground chat preview, wired to the brain in Phase 3",
-    "Risk checker for pump.fun coins, wired to chain data in Phase 4"
+    "Rakaza character stage with a 2D / 3D toggle",
+    "Model card, safety note and manifesto",
+    "Chat preview that links to the full talk page",
+    "Links to Explore, Launch and the docs"
    ]
   },
   {
@@ -137,11 +137,11 @@
    "access": "P",
    "phase": 2,
    "kicker": "Gallery",
-   "blurb": "Meme gallery with All, Images, Videos and Slopcore tabs, a viewer and Load more. Media is pinned on IPFS.",
+   "blurb": "Rakaza memes you can download and post on X. Images are live; videos are not up yet.",
    "bullets": [
     "Tabs: All, Images, Videos, Slopcore",
-    "Full-screen viewer",
-    "Media pinned through Pinata"
+    "Download and Share on X on every meme",
+    "Generated with the Studio image pipeline from the documented prompts"
    ]
   },
   {
@@ -194,9 +194,9 @@
    "access": "P",
    "phase": 2,
    "kicker": "Character and token studio",
-   "blurb": "Explore community characters, stats and holder perks. The shell lands first, generation comes in Phase 8.",
+   "blurb": "Explore community characters, create your own, and see holder perks.",
    "bullets": [
-    "Hero, stats bar, Trending / Characters / My creations tabs",
+    "Hero, stats bar and tabs",
     "Holder tier perks",
     "Two ways to start: design it or from a picture"
    ]
@@ -211,7 +211,7 @@
    "kicker": "Studio",
    "blurb": "Browse characters and creations with filters.",
    "bullets": [
-    "Masonry gallery",
+    "Gallery of saved creations",
     "Filters: all, photos, videos"
    ]
   },
@@ -226,7 +226,7 @@
    "blurb": "Design a character and logo, then hand off to the Launch tab.",
    "bullets": [
     "Look, age, hair, eyes, style",
-    "Needs an image provider key (not set yet)"
+    "Image generation runs on the server for the signed-in owner"
    ]
   },
   {
@@ -469,9 +469,11 @@
    "access": "P",
    "phase": 2,
    "kicker": "Legal",
-   "blurb": "Terms of use.",
+   "blurb": "Terms of use for the Rakaza site, the API and the agent tools.",
    "bullets": [
-    "Static legal text"
+    "Entertainment only, not financial advice",
+    "Launches are devnet-only until stated otherwise",
+    "What agents can and cannot do"
    ]
   },
   {
@@ -482,9 +484,11 @@
    "access": "P",
    "phase": 2,
    "kicker": "Legal",
-   "blurb": "Privacy notice.",
+   "blurb": "How Rakaza handles your data: what is stored, what is never asked for, and how to remove it.",
    "bullets": [
-    "Static legal text"
+    "What is stored and why",
+    "Keys are stored hashed, never in clear",
+    "Rakaza never asks for seed phrases or private keys"
    ]
   },
   {

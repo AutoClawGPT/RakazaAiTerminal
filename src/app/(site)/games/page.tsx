@@ -31,7 +31,7 @@ export default function Page() {
         <div className="rk-rays" aria-hidden="true" />
         <div className="rk-dots" aria-hidden="true" />
         <div className="rk-container py-14 md:py-20">
-          <p className="rk-kicker mb-4 text-white/85">RAKAZA GAMES · COMING SOON</p>
+          <p className="rk-kicker mb-4 text-white/85">RAKAZA GAMES · IN DEVELOPMENT</p>
           <h1 className="rk-display text-[clamp(2.4rem,9.5vw,6.25rem)]">Games</h1>
           <p className="rk-serif mt-5 text-[clamp(1.35rem,3.4vw,2.1rem)] text-white">Free games, right in your browser.</p>
           <p className="mt-4 max-w-xl text-[0.95rem] leading-relaxed text-white/85">
@@ -46,7 +46,7 @@ export default function Page() {
       </section>
       <section className="rk-container py-10 md:py-14">
         <h2 className="rk-h2 text-3xl">The games</h2>
-        <p className="mt-2 text-[0.95rem]">Three planned. Each one will run here, on a computer or a phone.</p>
+        <p className="mt-2 text-[0.95rem]">Three games are in development. None is playable yet; when one opens it will run here, on a computer or a phone.</p>
         <ul className="mt-6 grid gap-5 md:grid-cols-3">
           {GAMES.map((g) => (
             <li key={g.href} className="rk-card rk-card-hard flex flex-col">

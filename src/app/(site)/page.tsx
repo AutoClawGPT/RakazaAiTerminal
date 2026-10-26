@@ -1,14 +1,13 @@
 import Link from "next/link";
 import { ArrowDown, ArrowRight, ArrowUpRight, Copy } from "lucide-react";
 import { CharacterStage } from "@/components/stage/character-stage";
-import { getRoute } from "@/lib/routes";
 import { publicEnv } from "@/lib/public-env";
 
 const WORLD: { href: string; label: string; note: string; color: string; icon: "down" | "right" }[] = [
   { href: "/talk", label: "Talk to Rakaza", note: "the playground", color: "var(--rk-pink)", icon: "down" },
   { href: "/studio", label: "Rakaza Studio", note: "your own character", color: "var(--rk-violet)", icon: "right" },
-  { href: "/games", label: "Games", note: "free, in beta", color: "var(--rk-mint)", icon: "right" },
-  { href: "/memes", label: "Memes", note: "videos, images, slopcore", color: "var(--rk-lav)", icon: "right" },
+  { href: "/games", label: "Games", note: "coming soon", color: "var(--rk-mint)", icon: "right" },
+  { href: "/memes", label: "Memes", note: "image memes, download + share", color: "var(--rk-lav)", icon: "right" },
   { href: "/#checker", label: "Risk check your coins on pump.fun", note: "the checker", color: "var(--rk-mint)", icon: "down" },
   { href: "/diary", label: "Her diary", note: "one entry a day", color: "var(--rk-lav)", icon: "right" },
   { href: "/#model-card", label: "The model card", note: "how she works", color: "var(--rk-honey)", icon: "down" },
@@ -16,19 +15,19 @@ const WORLD: { href: string; label: string; note: string; color: string; icon: "
   { href: "/live", label: "Live show", note: "ask a question", color: "var(--rk-blue)", icon: "right" },
 ];
 
-const SECTIONS: { id: string; title: string; phase: number; blurb: string }[] = [
-  { id: "checker", title: "Risk check your coins on pump.fun", phase: 4, blurb: "Paste a mint, get holders, bundlers and a plain verdict." },
-  { id: "manifesto", title: "Manifesto", phase: 2, blurb: "What we are building and what we will never do." },
-  { id: "safety", title: "Safety note", phase: 2, blurb: "No seed phrases, no DMs, no promises of returns." },
-  { id: "contract", title: "Contract", phase: 4, blurb: "The coin’s address, with copy and explorer links, after launch." },
+const SECTIONS: { id: string; title: string; blurb: string; status: string; href: string; cta: string }[] = [
+  { id: "checker", title: "Risk check your coins on pump.fun", blurb: "Holders, bundlers and a plain verdict for a mint. Today the full scan runs in the owner tools; every launched token also has a public page with chart and curve progress in Explore.", status: "In the owner tools · public page per token", href: "/explore", cta: "Open Explore" },
+  { id: "manifesto", title: "Manifesto", blurb: "Be useful, be honest, and never touch anyone’s keys. Launches are devnet-only until the owner switches them, and her tools can preview but not spend.", status: "Live", href: "/docs/overview", cta: "Read the overview" },
+  { id: "safety", title: "Safety note", blurb: "No seed phrases, no DMs asking for keys, no promises of returns. API keys are stored hashed. Entertainment only, not financial advice.", status: "Live", href: "/privacy", cta: "Privacy" },
+  { id: "contract", title: "Contract", blurb: "The Rakaza token address, with copy and explorer links, is announced at the mainnet launch. Until then beware of any address claimed to be hers.", status: "Announced at mainnet launch", href: "/roadmap", cta: "Roadmap" },
 ];
+
 
 function short(s: string) {
   return s.length > 14 ? `${s.slice(0, 6)}…${s.slice(-6)}` : s;
 }
 
 export default function HomePage() {
-  const r = getRoute("/");
   const mint = publicEnv.tokenMint;
   return (
     <>
@@ -71,7 +70,7 @@ export default function HomePage() {
                 <span className="text-[var(--rk-honey)]">who lives on Solana</span>
               </p>
               <p className="mt-4 max-w-md text-[0.98rem] leading-relaxed text-white/90">
-                Talk to her, read her diary, and risk check your coins on pump.fun. (Placeholder copy: final words land in Phase {r.phase}.)
+                Talk to her, read her diary, launch a coin on devnet, and browse every token launched through her. She never asks for seed phrases and her tools can’t sign or spend.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
                 <Link href="/talk" className="rk-btn rk-btn-ink">
@@ -146,7 +145,7 @@ export default function HomePage() {
               <span className="inline-flex items-center gap-1.5">
                 <span className="size-1.5 rounded-full bg-[var(--rk-pink)]" aria-hidden="true" /> Market
               </span>
-              <span className="text-white/80">Price, 24h, market cap, liquidity: shown here after launch (Phase 4)</span>
+              <span className="text-white/80">Price, 24h, market cap and liquidity appear here once the Rakaza token launches on mainnet</span>
               <span className="ml-auto text-white/70">Data: DexScreener · Not financial advice</span>
             </div>
             <figure className="mt-5">
@@ -167,33 +166,43 @@ export default function HomePage() {
         </div>
       </section>
 
-      <Panel id="evaluations" kicker="Evaluations" phase={2} title="What she can and can’t do, in plain language." blurb="A scorecard you can actually read. It lands in Phase 2 with real tests, not made-up numbers.">
+      <Panel id="evaluations" kicker="Evaluations" title="What she can and can’t do, in plain language." blurb="What she is built to do, in plain words. These are design goals, not test scores: no numbers are published until real tests exist.">
         <div className="grid gap-3 sm:grid-cols-2">
-          {["Talks like a person", "Knows the coin world", "Admits what she doesn’t know", "Keeps your secrets safe"].map((t) => (
-            <div key={t} className="rounded-xl border-2 border-dashed border-[var(--rk-line)] p-4">
+          {[
+            ["Talks like a person", "Streaming chat and live voice, with a 3D character that lip-syncs."],
+            ["Knows the coin world", "Reads real Solana and pump.fun data through her tools."],
+            ["Admits what she doesn’t know", "She’s an AI and can be wrong. Nothing she says is financial advice."],
+            ["Keeps your secrets safe", "She never asks for a seed phrase or private key, and her tools can’t sign, send or spend."],
+          ].map(([t, d]) => (
+            <div key={t} className="rounded-xl border-2 border-[var(--rk-line)] p-4">
               <p className="text-sm font-bold">{t}</p>
-              <div className="mt-3 h-2.5 rounded-full bg-white/10" aria-hidden="true" />
-              <p className="mt-2 font-mono text-[0.68rem] text-muted-foreground">score pending · Phase 2</p>
+              <p className="mt-2 text-xs leading-snug text-muted-foreground">{d}</p>
             </div>
           ))}
         </div>
       </Panel>
 
-      <Panel id="model-card" kicker="Model card" phase={2} title="How Rakaza works, and where she stops." blurb="The brain, the voice, the limits, and what data she sees. Filled in once the chat brain is chosen.">
+      <Panel id="model-card" kicker="Model card" title="How Rakaza works, and where she stops." blurb="The brain, the voice, the limits, and what data she sees.">
         <dl className="divide-y divide-[var(--rk-line)] rounded-xl border-2 border-[var(--rk-line)] text-sm">
-          {["Brain", "Voice", "Memory", "Limits", "Data she sees"].map((k) => (
-            <div key={k} className="grid grid-cols-[8rem_1fr] gap-3 px-4 py-3">
+          {[
+            ["Brain", "River, an AI language model, writes her replies."],
+            ["Voice", "Deepgram speech-to-text and text-to-speech, with lip-sync on the 3D character."],
+            ["Memory", "Keeps the context of your current chat. A holder level badge and daily message counters show on the Talk page."],
+            ["Limits", "Rate limited per IP and session, 18+, and she never gives financial advice."],
+            ["Data she sees", "Public Solana, pump.fun and market data. Never your keys."],
+          ].map(([k, v]) => (
+            <div key={k} className="grid grid-cols-[6.5rem_1fr] gap-3 px-4 py-3 sm:grid-cols-[8rem_1fr]">
               <dt className="font-bold">{k}</dt>
-              <dd className="font-mono text-xs text-muted-foreground">to be written · Phase 2</dd>
+              <dd className="text-xs leading-snug text-muted-foreground">{v}</dd>
             </div>
           ))}
         </dl>
       </Panel>
 
-      <Panel id="playground" kicker="Playground" phase={3} title="Talk to Rakaza." blurb="A small chat window that talks to the real brain. The full version is on the Talk page.">
+      <Panel id="playground" kicker="Playground" title="Talk to Rakaza." blurb="A preview of the chat. The real conversation, with voice, is on the Talk page.">
         <div className="rounded-xl border-2 border-[var(--rk-line)] p-4">
           <p className="rounded-2xl rounded-bl-sm border-2 border-[var(--rk-line)] bg-card px-3 py-2 text-sm">hi, I’m Rakaza 💜 what’s up?</p>
-          <p className="mt-3 text-xs text-muted-foreground">Her replies connect in Phase 3.</p>
+          <p className="mt-3 text-xs text-muted-foreground">This is a preview. Open the Talk page to chat with her for real.</p>
           <Link href="/talk" className="rk-btn rk-btn-honey mt-4 inline-flex">
             Open Talk <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
@@ -207,10 +216,12 @@ export default function HomePage() {
               <h2 id={`${s.id}-h`} className="rk-h2 text-2xl">
                 {s.title}
               </h2>
-              <span className="rk-pill !min-h-7 shrink-0 text-[0.7rem]">Phase {s.phase}</span>
+              <span className="rk-pill !min-h-7 shrink-0 text-[0.7rem]">{s.status}</span>
             </div>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{s.blurb}</p>
-            <p className="mt-4 font-mono text-xs text-muted-foreground">Placeholder · built in Phase {s.phase}</p>
+            <Link href={s.href} className="rk-btn rk-btn-white rk-btn-sm mt-4 inline-flex">
+              {s.cta}
+            </Link>
           </section>
         ))}
       </div>
@@ -241,12 +252,12 @@ function Tape({ pink = false }: { pink?: boolean }) {
   );
 }
 
-function Panel({ id, kicker, phase, title, blurb, children }: { id: string; kicker: string; phase: number; title: string; blurb: string; children: React.ReactNode }) {
+function Panel({ id, kicker, title, blurb, children }: { id: string; kicker: string; title: string; blurb: string; children: React.ReactNode }) {
   return (
     <section id={id} className="scroll-mt-20 border-t-2 border-[var(--rk-line)] py-16 md:py-24" aria-labelledby={`${id}-h`}>
       <div className="rk-container">
         <p className="flex items-center gap-2 font-mono text-xs">
-          <span className="size-2 rounded-full bg-[var(--rk-honey)]" aria-hidden="true" /> {kicker} <span className="rk-pill !min-h-6 !px-2 text-[0.65rem]">Phase {phase}</span>
+          <span className="size-2 rounded-full bg-[var(--rk-honey)]" aria-hidden="true" /> {kicker}
         </p>
         <h2 id={`${id}-h`} className="rk-display mt-4 max-w-3xl !text-[clamp(2.2rem,5.6vw,4.6rem)] !leading-[0.98] !text-foreground" style={{ textShadow: "none", fontVariationSettings: '"wdth" 112' }}>
           {title}

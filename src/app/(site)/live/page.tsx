@@ -19,7 +19,7 @@ export default function LivePage() {
         Rakaza, live
       </h1>
       <p className="rk-serif mt-4 max-w-xl text-2xl leading-tight">She streams and answers your questions out loud. Send her one here while she’s live.</p>
-      <p className="mt-3 font-mono text-xs text-muted-foreground">An AI on stream · 18+ · PG-13 · not financial advice · placeholder page, built in Phase 6</p>
+      <p className="mt-3 font-mono text-xs text-muted-foreground">An AI on stream · 18+ · PG-13 · not financial advice · no show is running yet</p>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <section className="rk-card rk-card-hard overflow-hidden !p-0" aria-label="Live stage">

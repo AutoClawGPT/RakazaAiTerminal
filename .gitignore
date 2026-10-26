@@ -67,3 +67,4 @@ secrets/
 *.pfx
 .env
 .env.*.local
+.meme-raw/

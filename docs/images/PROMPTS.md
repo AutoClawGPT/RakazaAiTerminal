@@ -28,3 +28,5 @@ Variants: change the subject line for each asset.
 Tools used: any text-to-image model that accepts reference images (feed it a real screenshot of the dashboard and the avatar). Pollinations FLUX (`https://gen.pollinations.ai/docs`) works for the character and background; add the exact title text in an image editor so it stays crisp.
 
 Real screenshots are captured with headless Chrome at 1440x900 against `npm run dev` (devnet); see `tests/mobile-audit.mjs` for the 390px mobile capture.
+
+See `PROMPT-GUIDE.md` for the exact meme prompts, the avatar description and the video recipe.
