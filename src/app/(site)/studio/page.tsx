@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
 import { StudioCreate } from "@/components/pages/studio-create";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withShare({
   title: "Studio",
   description: "Design a character, make a token logo and hand it to the Launch tab. Image generation is owner-only.",
-};
+}, "/studio");
 
 const STEPS = [
   { n: "01", title: "Describe it", body: "Write a few words about the character, picture or coin logo you want." },

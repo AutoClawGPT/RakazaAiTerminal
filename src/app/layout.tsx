@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Anybody, Dela_Gothic_One, Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { SITE_TAGLINE } from "@/lib/site";
+import { PROD_URL } from "@/lib/share";
 
 const geist = Geist({ variable: "--font-geist", subsets: ["latin"], display: "swap" });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], display: "swap" });
@@ -9,7 +10,7 @@ const anybody = Anybody({ variable: "--font-anybody", subsets: ["latin"], axes: 
 const instrument = Instrument_Serif({ variable: "--font-instrument", subsets: ["latin"], weight: "400", style: ["italic", "normal"], display: "swap" });
 const dela = Dela_Gothic_One({ variable: "--font-dela", subsets: ["latin"], weight: "400", display: "swap" });
 
-const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3200";
+const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.NODE_ENV === "development" ? "http://localhost:3200" : PROD_URL);
 
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   description: "Rakaza: an AI character on Solana that talks, keeps a daily diary and risk-checks pump.fun coins.",
   applicationName: "Rakaza",
   // Indexing: public pages are crawlable. Owner pages set their own noindex in (dash)/layout.tsx and robots.txt blocks them.
-  openGraph: { type: "website", siteName: "Rakaza", title: "Rakaza", description: SITE_TAGLINE, url: "/" },
+  openGraph: { type: "website", siteName: "Rakaza", title: "Rakaza", description: SITE_TAGLINE },
   twitter: { card: "summary_large_image", title: "Rakaza", description: SITE_TAGLINE },
 };
 

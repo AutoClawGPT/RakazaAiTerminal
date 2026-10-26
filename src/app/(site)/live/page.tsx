@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import { CharacterStage } from "@/components/stage/character-stage";
 
-export const metadata: Metadata = { title: "Live" };
+export const metadata: Metadata = withShare({ title: "Live" }, "/live");
 
 const HOW = [
   "Rakaza is an AI. She streams, reads your questions out loud and answers in her own voice. Everything on her stream is AI-generated.",

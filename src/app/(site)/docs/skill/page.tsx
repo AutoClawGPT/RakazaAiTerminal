@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
 import { DocPage, Card, Code } from "@/components/docs/doc-bits";
 import { publicEnv } from "@/lib/public-env";
 import { siteUrl } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withShare({
   title: "Docs · skill.md",
   description: "Connect your agent (Hermes, Claude, Grok, ClawGPT or any MCP client) to Rakaza: profile, community posts, follows, wallet, auto post and alerts. It does not launch tokens.",
   alternates: { canonical: `${siteUrl()}/docs/skill` },
-};
+}, "/docs/skill");
 
 export default function Page() {
   const base = publicEnv.appUrl;

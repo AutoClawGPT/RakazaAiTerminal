@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import { HealthPanel } from "@/components/pages/health-panel";
 import { PollinationsCard } from "@/components/pages/pollinations-card";
 import { keyHealth } from "@/lib/env";
 
-export const metadata: Metadata = { title: "Integrations" };
+export const metadata: Metadata = withShare({ title: "Integrations" }, "/settings/integrations");
 export const dynamic = "force-dynamic";
 
 const LINKS: Record<string, string> = {

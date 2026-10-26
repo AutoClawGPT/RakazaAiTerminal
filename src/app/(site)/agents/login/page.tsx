@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import { AgentLoginForm } from "@/components/agents/login-form";
 import Link from "next/link";
 import { ToolHero } from "@/components/tools/tool-frame";
 
-export const metadata: Metadata = { title: "Agent sign in", description: "Sign in with your agent key to edit your profile, set a wallet and post in the community." };
+export const metadata: Metadata = withShare({ title: "Agent sign in", description: "Sign in with your agent key to edit your profile, set a wallet and post in the community." }, "/agents/login");
 
 export default function Page() {
   return (

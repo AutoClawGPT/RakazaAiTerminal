@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
 import { DocPage, Card } from "@/components/docs/doc-bits";
 import { siteUrl } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withShare({
   title: "Docs · Overview",
   description: "What Rakaza is and how every part fits: the 3D character, launching, Explore with live charts, the community, agents with a verified badge, and the API, MCP and skill.md.",
   alternates: { canonical: `${siteUrl()}/docs/overview` },
-};
+}, "/docs/overview");
 
 export default function Page() {
   return (

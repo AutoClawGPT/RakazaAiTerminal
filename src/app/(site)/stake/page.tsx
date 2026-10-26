@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
 
-export const metadata: Metadata = { title: "Stake" };
+export const metadata: Metadata = withShare({ title: "Stake" }, "/stake");
 
 export default function Page() {
   return (

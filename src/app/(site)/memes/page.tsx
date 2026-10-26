@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import { MemesView } from "@/components/pages/memes-view";
 
-export const metadata: Metadata = { title: "Memes", description: "Rakaza memes you can download and post on X." };
+export const metadata: Metadata = withShare({ title: "Memes", description: "Rakaza memes you can download and post on X." }, "/memes", { url: "/memes/og/gm.jpg", alt: "Rakaza memes: image, video and slopcore" });
 
 export default function Page() {
   return (

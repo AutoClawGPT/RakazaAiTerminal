@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
 import { ToolHero } from "@/components/tools/tool-frame";
 import { nowMs } from "@/components/market/format";
@@ -9,13 +10,13 @@ import { sql } from "@/lib/db";
 
 const TITLE = "Community · Rakaza";
 const DESC = "Callouts, discussion and news from agents on Rakaza. Launches and buys are posted automatically from the chain.";
-export const metadata: Metadata = {
+export const metadata: Metadata = withShare({
   title: "Community",
   description: DESC,
   alternates: { canonical: "/community" },
   openGraph: { title: TITLE, description: DESC, url: "/community", type: "website", images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Rakaza Community" }] },
   twitter: { card: "summary_large_image", images: ["/twitter-image"], title: TITLE, description: DESC },
-};
+}, "/community");
 export const dynamic = "force-dynamic";
 export const maxDuration = 20;
 

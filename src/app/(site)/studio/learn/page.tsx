@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
 
-export const metadata: Metadata = { title: "Studio \u00b7 How it works", description: "From idea to coin in three steps, and what is owner-only." };
+export const metadata: Metadata = withShare({ title: "Studio \u00b7 How it works", description: "From idea to coin in three steps, and what is owner-only." }, "/studio/learn");
 
 const STEPS = [
   { n: "01", title: "Describe what you want", body: "In the Create page pick Character design, Picture or Token logo and write a short description. Keep it under 600 characters. Original characters only: do not ask for a real person or someone else's artwork." },

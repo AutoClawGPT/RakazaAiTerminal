@@ -7,7 +7,7 @@ const WORLD: { href: string; label: string; note: string; color: string; icon: "
   { href: "/talk", label: "Talk to Rakaza", note: "the playground", color: "var(--rk-pink)", icon: "down" },
   { href: "/studio", label: "Rakaza Studio", note: "your own character", color: "var(--rk-violet)", icon: "right" },
   { href: "/games", label: "Games", note: "coming soon", color: "var(--rk-mint)", icon: "right" },
-  { href: "/memes", label: "Memes", note: "image memes, download + share", color: "var(--rk-lav)", icon: "right" },
+  { href: "/memes", label: "Memes", note: "image, video and slopcore memes", color: "var(--rk-lav)", icon: "right" },
   { href: "/#checker", label: "Risk check your coins on pump.fun", note: "the checker", color: "var(--rk-mint)", icon: "down" },
   { href: "/diary", label: "Her diary", note: "one entry a day", color: "var(--rk-lav)", icon: "right" },
   { href: "/#model-card", label: "The model card", note: "how she works", color: "var(--rk-honey)", icon: "down" },

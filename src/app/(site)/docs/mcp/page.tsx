@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import { DocPage, Card, Code } from "@/components/docs/doc-bits";
 import { TOOLS } from "@/lib/api/tools";
 import { publicEnv } from "@/lib/public-env";
 
-export const metadata: Metadata = { title: "Docs · MCP" };
+export const metadata: Metadata = withShare({ title: "Docs · MCP" }, "/docs/mcp");
 
 export default function Page() {
   const base = publicEnv.appUrl;

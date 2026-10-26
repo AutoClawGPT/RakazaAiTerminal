@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import { DocPage, Card, Code } from "@/components/docs/doc-bits";
 import { describeTool, TOOLS } from "@/lib/api/tools";
 import { publicEnv } from "@/lib/public-env";
 
-export const metadata: Metadata = { title: "Docs · API" };
+export const metadata: Metadata = withShare({ title: "Docs · API" }, "/docs/api");
 
 type Prop = { type?: string; description?: string };
 

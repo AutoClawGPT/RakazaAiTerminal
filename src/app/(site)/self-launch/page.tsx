@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
 import { ToolHero } from "@/components/tools/tool-frame";
 import { SelfLaunchPage } from "@/components/launch/self-launch-page";
@@ -7,7 +8,7 @@ import { publicEnv } from "@/lib/public-env";
 import { isSelfLaunchEnabled } from "@/lib/execute-gate";
 import { getEnv } from "@/lib/env";
 
-export const metadata: Metadata = { title: "Self launch", description: "Launch a full pump.fun token from your own wallet. You pay, you own it." };
+export const metadata: Metadata = withShare({ title: "Self launch", description: "Launch a full pump.fun token from your own wallet. You pay, you own it." }, "/self-launch");
 export const dynamic = "force-dynamic";
 /** Server actions on this page run under this limit (Vercel function duration): pinning to IPFS can take a while. */
 export const maxDuration = 60;

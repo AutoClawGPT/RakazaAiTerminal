@@ -72,15 +72,16 @@ Captions: bold sans, white fill, thick indigo outline, top and bottom, upper cas
 
 `POST https://gen.pollinations.ai/v1/images/generations` with header `Authorization: Bearer <key>` and JSON `{"model": "flux", "prompt": "<prefix + scene>", "size": "1024x1024", "n": 1}`. The response has `data[0].b64_json`. In the app this is `src/lib/pollinations.ts`; the Studio calls it from an owner-only server action.
 
-## 6. Video recipe
+## 6. Video and slopcore recipe
 
-Videos are not on the site yet. The recipe for when they are:
+Videos and slopcore clips are live on `/memes`. They are cut from the same smiling avatar art with ffmpeg only (no video model, no API key): `node scripts/make-videos.mjs`.
 
-1. Make a still with the prefix above and a scene sentence for the first frame (square or 9:16, no text).
-2. Animate it with an image-to-video model using that still as the first frame. Prompt: "the girl keeps smiling, blinks, a small head tilt, sparkles twinkle, subtle headset glow, background rays slowly rotate, camera static". Keep clips 3 to 6 seconds, looping if possible.
-3. Keep the same avatar rules: same hair, eyes, headset, jacket, smile. Reject any clip where she stops smiling or the face changes.
-4. Add captions in an editor, not in the prompt. Export MP4 (H.264) under 8 MB for X.
-5. Put the file in `public/memes/` and add a `kind: "video"` entry before enabling the Videos tab.
+1. Start from the uncaptioned 1024 px art (`.meme-raw/<id>.jpg`, written by `scripts/gen-memes.mjs`). The face never changes because the clips only move the camera over real frames, so she keeps smiling.
+2. Video memes: 1:1, 720x720, 5 s, 25 fps. One slow move (zoom in, drift, zoom out or a pulse) with `scale` + `crop` driven by `t`, a top caption and a bottom caption that appears later (`drawtext`, DejaVu Sans bold, white or mustard fill, indigo `#170a36` stroke).
+3. Slopcore: 9:16, 540x960, about 5 s. Eight 0.625 s shots cut with `concat`, each with a shake (`sin(t*..)` in the crop offset), a zoom pulse, an RGB split (`rgbashift`) or small hue shift, a purple tint (`drawbox` with `#a855f7` at 22%), one huge word and a scrolling marquee line, light film grain (`noise`) and a quiet synthesized kick on every cut (`aevalsrc`, AAC 48 kbps). Keep the palette purple, pink and mustard.
+4. Encode H.264, `yuv420p`, `-movflags +faststart`, CRF 28 (the script raises the CRF until the file is under 2 MB). Posters are one frame of each clip.
+5. Every item also gets a 1200x630 share card in `public/memes/og/<id>.jpg` and its own page `/memes/<id>`, so Share on X posts that page URL and X shows the card.
+6. Add the entry to `clips` in `src/lib/memes.json` (`kind` is `video` or `slopcore`).
 
 ## 7. Safety
 

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
 
-export const metadata: Metadata = { title: "Games", description: "Free browser games with Rakaza. No wallet needed." };
+export const metadata: Metadata = withShare({ title: "Games", description: "Free browser games with Rakaza. No wallet needed." }, "/games");
 
 const GAMES = [
   {

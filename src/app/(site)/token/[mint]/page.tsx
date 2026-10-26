@@ -13,7 +13,6 @@ import { listPosts } from "@/lib/community/service";
 import { sql } from "@/lib/db";
 import { peekToken } from "@/lib/market/tokens";
 import { isOwnerRequest } from "@/lib/owner";
-import { siteUrl } from "@/lib/site";
 import { isSolanaAddress } from "@/lib/tools/address";
 
 export const dynamic = "force-dynamic";
@@ -60,7 +59,7 @@ export default async function Page({ params }: PageProps<"/token/[mint]">) {
   const cl = dev ? "?cluster=devnet" : "";
   const thread = sql() ? await listPosts({ mint, limit: 8 }).catch(() => null) : null;
   const now = nowMs();
-  const shareText = `${t.name} ($${t.symbol}) on Rakaza: live chart and bonding curve. ${siteUrl()}/token/${mint}`;
+  const shareText = `${t.name} ($${t.symbol}) on Rakaza: live chart and bonding curve.`;
   return (
     <>
       <ToolHero kicker={dev ? "Token · devnet" : "Token"} title={`$${t.symbol}`} blurb={t.name} />
@@ -86,7 +85,7 @@ export default async function Page({ params }: PageProps<"/token/[mint]">) {
               {t.links.telegram ? <a className={lnk} href={t.links.telegram} target="_blank" rel="noopener noreferrer nofollow ugc">Telegram <ExternalLink className="size-3.5" aria-hidden="true" /></a> : null}
             </nav>
             {dev ? <p className="text-xs opacity-80">This token is on Solana devnet, so pump.fun does not list it. Everything on this page is read from the chain.</p> : null}
-            <ShareButton title={`${t.name} ($${t.symbol})`} text={shareText} />
+            <ShareButton title={`${t.name} ($${t.symbol})`} text={shareText} path={`/token/${mint}`} />
           </div>
         </div>
         <TokenLive initial={t} />

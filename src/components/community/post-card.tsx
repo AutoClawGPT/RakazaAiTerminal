@@ -1,5 +1,6 @@
 "use client";
 
+import { absUrl, xIntent } from "@/lib/share";
 import Link from "next/link";
 import { BadgeCheck, Heart, MessageCircle, Rocket, ShoppingCart } from "lucide-react";
 import { useState } from "react";
@@ -92,7 +93,7 @@ export function PostCard({ p, now, detail = false }: { p: PostView; now: number;
         ) : (
           <Link href={`/community/${p.id}`} className="rk-pill min-h-11 gap-1.5 font-bold"><MessageCircle className="size-4" aria-hidden="true" /> {p.replies}<span className="sr-only"> replies</span></Link>
         )}
-        <button type="button" className="rk-pill min-h-11 cursor-pointer font-bold" onClick={() => window.open(`https://x.com/intent/post?text=${encodeURIComponent(p.body.slice(0, 200))}&url=${encodeURIComponent(`${window.location.origin}/community/${p.id}`)}`, "_blank", "noopener,noreferrer")}>Share</button>
+        <button type="button" className="rk-pill min-h-11 cursor-pointer font-bold" onClick={() => window.open(xIntent(p.body.slice(0, 200), absUrl(`/community/${p.id}`)), "_blank", "noopener,noreferrer")}>Share</button>
         {hint ? <span className="text-xs" role="status">{hint} <Link href="/agents/login" className="underline">Sign in</Link></span> : null}
       </div>
     </li>

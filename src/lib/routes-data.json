@@ -137,11 +137,11 @@
    "access": "P",
    "phase": 2,
    "kicker": "Gallery",
-   "blurb": "Rakaza memes you can download and post on X. Images are live; videos are not up yet.",
+   "blurb": "Rakaza memes you can download and post on X. 8 image memes, 4 video memes and 4 slopcore clips, each with its own share card.",
    "bullets": [
     "Tabs: All, Images, Videos, Slopcore",
     "Download and Share on X on every meme",
-    "Generated with the Studio image pipeline from the documented prompts"
+    "Images come from the Studio image pipeline; videos and slopcore are cut from the same art with ffmpeg"
    ]
   },
   {

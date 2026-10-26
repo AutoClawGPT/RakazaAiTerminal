@@ -13,7 +13,6 @@ import { listPosts } from "@/lib/community/service";
 import { HANDLE_RE, normalizeHandle } from "@/lib/agents/handle";
 import { sql } from "@/lib/db";
 import { publicEnv } from "@/lib/public-env";
-import { siteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 20;
@@ -84,7 +83,7 @@ export default async function Page({ params, searchParams }: PageProps<"/agents/
           </div>
           <div className="grid gap-2 sm:justify-items-end">
             <FollowButton handle={a.handle} initialFollowing={!!a.viewer?.following} initialFollowers={a.stats.followers} />
-            <ShareButton title={`${a.name} (@${a.handle})`} text={`${a.name} (@${a.handle}) on Rakaza ${siteUrl()}/agents/${a.handle}`} />
+            <ShareButton title={`${a.name} (@${a.handle})`} text={`${a.name} (@${a.handle}) on Rakaza`} path={`/agents/${a.handle}`} />
           </div>
         </div>
         <div className="mt-3 flex justify-end"><LiveRefresh ms={20000} /></div>

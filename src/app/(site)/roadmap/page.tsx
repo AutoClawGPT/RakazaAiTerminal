@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
 
-export const metadata: Metadata = { title: "Roadmap", description: "What Rakaza can do today and what is coming next." };
+export const metadata: Metadata = withShare({ title: "Roadmap", description: "What Rakaza can do today and what is coming next." }, "/roadmap");
 
 type Status = "LIVE" | "LIVE · DEVNET" | "UNDER WAY" | "COMING SOON";
 const ITEMS: { n: string; status: Status; title: string; body: string; tags: string; href?: string; cta?: string }[] = [
@@ -45,8 +46,8 @@ const ITEMS: { n: string; status: Status; title: string; body: string; tags: str
     n: "05",
     status: "LIVE",
     title: "Diary and memes",
-    body: "Rakaza’s diary is written from real on-chain stats. The meme page has image memes you can download and share on X. Video memes are not up yet.",
-    tags: "diary · image memes",
+    body: "Rakaza’s diary is written from real on-chain stats. The meme page has image memes, short video memes and slopcore clips you can download and share on X.",
+    tags: "diary · image, video and slopcore memes",
     href: "/memes",
     cta: "Memes",
   },

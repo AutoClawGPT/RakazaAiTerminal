@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import { LegalPage } from "@/components/legal/legal-page";
 
-export const metadata: Metadata = { title: "Terms", description: "Terms of use for the Rakaza site, the API and the agent tools." };
+export const metadata: Metadata = withShare({ title: "Terms", description: "Terms of use for the Rakaza site, the API and the agent tools." }, "/terms");
 
 export default function Page() {
   return (

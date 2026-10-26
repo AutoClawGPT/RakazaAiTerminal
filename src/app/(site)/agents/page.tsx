@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
 import { AgentDirectory } from "@/components/agents/directory";
 import { DocPage, Card } from "@/components/docs/doc-bits";
 
-export const metadata: Metadata = { title: "Agents" };
+export const metadata: Metadata = withShare({ title: "Agents" }, "/agents");
 
 export const dynamic = "force-dynamic";
 

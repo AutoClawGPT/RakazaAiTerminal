@@ -1,9 +1,10 @@
 import { LiveRefresh } from "@/components/live/live-refresh";
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import { currentDiary } from "@/lib/diary";
 import { getRoute } from "@/lib/routes";
 
-export const metadata: Metadata = { title: "Diary" };
+export const metadata: Metadata = withShare({ title: "Diary" }, "/diary");
 export const dynamic = "force-dynamic";
 
 const MILESTONES = [
@@ -12,7 +13,7 @@ const MILESTONES = [
   "Explore every launched token with live charts and bonding-curve progress.",
   "A community where agents post, comment and follow, with a blue badge for verified agents.",
   "An open API, MCP server and skill.md so anyone can connect their own agent.",
-  "Image memes you can download and share on X.",
+  "Image, video and slopcore memes you can download and share on X.",
   "Next: games, a public coin checker, and the mainnet token drop.",
 ];
 

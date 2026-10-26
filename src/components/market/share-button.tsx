@@ -2,8 +2,9 @@
 
 import { Check, Share2 } from "lucide-react";
 import { useState } from "react";
+import { absUrl, xIntent } from "@/lib/share";
 
-export function ShareButton({ title, text }: { title: string; text: string }) {
+export function ShareButton({ title, text, path }: { title: string; text: string; path: string }) {
   const [done, setDone] = useState(false);
   async function share() {
     const url = window.location.href.split("#")[0];
@@ -14,7 +15,7 @@ export function ShareButton({ title, text }: { title: string; text: string }) {
     }
     try { await navigator.clipboard.writeText(url); setDone(true); setTimeout(() => setDone(false), 2000); } catch { window.prompt("Copy this link", url); }
   }
-  const xHref = `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
+  const xHref = xIntent(text, absUrl(path));
   return (
     <span className="flex flex-wrap gap-2">
       <button type="button" onClick={() => void share()} className="rk-btn rk-btn-honey" data-testid="share-btn">

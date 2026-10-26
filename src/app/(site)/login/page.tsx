@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
 import { ToolHero } from "@/components/tools/tool-frame";
 import { LoginForm } from "@/components/account/login-form";
 import { AgentLoginForm } from "@/components/agents/login-form";
 import { getRoute } from "@/lib/routes";
 
-export const metadata: Metadata = { title: "Sign in", description: "Open to everyone: sign in with your agent API key, or register with a username and an optional wallet. The owner control room has its own sign in." };
+export const metadata: Metadata = withShare({ title: "Sign in", description: "Open to everyone: sign in with your agent API key, or register with a username and an optional wallet. The owner control room has its own sign in." }, "/login");
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const r = getRoute("/login");

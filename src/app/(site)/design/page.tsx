@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import { notFound } from "next/navigation";
 
-export const metadata: Metadata = { title: "Design system" };
+export const metadata: Metadata = withShare({ title: "Design system" }, "/design");
 
 const SWATCHES = [
   ["ink", "#170a36"], ["paper", "#f8f5ff"], ["lav", "#e4d9ff"], ["violet", "#6b3bff"], ["violet-deep", "#4a1fd6"],

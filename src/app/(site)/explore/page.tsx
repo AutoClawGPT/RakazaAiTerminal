@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
 import { ToolHero } from "@/components/tools/tool-frame";
 import { nowMs } from "@/components/market/format";
@@ -6,13 +7,13 @@ import { ExploreClient } from "@/components/market/explore-client";
 import { listTokens } from "@/lib/market/tokens";
 import { publicEnv } from "@/lib/public-env";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withShare({
   title: "Explore tokens",
   description: "Every token launched through Rakaza on pump.fun. New, graduating soon, graduated and trending, with live charts.",
   alternates: { canonical: "/explore" },
   openGraph: { title: "Explore tokens · Rakaza", description: "Every token launched through Rakaza. New, graduating soon, graduated and trending, with live charts.", url: "/explore", type: "website", images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Rakaza Explore" }] },
   twitter: { card: "summary_large_image", images: ["/twitter-image"], title: "Explore tokens · Rakaza", description: "Every token launched through Rakaza. New, graduating soon, graduated and trending, with live charts." },
-};
+}, "/explore");
 export const dynamic = "force-dynamic";
 export const maxDuration = 20;
 

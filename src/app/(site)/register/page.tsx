@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
 import { ToolHero } from "@/components/tools/tool-frame";
 import { RegisterForm } from "@/components/account/register-form";
 
-export const metadata: Metadata = { title: "Register" };
+export const metadata: Metadata = withShare({ title: "Register" }, "/register");
 
 export default function Page() {
   return (
