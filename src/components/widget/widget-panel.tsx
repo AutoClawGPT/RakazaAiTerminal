@@ -6,7 +6,7 @@ import { CharacterStage } from "@/components/stage/character-stage";
 import { CssAvatar } from "@/components/stage/css-avatar";
 import { fieldCls } from "@/components/tools/tool-frame";
 import { useVoice } from "@/components/talk/use-voice";
-import { requestSong, stopPerformance } from "@/lib/stage/motion-bus";
+import { isAdultMode, requestSong, stopPerformance } from "@/lib/stage/motion-bus";
 import { songIntent, CRAFT_REPLY, CRAFT_SPOKEN } from "@/lib/stage/song-intent";
 import { SongPicker } from "@/components/stage/song-picker";
 import { NowPlaying } from "@/components/stage/now-playing";
@@ -49,7 +49,7 @@ export function WidgetPanel({ open, onMinimize }: { open: boolean; onMinimize: (
     setDraft("");
     setThinking(true);
     try {
-      const res = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: history }) });
+      const res = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: history, adult: isAdultMode() }) });
       const data = (await res.json()) as { reply?: string; message?: string; command?: string | null };
       if (!res.ok || !data.reply) throw new Error(data.message ?? "She didn’t answer. Try again.");
       const reply = data.reply;

@@ -53,6 +53,11 @@ export function isAdultConfirmed(): boolean {
   return false;
 }
 
+/** True only while the 18+ club mode is on and the age gate was confirmed in this browser session. The chat sends this as `adult`. */
+export function isAdultMode(): boolean {
+  return state.bold && isAdultConfirmed();
+}
+
 /** The user ticked "I am 18 or older" and pressed Enter in the gate dialog. */
 export function confirmAdult() {
   try {

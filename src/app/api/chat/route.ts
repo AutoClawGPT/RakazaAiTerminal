@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { riverChat, type ChatMsg } from "@/lib/brain/river";
-import { PERSONA, parseCommand } from "@/lib/brain/persona";
+import { ADULT_ADDENDUM, ADULT_MINOR_REPLY, PERSONA, parseCommand, touchesMinors } from "@/lib/brain/persona";
 import { limiter } from "@/lib/upstash";
 
 export const runtime = "nodejs";
@@ -37,7 +37,13 @@ export async function POST(req: NextRequest) {
   if (!last || last.role !== "user") return NextResponse.json({ error: "last_message_must_be_user" }, { status: 400 });
 
   const command = parseCommand(last.content);
-  const out = await riverChat([{ role: "system", content: PERSONA }, ...history], { maxTokens: command === "sing" || command === "story" ? 220 : 140 });
+  // 18+ voice only when the client says the age gate was confirmed and the club mode is on. Nothing extra is stored: same chat flow as normal mode.
+  const adult = (body as { adult?: unknown }).adult === true;
+  if (adult && history.some((m) => m.role === "user" && touchesMinors(m.content))) {
+    return NextResponse.json({ reply: ADULT_MINOR_REPLY, command }, { headers: { "Cache-Control": "no-store" } });
+  }
+  const system = adult ? PERSONA + "\n" + ADULT_ADDENDUM : PERSONA;
+  const out = await riverChat([{ role: "system", content: system }, ...history], { maxTokens: command === "sing" || command === "story" ? 220 : 140 });
   if (!out.ok) return NextResponse.json({ error: "brain_unavailable", message: "My brain didn't answer. Try again in a moment." }, { status: 502 });
   return NextResponse.json({ reply: out.text, command }, { headers: { "Cache-Control": "no-store" } });
 }

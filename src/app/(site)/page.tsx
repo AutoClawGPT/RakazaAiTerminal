@@ -211,8 +211,8 @@ export default function HomePage() {
 
       <div className="rk-container grid gap-6 pb-16 pt-4 md:grid-cols-2">
         {SECTIONS.map((s) => (
-          <section key={s.id} id={s.id} className="rk-card rk-card-hard scroll-mt-24" aria-labelledby={`${s.id}-h`}>
-            <div className="flex items-start justify-between gap-3">
+          <section key={s.id} id={s.id} className="rk-card rk-card-hard min-w-0 scroll-mt-24" aria-labelledby={`${s.id}-h`}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <h2 id={`${s.id}-h`} className="rk-h2 text-2xl">
                 {s.title}
               </h2>
