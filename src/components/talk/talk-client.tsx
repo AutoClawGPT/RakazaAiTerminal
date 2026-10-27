@@ -6,7 +6,8 @@ import { ChevronDown, Globe, Maximize2, Minimize2, Mic, Phone, SendHorizontal, V
 import { RakazaMark } from "@/components/brand/logo";
 import { CharacterStage } from "@/components/stage/character-stage";
 import { useVoice } from "./use-voice";
-import { playMotion, setBold, useMotion } from "@/lib/stage/motion-bus";
+import { playMotion, setBold, setSoundOn, useMotion } from "@/lib/stage/motion-bus";
+import { pickSong } from "@/lib/stage/songs";
 import { Music, PartyPopper, Sparkles } from "lucide-react";
 
 type Msg = { id: number; who: "her" | "me" | "sys"; text: string };
@@ -34,6 +35,11 @@ export function TalkClient() {
     setBold(adult && bold);
     return () => setBold(false);
   }, [adult, bold]);
+  // her backing track follows the voice mute; leaving the page ends any dance or song
+  useEffect(() => {
+    setSoundOn(!muted);
+  }, [muted]);
+  useEffect(() => () => playMotion("idle"), []);
 
   const send = useCallback(async (text: string) => {
     const t = text.trim().slice(0, MAX);
@@ -102,7 +108,15 @@ export function TalkClient() {
           </button>
           {adult ? (
             <div className="absolute bottom-3 left-3 z-20 flex flex-wrap gap-2 pl-0 [&]:translate-y-[-2.4rem] sm:[&]:translate-y-[-2.6rem]" role="group" aria-label="Rakaza moves">
-              <button type="button" className="rk-pill !min-h-8 text-xs" aria-pressed={motion.motion === "sing"} onClick={() => playMotion(motion.motion === "sing" ? "idle" : "sing", 20000)}>
+              <button type="button" className="rk-pill !min-h-8 text-xs" aria-pressed={motion.motion === "sing"} onClick={() => {
+                if (motion.motion === "sing") {
+                  playMotion("idle");
+                  voiceRef.current?.stopSpeaking();
+                } else {
+                  playMotion("sing", 24000);
+                  void voiceRef.current?.speak(pickSong());
+                }
+              }}>
                 <Music className="size-3.5" aria-hidden="true" /> Sing
               </button>
               <button type="button" className="rk-pill !min-h-8 text-xs" aria-pressed={motion.motion === "dance"} onClick={() => playMotion(motion.motion === "dance" ? "idle" : "dance", 16000)}>

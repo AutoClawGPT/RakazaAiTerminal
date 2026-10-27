@@ -20,6 +20,7 @@ type Active = {
 
 let active: Active | null = null;
 let smoothed = 0;
+const bands = { low: 0, mid: 0, high: 0 };
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
@@ -34,6 +35,7 @@ function setActive(next: Active | null) {
   active?.stop();
   active = next;
   smoothed = 0;
+  bands.low = bands.mid = bands.high = 0;
   emit();
 }
 
@@ -41,6 +43,9 @@ function setActive(next: Active | null) {
 export function readLevel(): number {
   if (!active) {
     smoothed *= 0.85;
+    bands.low *= 0.85;
+    bands.mid *= 0.85;
+    bands.high *= 0.85;
     return smoothed;
   }
   active.analyser.getByteTimeDomainData(active.buf);
@@ -50,9 +55,31 @@ export function readLevel(): number {
     sum += v * v;
   }
   const rms = Math.sqrt(sum / active.buf.length);
+  updateBands(active);
   const target = Math.min(1, Math.max(0, (rms - 0.015) * 7));
   smoothed += (target - smoothed) * 0.45;
   return smoothed;
+}
+
+/** Spectrum split of the voice (0..1 each), updated by readLevel(); used to pick vowel shapes. */
+export function readBands(): { low: number; mid: number; high: number } {
+  return bands;
+}
+
+function updateBands(a: Active) {
+  const fd = new Uint8Array(a.analyser.frequencyBinCount);
+  a.analyser.getByteFrequencyData(fd);
+  const hz = a.ctx.sampleRate / a.analyser.fftSize;
+  const avg = (f0: number, f1: number) => {
+    const i0 = Math.max(1, Math.floor(f0 / hz));
+    const i1 = Math.min(fd.length - 1, Math.ceil(f1 / hz));
+    let s = 0;
+    for (let i = i0; i <= i1; i++) s += fd[i];
+    return s / Math.max(1, i1 - i0 + 1) / 255;
+  };
+  bands.low += (avg(100, 700) - bands.low) * 0.4;
+  bands.mid += (avg(700, 2200) - bands.mid) * 0.4;
+  bands.high += (avg(2200, 6000) - bands.high) * 0.4;
 }
 
 export async function startMic(): Promise<void> {
@@ -103,6 +130,11 @@ export function startDemo(): void {
   osc.start();
   lfo.start();
   setActive({ kind: "demo", ctx, analyser, buf, stop: () => void ctx.close() });
+}
+
+/** True while any source (her voice, mic, demo) is feeding the analyser. */
+export function hasAudio(): boolean {
+  return active !== null;
 }
 
 export function stopAudio(): void {

@@ -6,6 +6,8 @@ import { CharacterStage } from "@/components/stage/character-stage";
 import { CssAvatar } from "@/components/stage/css-avatar";
 import { fieldCls } from "@/components/tools/tool-frame";
 import { useVoice } from "@/components/talk/use-voice";
+import { playMotion, setSoundOn, useMotion } from "@/lib/stage/motion-bus";
+import { pickSong } from "@/lib/stage/songs";
 
 type Msg = { id: number; who: "me" | "her" | "sys"; text: string };
 const MAX = 500;
@@ -36,9 +38,11 @@ export function WidgetPanel({ open, onMinimize }: { open: boolean; onMinimize: (
     setThinking(true);
     try {
       const res = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: history }) });
-      const data = (await res.json()) as { reply?: string; message?: string };
+      const data = (await res.json()) as { reply?: string; message?: string; command?: string | null };
       if (!res.ok || !data.reply) throw new Error(data.message ?? "She didn’t answer. Try again.");
       const reply = data.reply;
+      if (data.command === "sing") playMotion("sing", 20000);
+      else if (data.command === "dance") playMotion("dance", 16000);
       setMsgs((m) => [...m, { id: idRef.current++, who: "her", text: reply }]);
       void voiceRef.current?.speak(reply); // only ever after the visitor sent a message, so the browser allows the sound
     } catch (e) {
@@ -52,10 +56,15 @@ export function WidgetPanel({ open, onMinimize }: { open: boolean; onMinimize: (
   voiceRef.current = voice;
 
   const { stopSpeaking, stopListening } = voice;
+  const motion = useMotion();
+  useEffect(() => {
+    setSoundOn(!muted);
+  }, [muted]);
   useEffect(() => {
     if (!open) {
       stopSpeaking();
       stopListening();
+      playMotion("idle");
     }
   }, [open, stopSpeaking, stopListening]);
   useEffect(() => {
@@ -90,6 +99,16 @@ export function WidgetPanel({ open, onMinimize }: { open: boolean; onMinimize: (
             <CssAvatar className="max-h-full" />
           </div>
         )}
+        {use3d && stage === "ready" ? (
+          <div className="absolute bottom-1.5 left-1.5 z-10 flex gap-1.5" role="group" aria-label="Rakaza moves">
+            <button type="button" className="rk-pill !min-h-7 !px-2 text-[0.7rem]" aria-pressed={motion.motion === "sing"} data-testid="widget-sing" onClick={() => { if (motion.motion === "sing") { playMotion("idle"); stopSpeaking(); } else { playMotion("sing", 24000); void voiceRef.current?.speak(pickSong()); } }}>
+              Sing
+            </button>
+            <button type="button" className="rk-pill !min-h-7 !px-2 text-[0.7rem]" aria-pressed={motion.motion === "dance"} data-testid="widget-dance" onClick={() => playMotion(motion.motion === "dance" ? "idle" : "dance", 16000)}>
+              Dance
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div ref={logRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-2" role="log" aria-live="polite" data-testid="widget-log">
