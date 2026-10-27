@@ -1,4 +1,5 @@
 "use client";
+import { stopSong } from "@/lib/stage/song-player";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { attachElement, stopAudio } from "@/lib/stage/audio-bus";
 
@@ -34,6 +35,7 @@ export function useVoice(opts: { onFinalText: (text: string) => void; muted: boo
     async (text: string) => {
       if (opts.muted || !/[\p{L}\p{N}]/u.test(text)) return;
       try {
+        stopSong(); // her spoken reply takes over from a song
         stopSpeaking();
         const res = await fetch("/api/voice/tts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
         if (!res.ok) throw new Error("voice unavailable");
@@ -109,6 +111,16 @@ export function useVoice(opts: { onFinalText: (text: string) => void; muted: boo
       stopListening();
       setError(e instanceof Error ? e.message : "could not start the mic");
     }
+  }, [stopListening, stopSpeaking]);
+
+  // a song starting hangs up the call and silences any spoken reply: her voice and the song never mix
+  useEffect(() => {
+    const off = () => {
+      stopSpeaking();
+      stopListening();
+    };
+    window.addEventListener("rk:stop-voice", off);
+    return () => window.removeEventListener("rk:stop-voice", off);
   }, [stopListening, stopSpeaking]);
 
   useEffect(() => () => {

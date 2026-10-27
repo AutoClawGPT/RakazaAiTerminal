@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ChevronDown, Globe, Maximize2, Minimize2, Mic, Phone, SendHorizontal, VolumeX, Volume2, X } from "lucide-react";
 import { RakazaMark } from "@/components/brand/logo";
 import { CharacterStage } from "@/components/stage/character-stage";
 import { useVoice } from "./use-voice";
-import { playMotion, setBold, setSoundOn, useMotion } from "@/lib/stage/motion-bus";
-import { pickSong } from "@/lib/stage/songs";
-import { Music, PartyPopper, Sparkles } from "lucide-react";
+import { requestSong } from "@/lib/stage/motion-bus";
+import { songIntent, CRAFT_REPLY, CRAFT_SPOKEN } from "@/lib/stage/song-intent";
+import { SongPicker } from "@/components/stage/song-picker";
+import { NowPlaying } from "@/components/stage/now-playing";
 
 type Msg = { id: number; who: "her" | "me" | "sys"; text: string };
 const SUGGEST = ["hi Rakaza 💜", "rate my rizz", "wen moon?", "what do you do all day?"];
@@ -21,8 +22,6 @@ export function TalkClient() {
   const [muted, setMuted] = useState(false);
   const [full, setFull] = useState(false);
   const [thinking, setThinking] = useState(false);
-  const [bold, setBoldState] = useState(false);
-  const motion = useMotion();
   const stageBox = useRef<HTMLElement>(null);
   const idRef = useRef(2);
 
@@ -31,19 +30,19 @@ export function TalkClient() {
   const busy = useRef(false);
   const voiceRef = useRef<ReturnType<typeof useVoice> | null>(null);
 
-  useEffect(() => {
-    setBold(adult && bold);
-    return () => setBold(false);
-  }, [adult, bold]);
-  // her backing track follows the voice mute; leaving the page ends any dance or song
-  useEffect(() => {
-    setSoundOn(!muted);
-  }, [muted]);
-  useEffect(() => () => playMotion("idle"), []);
-
   const send = useCallback(async (text: string) => {
     const t = text.trim().slice(0, MAX);
     if (!t || busy.current) return;
+    const intent = songIntent(t);
+    if (intent) {
+      // a song request: she "crafts" it (get-ready moment + ready pose), then performs one from her songbook. Starts inside the click so audio is allowed.
+      const mineSong: Msg = { id: idRef.current++, who: "me", text: t };
+      setMsgs((m) => [...m, mineSong, { id: idRef.current++, who: "her", text: CRAFT_REPLY(intent.topic) }]);
+      setDraft("");
+      requestSong(intent.topic);
+      void voiceRef.current?.speak(CRAFT_SPOKEN);
+      return;
+    }
     busy.current = true;
     const mine: Msg = { id: idRef.current++, who: "me", text: t };
     const history = [...msgsRef.current, mine].filter((m) => m.who !== "sys").map((m) => ({ role: m.who === "me" ? "user" : "assistant", content: m.text }));
@@ -55,10 +54,9 @@ export function TalkClient() {
       const data = (await res.json()) as { reply?: string; message?: string; command?: string | null };
       if (!res.ok || !data.reply) throw new Error(data.message ?? "She didn’t answer. Try again.");
       const reply = data.reply;
-      if (data.command === "sing") playMotion("sing", 20000);
-      else if (data.command === "dance") playMotion("dance", 16000);
       setMsgs((m) => [...m, { id: idRef.current++, who: "her", text: reply }]);
-      void voiceRef.current?.speak(reply);
+      if (data.command === "sing" || data.command === "dance") requestSong(null);
+      else void voiceRef.current?.speak(reply);
     } catch (e) {
       setMsgs((m) => [...m, { id: idRef.current++, who: "sys", text: e instanceof Error ? e.message : "Something went wrong." }]);
     } finally {
@@ -90,6 +88,7 @@ export function TalkClient() {
           <div className="absolute left-3 top-3 z-20 inline-flex items-center gap-1.5 rounded-full border-2 border-[var(--rk-ink)] bg-white px-3 py-1 font-mono text-[0.7rem] font-bold text-[var(--rk-ink)]">
             <span className="size-1.5 rounded-full bg-[var(--rk-pink)]" aria-hidden="true" /> {voice.listening ? "live" : "online"}
           </div>
+          <SongPicker stacked compact className="absolute left-3 right-3 top-[3.2rem] z-20 lg:right-auto lg:top-14" />
           <div className="absolute right-3 top-3 z-20 flex gap-2">
             <button type="button" className="rk-icon-btn !size-9" onClick={toggleFull} aria-label={full ? "Exit full screen" : "Full screen"}>
               {full ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
@@ -106,27 +105,7 @@ export function TalkClient() {
           >
             <Phone className="size-4" aria-hidden="true" /> {voice.listening ? "Hang up" : "Call"}
           </button>
-          {adult ? (
-            <div className="absolute bottom-3 left-3 z-20 flex flex-wrap gap-2 pl-0 [&]:translate-y-[-2.4rem] sm:[&]:translate-y-[-2.6rem]" role="group" aria-label="Rakaza moves">
-              <button type="button" className="rk-pill !min-h-8 text-xs" aria-pressed={motion.motion === "sing"} onClick={() => {
-                if (motion.motion === "sing") {
-                  playMotion("idle");
-                  voiceRef.current?.stopSpeaking();
-                } else {
-                  playMotion("sing", 24000);
-                  void voiceRef.current?.speak(pickSong());
-                }
-              }}>
-                <Music className="size-3.5" aria-hidden="true" /> Sing
-              </button>
-              <button type="button" className="rk-pill !min-h-8 text-xs" aria-pressed={motion.motion === "dance"} onClick={() => playMotion(motion.motion === "dance" ? "idle" : "dance", 16000)}>
-                <PartyPopper className="size-3.5" aria-hidden="true" /> Dance
-              </button>
-              <button type="button" className="rk-pill !min-h-8 text-xs" aria-pressed={bold} onClick={() => setBoldState((b) => !b)} title="18+ style: bolder, flirtier Rakaza (never explicit)">
-                <Sparkles className="size-3.5" aria-hidden="true" /> 18+ style
-              </button>
-            </div>
-          ) : null}
+          <NowPlaying compact smallNoLyrics className="absolute bottom-3 left-3 right-28 z-20 max-w-[22rem]" />
           {voice.listening || voice.error ? (
             <p className="absolute bottom-14 right-3 z-20 max-w-[16rem] rounded-xl border-2 border-[var(--rk-ink)] bg-white px-3 py-1.5 text-xs text-[var(--rk-ink)]" role="status">
               {voice.error ?? (voice.interim || (voice.speaking ? "Rakaza is talking…" : "Listening…"))}

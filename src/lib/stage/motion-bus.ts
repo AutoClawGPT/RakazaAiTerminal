@@ -1,55 +1,78 @@
 "use client";
 /**
- * Motion bus: tells every 3D stage what Rakaza is doing (idle / sing / dance) and whether the
- * age-gated 18+ style is on. The stages read it once per frame; React UI subscribes to it.
- * Sing and Dance also start the synth backing track (src/lib/stage/music.ts), which the choreography
- * locks onto. Nothing here records audio or touches the network.
+ * Stage bus: the one place the UI talks to the 3D stage.
+ *  - songs: she performs ONE thing, the song that is playing (lip-sync, beat-synced dance, stage lights)
+ *  - 18+ club: an age-gated flag that changes the stage scene and swaps in the slow sultry choreography
+ * The stage reads it once per frame; React UI subscribes through useStage(). Nothing here records audio or touches the network.
  */
 import { useSyncExternalStore } from "react";
-import { setMusicEnabled, startMusic, stopMusic } from "./music";
+import { stopSong, toggleSong } from "./song-player";
+import { beginSongRequest, cancelPrep } from "./song-prep";
+import type { SongDef } from "../songs";
 
-export type Motion = "idle" | "sing" | "dance";
-type State = { motion: Motion; bold: boolean; since: number };
+type State = { bold: boolean; /** age gate confirmed for this browser session */ confirmed: boolean };
 
-let state: State = { motion: "idle", bold: false, since: 0 };
-let timer: ReturnType<typeof setTimeout> | null = null;
+let state: State = { bold: false, confirmed: false };
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
-export function getMotion(): State {
+export function getStage(): State {
   return state;
 }
 
-/** Start a motion; it returns to idle on its own after `ms` (default 14 s). */
-export function playMotion(motion: Motion, ms = 14000) {
-  if (timer) clearTimeout(timer);
-  timer = null;
-  state = { ...state, motion, since: typeof performance !== "undefined" ? performance.now() : 0 };
-  if (motion === "idle") stopMusic();
-  else startMusic(motion);
-  emit();
-  if (motion !== "idle") {
-    timer = setTimeout(() => {
-      timer = null;
-      state = { ...state, motion: "idle" };
-      stopMusic();
-      emit();
-    }, ms);
+/** Song picker click: start this song (the stage performs it as soon as it plays), or stop it if it is the one playing. */
+export function pressSong(def: SongDef) {
+  cancelPrep();
+  toggleSong(def);
+}
+
+/** Chat (or the "Sing for me" button) asked for a song: she gets ready (about five seconds), then performs a songbook song. */
+export function requestSong(topic: string | null) {
+  stopSong();
+  return beginSongRequest(topic);
+}
+
+/** Stop whatever she is performing. */
+export function stopPerformance() {
+  cancelPrep();
+  stopSong();
+}
+
+const KEY = "rk-18-ok";
+/** Has this browser session already passed the 18+ gate? */
+export function isAdultConfirmed(): boolean {
+  if (state.confirmed) return true;
+  try {
+    if (typeof sessionStorage !== "undefined" && sessionStorage.getItem(KEY) === "1") {
+      state = { ...state, confirmed: true };
+      return true;
+    }
+  } catch {
+    /* storage blocked: the in-memory flag still works */
   }
+  return false;
 }
 
-/** Her backing track on/off (follows the voice mute button). The dance and sing motions still play silently. */
-export function setSoundOn(on: boolean) {
-  setMusicEnabled(on);
+/** The user ticked "I am 18 or older" and pressed Enter in the gate dialog. */
+export function confirmAdult() {
+  try {
+    sessionStorage.setItem(KEY, "1");
+  } catch {
+    /* ignore */
+  }
+  state = { ...state, confirmed: true };
+  emit();
 }
 
-/** 18+ style. Only ever turned on from the age-gated Talk screen. */
+/** 18+ club on or off. Only turned on after the age gate (see AdultToggle). */
 export function setBold(bold: boolean) {
+  if (bold && !isAdultConfirmed()) return;
+  if (state.bold === bold) return;
   state = { ...state, bold };
   emit();
 }
 
-export function useMotion(): State {
+export function useStage(): State {
   return useSyncExternalStore(
     (cb) => {
       listeners.add(cb);

@@ -4,6 +4,11 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Mic, MicOff, Minus, Plus, RotateCcw, Volume2 } from "lucide-react";
 import { CssAvatar } from "./css-avatar";
+import { StageLights } from "./stage-lights";
+import { ClubScene } from "./club-scene";
+import { setBold } from "@/lib/stage/motion-bus";
+import { stopSong } from "@/lib/stage/song-player";
+import { cancelPrep } from "@/lib/stage/song-prep";
 import type { StageHandle, StageVariant } from "./stage-canvas";
 import { startDemo, startMic, stopAudio, useAudioSource } from "@/lib/stage/audio-bus";
 
@@ -64,6 +69,9 @@ export function CharacterStage({ variant = "panel", className = "", src = DEFAUL
       io.disconnect();
       document.removeEventListener("visibilitychange", onVis);
       stopAudio();
+      stopSong(); // closing the stage (widget closed, page left) ends her song
+      cancelPrep();
+      setBold(false); // leaving the stage ends the 18+ club
     };
   }, []);
 
@@ -92,7 +100,10 @@ export function CharacterStage({ variant = "panel", className = "", src = DEFAUL
 
   return (
     <div ref={ref} className={`rk-stage relative overflow-hidden ${className}`} data-stage-state={state} data-stage-variant={variant}>
+      <ClubScene layer="back" />
+      <StageLights />
       {use3d ? <StageCanvas variant={variant} src={src} lite={lite} wheelZoom={wheelZoom} visible={visible} onReady={onReady} onFail={onFail} handleRef={handle} /> : null}
+      <ClubScene layer="front" />
       {!use3d && webgl !== null ? (
         <div className="absolute inset-0 grid place-items-end px-6 pt-10 pb-0">
           <CssAvatar className="max-h-full" />

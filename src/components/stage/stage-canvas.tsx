@@ -7,10 +7,11 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { VRM, VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { hasAudio, readBands, readLevel } from "@/lib/stage/audio-bus";
-import { getMotion, playMotion, setBold } from "@/lib/stage/motion-bus";
+import { readBands, readLevel } from "@/lib/stage/audio-bus";
+import { confirmAdult, getStage, setBold } from "@/lib/stage/motion-bus";
 import { startDemo, stopAudio } from "@/lib/stage/audio-bus";
-import { beatNow } from "@/lib/stage/music";
+import { getSongState, songFrame } from "@/lib/stage/song-player";
+import { getPrep } from "@/lib/stage/song-prep";
 import { newAnimState, stepRig, type AnimState } from "@/lib/stage/rig-anim";
 
 export type StageVariant = "hero" | "bust" | "panel";
@@ -41,12 +42,49 @@ function fitDistance(v: StageVariant, aspect: number) {
   return Math.max(c.h / 2 / t, c.w / 2 / (t * aspect));
 }
 
+/** Studio lights; in the 18+ club they dim and shift to a moody neon palette. */
+function SceneLights() {
+  const amb = useRef<THREE.AmbientLight>(null);
+  const key = useRef<THREE.DirectionalLight>(null);
+  const rimA = useRef<THREE.DirectionalLight>(null);
+  const rimB = useRef<THREE.DirectionalLight>(null);
+  const k = useRef(0);
+  useFrame((_, dtRaw) => {
+    const dt = Math.min(dtRaw, 0.05);
+    k.current += ((getStage().bold ? 1 : 0) - k.current) * Math.min(1, dt * 2.5);
+    const c = k.current;
+    if (amb.current) amb.current.intensity = THREE.MathUtils.lerp(1.15, 0.38, c);
+    if (key.current) {
+      key.current.intensity = THREE.MathUtils.lerp(2.1, 0.95, c);
+      key.current.color.set(c > 0.5 ? "#ffd2ec" : "#fff4e8");
+    }
+    if (rimA.current) {
+      rimA.current.intensity = THREE.MathUtils.lerp(1.1, 1.8, c);
+      rimA.current.color.set(c > 0.5 ? "#7a4dff" : "#9d7bff");
+    }
+    if (rimB.current) {
+      rimB.current.intensity = THREE.MathUtils.lerp(0.8, 1.6, c);
+      rimB.current.color.set(c > 0.5 ? "#ff2f8e" : "#ff6fb5");
+    }
+  });
+  return (
+    <>
+      <ambientLight ref={amb} intensity={1.15} />
+      <directionalLight ref={key} position={[1.5, 2.5, 2.5]} intensity={2.1} color="#fff4e8" />
+      <directionalLight ref={rimA} position={[-2, 1.2, -1.5]} intensity={1.1} color="#9d7bff" />
+      <directionalLight ref={rimB} position={[2, 0.4, -2]} intensity={0.8} color="#ff6fb5" />
+    </>
+  );
+}
+
 function Avatar({ src, onReady, onFail }: Pick<Props, "src" | "onReady" | "onFail">) {
   const group = useRef<THREE.Group>(null);
   const vrmRef = useRef<VRM | null>(null);
   const [lookObj] = useState(() => new THREE.Object3D());
   const anim = useRef<AnimState>(newAnimState());
   const accent = useRef<THREE.PointLight>(null);
+  const neonL = useRef<THREE.PointLight>(null);
+  const neonR = useRef<THREE.PointLight>(null);
   const camera = useThree((s) => s.camera);
 
   useEffect(() => {
@@ -84,7 +122,7 @@ function Avatar({ src, onReady, onFail }: Pick<Props, "src" | "onReady" | "onFai
         if (typeof window !== "undefined" && window.location.search.includes("rkdebug")) {
           const w = window as unknown as { __rkVrm?: VRM; __rkCtl?: unknown };
           w.__rkVrm = vrm;
-          w.__rkCtl = { playMotion, setBold, startDemo, stopAudio };
+          w.__rkCtl = { setBold, confirmAdult, startDemo, stopAudio };
         }
         onReady();
       },
@@ -102,15 +140,36 @@ function Avatar({ src, onReady, onFail }: Pick<Props, "src" | "onReady" | "onFai
     };
   }, [src, onReady, onFail, lookObj]);
 
+  const readyClock = useRef(0);
+  const clockRef = useRef({ bt: 0, last: 0 });
   useFrame((_, dtRaw) => {
     const vrm = vrmRef.current;
     if (!vrm) return;
     const dt = Math.min(dtRaw, 0.05);
     const h = vrm.humanoid;
-    const m = getMotion();
-    const level = readLevel();
-    const bands = readBands();
-    const clock = beatNow(m.motion === "idle" ? "none" : m.motion, m.since);
+    const m = getStage();
+    // a real song takes over everything: beat grid from its audio, mouth from its spectrum
+    const sf = songFrame(dt);
+    const level = sf.playing ? sf.level : readLevel();
+    const bands = sf.playing ? { low: sf.low, mid: sf.mid, high: sf.high } : readBands();
+    // ready pose: while a song is being prepared / loaded she stands ready (mic hand up, bouncing gently on her own clock)
+    const ready = !sf.playing && (getPrep().active || getSongState().status === "loading");
+    readyClock.current = ready ? readyClock.current + dt * (118 / 60) : 0;
+    const rawBeat = sf.playing ? sf.beat : ready ? readyClock.current : 0;
+    const rawBpm = sf.playing ? sf.bpm : ready ? 118 : 100;
+    // 18+ club dances in half time: a continuous beat accumulator (no phase jumps when it toggles) that re-locks to every other beat
+    const ck = clockRef.current;
+    const rate = 1 - 0.5 * anim.current.wBold;
+    const dB = rawBeat - ck.last;
+    ck.last = rawBeat;
+    if (dB < 0 || dB > 2) ck.bt = rawBeat * rate;
+    else ck.bt += dB * rate;
+    if (anim.current.wBold > 0.98) {
+      const err = ((((ck.bt - rawBeat * 0.5) % 1) + 1.5) % 1) - 0.5;
+      ck.bt -= err * Math.min(1, dt * 2);
+    }
+    const clock = { beat: ck.bt, bpm: rawBpm * rate };
+    const motion = sf.playing || ready ? "perform" : "idle";
     const dbg = typeof window !== "undefined" ? (window as unknown as { __rkPose?: Record<string, [number, number, number]> | null }).__rkPose : undefined;
     const em = vrm.expressionManager;
     if (dbg) {
@@ -122,22 +181,28 @@ function Avatar({ src, onReady, onFail }: Pick<Props, "src" | "onReady" | "onFai
     } else {
       stepRig(
         anim.current,
-        { dt, motion: m.motion, bold: m.bold, level, low: bands.low, mid: bands.mid, high: bands.high, beat: clock.beat, bpm: clock.bpm, cam: [camera.position.x, camera.position.y, camera.position.z], synth: m.motion === "sing" && !hasAudio() },
+        { dt, motion, bold: m.bold, level, low: bands.low, mid: bands.mid, high: bands.high, beat: clock.beat, bpm: clock.bpm, cam: [camera.position.x, camera.position.y, camera.position.z], energy: sf.playing ? sf.energy : ready ? 0.2 : 0.6, pose: ready ? "mic" : undefined },
         (n) => h.getNormalizedBoneNode(n as Parameters<typeof h.getNormalizedBoneNode>[0]),
         (n, v) => em?.setValue(n, v),
         group.current,
         lookObj,
       );
     }
-    // bold style: soft rose accent light fades in
-    if (accent.current) accent.current.intensity = anim.current.wBold * 2.2;
+    // 18+ club: neon accent lights fade in and flash on the beat
+    const wB = anim.current.wBold;
+    const flash = 0.6 + 0.4 * Math.max(0, Math.cos(Math.PI * 2 * clock.beat));
+    if (accent.current) accent.current.intensity = wB * 3.2;
+    if (neonL.current) neonL.current.intensity = wB * 3.5 * flash;
+    if (neonR.current) neonR.current.intensity = wB * 3.5 * (1.6 - flash);
     vrm.update(dt);
   });
 
   return (
     <group ref={group}>
       <primitive object={lookObj} />
-      <pointLight ref={accent} position={[0.6, 1.4, 1]} intensity={0} color="#ff5fa8" distance={4} />
+      <pointLight ref={accent} position={[0.6, 1.4, 1]} intensity={0} color="#ff3d9a" distance={4} />
+      <pointLight ref={neonL} position={[-1.1, 1.2, 0.9]} intensity={0} color="#27d8ff" distance={4.5} />
+      <pointLight ref={neonR} position={[1.1, 0.9, 0.9]} intensity={0} color="#c13bff" distance={4.5} />
     </group>
   );
 }
@@ -183,8 +248,7 @@ function Rig({ variant, wheelZoom, handleRef }: Pick<Props, "variant" | "wheelZo
   useFrame((_, dtRaw) => {
     const c = ctl.current;
     if (!c || variant !== "bust") return;
-    const m = getMotion().motion;
-    const want = m === "dance" ? 1 : m === "sing" ? 0.35 : 0;
+    const want = getSongState().status === "playing" || getPrep().active ? 1 : 0;
     const prev = pull.current.k;
     const next = prev + (want - prev) * Math.min(1, Math.min(dtRaw, 0.05) * 3);
     if (Math.abs(next - prev) < 1e-5) return;
@@ -248,10 +312,7 @@ export default function StageCanvas(props: Props) {
       style={{ position: "absolute", inset: 0 }}
       aria-hidden="true"
     >
-      <ambientLight intensity={1.15} />
-      <directionalLight position={[1.5, 2.5, 2.5]} intensity={2.1} color="#fff4e8" />
-      <directionalLight position={[-2, 1.2, -1.5]} intensity={1.1} color="#9d7bff" />
-      <directionalLight position={[2, 0.4, -2]} intensity={0.8} color="#ff6fb5" />
+      <SceneLights />
       <Avatar src={src} onReady={onReady} onFail={onFail} />
       <Rig variant={variant} wheelZoom={props.wheelZoom} handleRef={props.handleRef} />
     </Canvas>

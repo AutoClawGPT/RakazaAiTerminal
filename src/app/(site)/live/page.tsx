@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { withShare } from "@/lib/share-meta";
 import { CharacterStage } from "@/components/stage/character-stage";
+import { LiveSongs } from "@/components/stage/live-songs";
 
 export const metadata: Metadata = withShare({ title: "Live" }, "/live");
 
@@ -31,6 +32,7 @@ export default function LivePage() {
               <span className="size-1.5 rounded-full bg-zinc-400" aria-hidden="true" /> OFFLINE
             </span>
           </div>
+          <LiveSongs />
         </section>
 
         <div className="grid content-start gap-6">
