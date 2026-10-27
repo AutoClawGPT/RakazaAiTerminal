@@ -14,6 +14,14 @@ import { getSongState, songFrame } from "@/lib/stage/song-player";
 import { getPrep } from "@/lib/stage/song-prep";
 import { newAnimState, stepRig, type AnimState } from "@/lib/stage/rig-anim";
 
+/**
+ * Deterministic capture hook (only reachable with ?rkdebug, used by scripts/stage-videos to record the real stage
+ * frame by frame): when `feed` is set the stage does not read the clock or the audio, it advances exactly one
+ * step per `pending` feed (dt, beat, bpm, energy, mouth values) and bumps `seq` once the pose is applied.
+ */
+type CaptureFeed = { pending: boolean; dt: number; beat: number; bpm: number; energy: number; level: number; low: number; mid: number; high: number };
+type CaptureHook = { feed: CaptureFeed | null; seq: number; camera: THREE.Camera; scene: THREE.Scene; gl: THREE.WebGLRenderer; controls: { target: THREE.Vector3; update: () => void } | null };
+
 export type StageVariant = "hero" | "bust" | "panel";
 export type StageHandle = { zoom: (dir: 1 | -1) => void; reset: () => void };
 
@@ -86,6 +94,9 @@ function Avatar({ src, onReady, onFail }: Pick<Props, "src" | "onReady" | "onFai
   const neonL = useRef<THREE.PointLight>(null);
   const neonR = useRef<THREE.PointLight>(null);
   const camera = useThree((s) => s.camera);
+  const scene = useThree((s) => s.scene);
+  const gl = useThree((s) => s.gl);
+  const controls = useThree((s) => s.controls) as unknown as CaptureHook["controls"];
 
   useEffect(() => {
     let dead = false;
@@ -140,16 +151,27 @@ function Avatar({ src, onReady, onFail }: Pick<Props, "src" | "onReady" | "onFai
     };
   }, [src, onReady, onFail, lookObj]);
 
+  // capture hook (see CaptureHook): only with ?rkdebug
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.location.search.includes("rkdebug")) return;
+    const w = window as unknown as { __rkCap?: CaptureHook };
+    w.__rkCap = { feed: w.__rkCap?.feed ?? null, seq: w.__rkCap?.seq ?? 0, camera, scene, gl, controls };
+  }, [camera, scene, gl, controls]);
+
   const readyClock = useRef(0);
   const clockRef = useRef({ bt: 0, last: 0 });
   useFrame((_, dtRaw) => {
     const vrm = vrmRef.current;
     if (!vrm) return;
-    const dt = Math.min(dtRaw, 0.05);
+    const cap = typeof window !== "undefined" ? (window as unknown as { __rkCap?: CaptureHook }).__rkCap : undefined;
+    const feed = cap?.feed ?? null;
+    if (feed && !feed.pending) return; // capture: hold the pose until the next step is fed
+    if (feed) feed.pending = false;
+    const dt = feed ? feed.dt : Math.min(dtRaw, 0.05);
     const h = vrm.humanoid;
     const m = getStage();
     // a real song takes over everything: beat grid from its audio, mouth from its spectrum
-    const sf = songFrame(dt);
+    const sf = feed ? { playing: true, beat: feed.beat, bpm: feed.bpm, time: 0, energy: feed.energy, level: feed.level, low: feed.low, mid: feed.mid, high: feed.high } : songFrame(dt);
     const level = sf.playing ? sf.level : readLevel();
     const bands = sf.playing ? { low: sf.low, mid: sf.mid, high: sf.high } : readBands();
     // ready pose: while a song is being prepared / loaded she stands ready (mic hand up, bouncing gently on her own clock)
@@ -195,6 +217,7 @@ function Avatar({ src, onReady, onFail }: Pick<Props, "src" | "onReady" | "onFai
     if (neonL.current) neonL.current.intensity = wB * 3.5 * flash;
     if (neonR.current) neonR.current.intensity = wB * 3.5 * (1.6 - flash);
     vrm.update(dt);
+    if (feed && cap) cap.seq++;
   });
 
   return (
@@ -265,6 +288,7 @@ function Rig({ variant, wheelZoom, handleRef }: Pick<Props, "variant" | "wheelZo
   return (
     <OrbitControls
       ref={ctl}
+      makeDefault
       target={[0, cfg.cy, 0]}
       enablePan={false}
       enableZoom={wheelZoom}

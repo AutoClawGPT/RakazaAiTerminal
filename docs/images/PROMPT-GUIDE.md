@@ -82,6 +82,7 @@ Videos and slopcore clips are live on `/memes`. They are cut from the same smili
 4. Encode H.264, `yuv420p`, `-movflags +faststart`, CRF 28 (the script raises the CRF until the file is under 2 MB). Posters are one frame of each clip.
 5. Every item also gets a 1200x630 share card in `public/memes/og/<id>.jpg` and its own page `/memes/<id>`, so Share on X posts that page URL and X shows the card.
 6. Add the entry to `clips` in `src/lib/memes.json` (`kind` is `video` or `slopcore`).
+7. Stage videos (3D): the two "Rakaza sings / dances" videos are not cut from art. They are recorded from the real 3D stage (the same `rakaza.vrm`, `rig-anim.ts`, beat grid and lip-sync as the site), one deterministic step per frame at 30 fps, then composed with stage lights, burned-in karaoke lyrics, a Rakaza AI Terminal end card and the real song audio from `public/songs` (a ~19 s cut with fades). 720x720, H.264 + AAC, under 5 MB. The normal stage only, never the 18+ mode. Recipe and scripts: `scripts/stage-videos/README.md`.
 
 ## 7. Safety
 
