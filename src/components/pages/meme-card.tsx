@@ -11,7 +11,7 @@ export function MemeMedia({ m, eager = false }: { m: MemeItem; eager?: boolean }
     return <img src={m.file} alt={m.alt} width={m.width} height={m.height} loading={eager ? "eager" : "lazy"} className={cls} style={ratio} />;
   }
   return (
-    <video className={cls} style={ratio} width={m.width} height={m.height} poster={m.poster} controls playsInline muted loop preload="metadata" aria-label={m.alt} data-testid={`clip-${m.id}`}>
+    <video className={cls} style={ratio} width={m.width} height={m.height} poster={m.poster} controls playsInline loop preload="metadata" aria-label={m.alt} data-testid={`clip-${m.id}`}>
       <source src={m.file} type="video/mp4" />
     </video>
   );

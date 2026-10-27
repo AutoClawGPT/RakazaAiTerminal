@@ -18,7 +18,7 @@ export default function Page() {
       </section>
       <section className="rk-container py-10 md:py-14">
         <MemesView />
-        <p className="mt-8 text-xs text-muted-foreground">The memes are generated with the same image pipeline as the Studio (FLUX), from the prompts in the project docs. Rakaza is a fictional character voiced by an AI language model. Entertainment only, not financial advice.</p>
+        <p className="mt-8 text-xs text-muted-foreground">The memes are generated with the same image pipeline as the Studio (FLUX), from the prompts in the project docs. Rakaza is a fictional character, and her voice in the videos is Deepgram text-to-speech. Entertainment only, not financial advice.</p>
       </section>
     </>
   );

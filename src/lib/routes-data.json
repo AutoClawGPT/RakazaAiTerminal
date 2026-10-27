@@ -141,7 +141,7 @@
    "bullets": [
     "Tabs: All, Images, Videos, Slopcore",
     "Download and Share on X on every meme",
-    "Images come from the Studio image pipeline; videos and slopcore are cut from the same art with ffmpeg"
+    "Images come from the Studio image pipeline; videos and slopcore are animated from the same art, with a Deepgram Luna voiceover baked in"
    ]
   },
   {
