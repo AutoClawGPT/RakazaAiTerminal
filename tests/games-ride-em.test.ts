@@ -137,4 +137,32 @@ assert.deepEqual(parseDecisions('noise {"decisions":[{"id":1,"do":"jump"},{"id":
 assert.equal(parseDecisions("not json"), null);
 assert.equal(parseDecisions('{"decisions":"x"}'), null);
 
+// STRICT 3-HIT RULE (v17): walls, obstacles, hazards, monsters and gap falls each cost a heart; shields, echo and revives can never cancel a hit.
+for (const seed of [1, 2, 3, 777, 12345]) {
+  const cfgs = [
+    { mode: "classic" },
+    { mode: "classic", ranked: false, upg: { shield: 1, cushion: 1, revive: 1, lifeline: 1 }, boosts: { shield: 1 } },
+  ];
+  for (const c of cfgs) {
+    const cfg = { ...R.validateConfig(c, {}).config, __validated: true };
+    const w = S.create(seed, cfg); w.rec = false; w.noEvents = true;
+    w.shield = 1; w.echoT = 5; w.revives = 3; // worst case: armor, echo and three revives on the very first tick
+    let t = 0; const hitTicks: number[] = []; let lastLives = w.lives;
+    while (!w.over && t < 120 * 120) { S.step(w); t++; if (w.lives !== lastLives) { hitTicks.push(t); assert.equal(w.lives, lastLives - 1, "one heart per hit"); lastLives = w.lives; } }
+    assert.equal(w.over, true, `seed ${seed}: run must end`); assert.equal(w.hits, 3, `seed ${seed}: exactly three hits`); assert.equal(w.lives, 0); assert.equal(hitTicks.length, 3);
+    assert.equal(w.collisions, 3);
+  }
+}
+{ // the server replay agrees with a client-style run: no inputs, three hits, verified score
+  const seed = 4242, mode = "classic";
+  const rc = rankedConfig({}, mode) as { ok: boolean; config: Record<string, unknown> };
+  const log = R.encode([[5, S.OPS.JUMP, 0]]); // one early jump, then the runner just rides into everything
+  const rep = R.replay(seed, log, rc.config);
+  assert.equal(rep.hits, 3); assert.equal(rep.lives, 0); assert.equal(rep.over, true);
+  const v = verifyRun({ seed, mode, config: rc.config, inputLog: log, claim: { score: rep.score, distance: rep.distance, coins: rep.coins, near: rep.near, kills: rep.kills }, version: VERSION });
+  assert.equal(v.ok, true, "server accepts the 3-hit run " + JSON.stringify(v).slice(0, 300));
+  assert.equal((v as unknown as { result: { hits: number } }).result.hits, 3);
+}
+assert.equal(C.SIM_VERSION, 3);
+
 console.log("games ride-em tests ok");

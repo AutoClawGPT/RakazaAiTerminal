@@ -8,7 +8,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
   const VERSION = 'v16';
-  const SIM_VERSION = 2; // 2 = three hearts per run (v16); v15 replays are not valid
+  const SIM_VERSION = 3; // 3 = strict three hits per run (v17): shields/echo/revives cannot cancel a hit; 2 = v16 hearts; v15 replays are not valid
   const LIVES = 3;
 
   // Flip to true on the live site when the platform token is live. Until then every
@@ -116,7 +116,7 @@
     bomb: { name: 'BOMB', desc: 'clear hazards nearby', cd: 26, level: 4, icon: '✸', dur: 0, fx: 'blast', color: '#fb923c' },
     blink: { name: 'BLINK', desc: '2s phase + sprint', cd: 28, level: 6, icon: '⇢', dur: 2, fx: 'speed', color: '#67e8f9' },
     thunder: { name: 'THUNDER', desc: 'zap every monster near', cd: 24, level: 4, icon: '⚡', dur: 0, fx: 'bolt', color: '#fde047' },
-    wall: { name: 'AEGIS', desc: 'shield, eats one hit', cd: 20, level: 5, icon: '⛨', dur: 0, fx: 'shield', color: '#22d3ee' },
+    wall: { name: 'AEGIS', desc: 'armor: longer safety after the next hit', cd: 20, level: 5, icon: '⛨', dur: 0, fx: 'shield', color: '#22d3ee' },
     rain: { name: 'COIN RAIN', desc: '12 coins ahead', cd: 25, level: 6, icon: '☂', dur: 0, fx: 'gold', color: '#fbbf24' },
     overdrive: { name: 'OVERDRIVE', desc: '6s fast + 2x coins', cd: 34, level: 8, icon: '➤', dur: 6, fx: 'speed', color: '#f97316' },
     recall: { name: 'RECALL', desc: 'save me: phase 3s', cd: 40, level: 9, icon: '↺', dur: 3, fx: 'ghost', color: '#c4b5fd' },
@@ -132,7 +132,7 @@
     shrink: { name: 'SHRINK', desc: 'smaller body 5s', cd: 24, level: 4, icon: '⌖', dur: 5, fx: 'shrink', color: '#86efac' },
     springs: { name: 'SPRINGS', desc: 'triple jump 6s', cd: 28, level: 6, icon: '⇡', dur: 6, fx: 'springs', color: '#34d399' },
     harvest: { name: 'HARVEST', desc: 'turn hazards into coins', cd: 36, level: 11, icon: '❂', dur: 0, fx: 'harvest', color: '#a3e635' },
-    echo: { name: 'ECHO', desc: 'auto-shield after a hit 8s', cd: 32, level: 8, icon: '≈', dur: 8, fx: 'echo', color: '#60a5fa' },
+    echo: { name: 'ECHO', desc: 'armor for 8s: longer safety after a hit', cd: 32, level: 8, icon: '≈', dur: 8, fx: 'echo', color: '#60a5fa' },
     meteorSk: { name: 'METEOR', desc: 'smash hazards ahead', cd: 38, level: 13, icon: '☄', dur: 0, fx: 'meteor', color: '#f97316' },
     beacon: { name: 'BEACON', desc: '+20 combo, gold magnet 3s', cd: 30, level: 10, icon: '✦', dur: 3, fx: 'beacon', color: '#fef08a' },
   };
@@ -141,14 +141,13 @@
 
   // ---------------------------------------------------------------- run upgrades (draft cards)
   const DRAFTS = [
-    { id: 'shield', name: 'Shield Up', desc: 'one free hit, now' },
+    { id: 'shield', name: 'Shield Up', desc: 'longer safety after your next hit' },
     { id: 'magnet', name: 'Long Magnet', desc: 'magnet for 8s' },
     { id: 'slowmo', name: 'Time Dilation', desc: 'slow-mo 3s' },
     { id: 'coins', name: 'Coin Fever', desc: 'x2 coins 15s' },
     { id: 'ghost', name: 'Phase', desc: 'invulnerable 4s' },
-    { id: 'revive', name: 'Spare Life', desc: 'a revive in reserve' },
   ];
-  const DRAFT_PRIO = ['revive', 'shield', 'ghost', 'coins', 'magnet', 'slowmo'];
+  const DRAFT_PRIO = ['shield', 'ghost', 'coins', 'magnet', 'slowmo'];
 
   // ---------------------------------------------------------------- modes / campaign
   const MODES = {
@@ -171,17 +170,17 @@
 
   // ---------------------------------------------------------------- persistent upgrades (v14, unchanged numbers)
   const UPG = {
-    shield: { name: 'Starting Shield', desc: 'Begin every run with a shield that eats one hit.', cost: 300, icon: '◈' },
+    shield: { name: 'Starting Shield', desc: 'Begin every run with armor: longer safety after your first hit.', cost: 300, icon: '◈' },
     magnet: { name: 'Magnet Start', desc: 'Spawn with the coin magnet active for 4s.', cost: 250, icon: '⋔' },
     slow: { name: 'Slow Start', desc: 'Spawn in slow motion for 2s.', cost: 250, icon: '◔' },
     head: { name: 'Head Start', desc: 'Begin 240 m up the skyline.', cost: 400, icon: '⇈' },
-    revive: { name: 'Second Wind', desc: 'One free revive per run, on the spot.', cost: 700, icon: '↺' },
+    revive: { name: 'Second Wind', desc: 'Retired: three hits end every run (no revives).', cost: 700, icon: '↺' },
     greed: { name: 'Coin Weight', desc: '+1 point per coin on the leaderboard score.', cost: 550, icon: '◉' },
     slot: { name: 'Extra Slot', desc: 'Equip a 4th skill instead of 3.', cost: 900, icon: '⬒' },
     cd: { name: 'Overclock', desc: 'All skill cooldowns 20% shorter.', cost: 650, icon: '⏱' },
     magnetR: { name: 'Wide Magnet', desc: 'Magnet reach +60%.', cost: 450, icon: '◎' },
     xp: { name: 'Fast Learner', desc: '+25% XP from every run.', cost: 500, icon: '▲' },
-    lifeline: { name: 'Lifeline', desc: 'One extra revive on top of Second Wind.', cost: 800, icon: '✚' },
+    lifeline: { name: 'Lifeline', desc: 'Retired: three hits end every run (no revives).', cost: 800, icon: '✚' },
     skillplus: { name: 'Skill Power', desc: 'Every skill lasts 25% longer.', cost: 700, icon: '✦' },
     coinbonus: { name: 'Coin Bonus', desc: '+2 points per coin on the board.', cost: 750, icon: '◇' },
     cushion: { name: 'Cushion', desc: 'Take one hit per run without dying.', cost: 950, icon: '⛨' },

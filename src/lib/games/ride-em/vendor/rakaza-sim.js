@@ -300,22 +300,15 @@
       if (w.grounded) emit(w, 'slide', w.travel, w.y);
     }
   }
-  // v16 rule: a run has C.LIVES (3) hearts. Every unblocked hit (wall, obstacle, hazard, monster, gap fall) costs one heart and
-  // grants a short invulnerability window. The shield skill / shield pickup / echo still absorb a hit without costing a heart.
-  // ZEN (ghostMode) never loses a heart. A revive (draft / upgrade) only saves the run at the last heart.
+  // v17 rule (strict): a run has C.LIVES (3) hearts. EVERY collision (wall, obstacle, hazard, monster, gap fall) costs one heart and
+  // grants a short invulnerability window. Shields / echo / revives can no longer cancel a collision: the third hit ALWAYS ends the run.
+  // ZEN (ghostMode) is practice only and never loses a heart (it is unranked).
   function kill(w, cause) {
     if (w.dead) return;
     if (w.ghostMode) { w.invulnerable = Math.max(w.invulnerable, 0.6); return; }
     w.lives = Math.max(0, w.lives - 1); w.hits++; w.collisions++;
-    emit(w, 'hit', w.travel, w.y, w.lives <= 0 && w.revives <= 0 ? 1 : 0);
+    emit(w, 'hit', w.travel, w.y, w.lives <= 0 ? 1 : 0);
     if (w.lives > 0) { w.invulnerable = Math.max(w.invulnerable, hitInvuln(w)); return; }
-    if (w.revives > 0) {
-      w.revives--; w.revivesUsed++; w.lives = 1;
-      w.invulnerable = Math.max(w.invulnerable, 2.2); w.y = Math.max(w.y, 0);
-      if (!w.grounded && w.y < 0) { w.y = 0; w.vy = 0; w.grounded = true; w.jumps = 0; }
-      emit(w, 'revive', w.travel, w.y);
-      return;
-    }
     w.dead = true; w.over = true; w.cause = cause;
   }
   // A gap fall costs a heart; while hearts remain the runner is put back on the roof and hovers across the rest of the gap.
@@ -496,9 +489,10 @@
         else if (w.y < o.top - 2 && w.y + bh > o.bottom + 2 && w.y > -45) {
           if (w.invulnerable <= 0) {
             o.hit = true;
-            if (w.shield) { w.shield = 0; w.invulnerable = hitInvuln(w); emit(w, 'hit', w.travel, w.y, 0); }
-            else if (w.echoT > 0) { w.echoT = 0; w.invulnerable = hitInvuln(w); emit(w, 'hit', w.travel, w.y, 0); emit(w, 'echo'); }
-            else { kill(w, C.KINDS[o.kind].cause); if (w.dead) return; }
+            // strict 3-hit rule: a shield / echo only lengthens the safety window after the hit; the heart is always lost
+            const armor = w.shield || w.echoT > 0; w.shield = 0; w.echoT = 0;
+            kill(w, C.KINDS[o.kind].cause); if (w.dead) return;
+            if (armor) w.invulnerable = Math.max(w.invulnerable, hitInvuln(w) * 1.8);
           }
         }
       }
