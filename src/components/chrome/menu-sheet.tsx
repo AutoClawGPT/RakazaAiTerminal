@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
+import { AccountState } from "./account-state";
+import { useSession } from "./use-session";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 export interface MenuItem {
@@ -27,6 +29,8 @@ export function MenuSheet({
   className?: string;
 }) {
   const pathname = usePathname();
+  const session = useSession();
+  const signedIn = !session.loading && (Boolean(session.me) || session.owner);
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -47,11 +51,14 @@ export function MenuSheet({
           <SheetDescription className="mt-1 text-xs text-muted-foreground">Every page, one list.</SheetDescription>
         </div>
         <nav aria-label={title} className="flex-1 overflow-y-auto overscroll-contain px-5 pb-10 pt-3">
+          <SheetClose asChild>
+            <div><AccountState variant="menu" /></div>
+          </SheetClose>
           {groups.map((g) => (
             <section key={g.title} className="mb-5">
               <h3 className="rk-kicker mb-1 text-muted-foreground">{g.title}</h3>
               <ul>
-                {g.items.map((it) => {
+                {g.items.filter((it) => !(signedIn && it.href === "/login")).map((it) => {
                   const active = pathname === it.href;
                   return (
                     <li key={it.href} className="border-b border-border/70">

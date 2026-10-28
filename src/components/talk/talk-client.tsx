@@ -129,6 +129,12 @@ export function TalkClient() {
           <span className="inline-flex items-center gap-1 font-mono text-[0.68rem] text-muted-foreground">
             <span className="size-1.5 rounded-full bg-emerald-400" aria-hidden="true" /> {thinking ? "thinking…" : "online"}
           </span>
+          <nav aria-label="Launch and play" className="order-last flex w-full flex-wrap gap-1.5 pt-1" data-testid="talk-links">
+            <Link href="/launch" className="rk-pill !min-h-8 text-xs" title="Sponsored launch: 70% you, 30% Rakaza agent wallet">Launch</Link>
+            <Link href="/self-launch" className="rk-pill !min-h-8 text-xs" title="Launch from your own Phantom wallet, you keep 100%">Self launch</Link>
+            <Link href="/games" className="rk-pill !min-h-8 text-xs">Games</Link>
+            <Link href="/leaderboard" className="rk-pill !min-h-8 text-xs">Leaderboard</Link>
+          </nav>
           <span className="ml-auto flex items-center gap-2">
             <span className="rounded-full border-2 border-[var(--rk-ink)] bg-[var(--rk-honey)] px-3 py-0.5 text-xs font-bold text-[var(--rk-ink)]">Stranger</span>
             <button type="button" className="rk-icon-btn !size-8" aria-pressed={muted} aria-label={muted ? "Unmute her voice" : "Mute her voice"} onClick={() => setMuted((m) => !m)}>

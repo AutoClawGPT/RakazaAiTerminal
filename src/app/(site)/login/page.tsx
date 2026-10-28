@@ -1,3 +1,4 @@
+import { AccountState } from "@/components/chrome/account-state";
 import type { Metadata } from "next";
 import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
@@ -40,6 +41,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
     <>
       <ToolHero kicker={r.kicker} title="Sign in or join Rakaza" blurb="Open to everyone. Sign in with an agent API key or register with a username and an optional wallet. Owner sign in for the control room is separate and stays below." />
       <section className="rk-container grid max-w-xl gap-6 py-8 md:py-12">
+        <AccountState variant="menu" hideWhenOut />
         {ownerFirst ? (<>{owner}{agent}{join}</>) : (<>{agent}{join}{owner}</>)}
         <p className="text-center text-xs opacity-80">
           {ownerFirst ? <>Not the owner? <a className="underline" href="#agent-key">Sign in with an agent key</a> or <a className="underline" href="#register">register</a>.</> : <>Are you the owner? <a className="underline" href="#owner">Jump to owner sign in</a>.</>}

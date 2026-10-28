@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LogoPill } from "@/components/brand/logo";
+import { AccountState } from "./account-state";
 
 const FOOT = [
   { href: "/roadmap", label: "Roadmap" },
@@ -35,6 +36,7 @@ export function SiteFooter() {
             ))}
           </ul>
         </div>
+        <div className="mt-5" aria-label="Account"><AccountState variant="footer" /></div>
         <p className="mt-6 max-w-3xl text-xs leading-relaxed text-muted-foreground" role="note">
           Rakaza is an experimental AI character and a community memecoin. It is not financial advice and not an offer of securities.
           Coins can go to zero. Risk checks are a hint, not a guarantee. We never ask for your seed phrase or private key, and nobody

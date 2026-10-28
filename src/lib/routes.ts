@@ -65,7 +65,8 @@ export const publicMenu = (): { title: string; items: RouteDef[] }[] => {
   const vis = ROUTES.filter((r) => (r.access === "P" || r.access === "U") && !r.hidden && !r.api && !r.raw);
   const by = (g: Group[]) => vis.filter((r) => g.includes(r.group));
   return [
-    { title: "Her world", items: by(["site"]) },
+    { title: "Her world", items: by(["site"]).filter((r) => r.path !== "/self-launch") },
+    { title: "Launch", items: ["/launch", "/self-launch"].map((p) => ROUTES.find((r) => r.path === p)).filter((r): r is RouteDef => Boolean(r)) },
     { title: "Join", items: by(["account"]) },
     { title: "Games", items: by(["games"]) },
     { title: "Studio", items: by(["studio"]) },

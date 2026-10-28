@@ -438,6 +438,7 @@
    "label": "Integrations",
    "group": "account",
    "access": "U",
+   "hidden": true,
    "phase": 7,
    "kicker": "Connect",
    "blurb": "Connect your own services. First up: Paybox, so you can launch with your own Paybox key and its settings.",

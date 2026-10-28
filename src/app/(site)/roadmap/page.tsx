@@ -80,9 +80,9 @@ const ITEMS: { n: string; status: Status; title: string; body: string; tags: str
   },
   {
     n: "09",
-    status: "COMING SOON",
+    status: "UNDER WAY",
     title: "Games",
-    body: "Free browser games with original art and leaderboards. They are not playable yet.",
+    body: "Ride 'Em, Rakaza! is playable now with a server-verified score and a live leaderboard. Trench Sim and Neon Runner are still coming.",
     tags: "runner · trading sim · arcade",
     href: "/games",
     cta: "Games",
@@ -140,6 +140,11 @@ export default function Page() {
             </li>
           ))}
         </ol>
+        <section id="integrations" className="rk-card rk-card-hard mt-8" data-testid="roadmap-integrations">
+          <h2 className="rk-h2 text-2xl">Integrations</h2>
+          <p className="mt-2 text-sm">Connected services (Paybox, Helius, Pinata, wallets and more later) are set up on the Integrations page. Keys are never shown.</p>
+          <Link href="/settings/integrations" className="rk-btn rk-btn-white rk-btn-sm mt-3">Open Integrations →</Link>
+        </section>
         <p className="mt-8 text-xs text-muted-foreground">Entertainment only, not financial advice. Never a promise about price. 18+, only where it is legal.</p>
       </section>
     </>

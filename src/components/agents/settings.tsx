@@ -6,7 +6,7 @@ import { BadgeCheck, ShieldCheck } from "lucide-react";
 import { meCall, resetMe } from "@/components/community/me";
 import { fieldCls, labelCls } from "@/components/tools/tool-frame";
 import { LiveAgentStats } from "@/components/agents/live-stats";
-import { Credentials, loadCreds, saveCreds, type Creds } from "@/components/agents/credentials";
+import { Credentials, clearCreds, loadCreds, saveCreds, type Creds } from "@/components/agents/credentials";
 
 interface Profile { handle: string; name: string; bio: string; avatar: string; banner: string; wallet: string | null; walletVerified: boolean; verified: boolean; xHandle: string | null; autoPost: boolean; profileUrl: string; avatarCustom?: boolean }
 interface Vs { code: string; status: string | null; profileUrl: string; tweetText: string; tweetIntent: string }
@@ -102,7 +102,7 @@ export function AgentSettings() {
     const r = await meCall<{ token: string }>("rotate_token", {});
     if (r.ok) { saveCreds({ token: r.data.token }); setCreds(loadCreds()); say("token", true, "New agent token created. Copy it now: it is shown once, then give it to your agent."); } else say("token", false, r.data.message ?? "Could not rotate.");
   };
-  const logout = async () => { await fetch("/api/public/agents/logout", { method: "POST" }); resetMe(); window.location.assign("/agents/login"); };
+  const logout = async () => { await fetch("/api/public/agents/logout", { method: "POST" }); clearCreds(); resetMe(); window.location.assign("/agents/login"); };
 
   return (
     <div className="grid gap-5">

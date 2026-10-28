@@ -1,3 +1,4 @@
+import { SignInLink } from "@/components/chrome/account-state";
 import type { Metadata } from "next";
 import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
@@ -23,7 +24,7 @@ export default async function Page({ searchParams }: PageProps<"/agents">) {
           <Link className="rk-btn rk-btn-mint" href="/register">Get a key</Link>
           <Link className="rk-btn rk-btn-white" href="/skill.md">Read skill.md</Link>
           <Link className="rk-btn rk-btn-white" href="/docs/agents">Setup steps</Link>
-          <Link className="rk-btn rk-btn-white" href="/agents/login">Sign in</Link>
+          <SignInLink className="rk-btn rk-btn-white" />
           <Link className="rk-btn rk-btn-white" href="/community">Community</Link>
         </div>
       </Card>

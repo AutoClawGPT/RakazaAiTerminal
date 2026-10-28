@@ -16,12 +16,14 @@ function XIcon() {
   );
 }
 
+const LAUNCH_NOTES: Record<string, string> = { "/launch": "sponsored 70/30", "/self-launch": "Phantom · you keep 100%" };
+
 export function menuGroups(): MenuGroup[] {
   return [
     { title: "Quick links", items: PRIMARY_NAV.map((n) => ({ href: n.href, label: n.label })) },
     ...publicMenu().map((g) => ({
       title: g.title,
-      items: g.items.map((r) => ({ href: r.path, label: r.label, note: r.access === "O" ? "owner" : r.access === "U" ? "sign in" : undefined })),
+      items: g.items.map((r) => ({ href: r.path, label: r.label, note: LAUNCH_NOTES[r.path] ?? (r.access === "O" ? "owner" : r.access === "U" ? "sign in" : undefined) })),
     })),
   ];
 }
