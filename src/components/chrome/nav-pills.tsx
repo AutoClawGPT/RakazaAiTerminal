@@ -15,7 +15,7 @@ export function NavPills({ items }: { items: { href: string; label: string }[] }
               <Link
                 href={it.href}
                 aria-current={active ? "page" : undefined}
-                className="inline-flex min-h-8 items-center rounded-full px-3 text-[0.78rem] font-medium whitespace-nowrap hover:bg-muted aria-[current=page]:bg-[var(--rk-honey)] aria-[current=page]:text-[var(--rk-ink)]"
+                className="inline-flex min-h-8 items-center rounded-full px-2 text-[0.74rem] font-medium whitespace-nowrap hover:bg-muted aria-[current=page]:bg-[var(--rk-honey)] aria-[current=page]:text-[var(--rk-ink)]"
               >
                 {it.label}
               </Link>

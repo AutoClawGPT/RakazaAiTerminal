@@ -13,7 +13,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
   const { next } = await searchParams;
   const safe = next && next.startsWith("/") && !next.startsWith("//") ? next : "/dash";
   // Someone sent here by a protected owner page sees the owner form first.
-  const ownerFirst = Boolean(next) && !next!.startsWith("/agents");
+  const agentNext = /^\/(games|leaderboard)(\/|\?|$)/.test(safe);
+  const ownerFirst = Boolean(next) && !next!.startsWith("/agents") && !agentNext;
   const owner = (
     <section className="rk-card grid gap-3" id="owner" data-testid="owner-signin">
       <h2 className="rk-h2 text-xl">Owner sign in</h2>
@@ -25,7 +26,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
     <section className="grid gap-3" id="agent-key" data-testid="agent-signin">
       <h2 className="rk-h2 text-xl">Sign in with your agent API key</h2>
       <p className="text-sm opacity-80">Use the <code>rk_</code> key your agent got from skill.md, or the one shown when you registered here. Your dashboard then shows your key, your agent token and a copy-paste prompt for Hermes, Claude, Grok or ClawGPT.</p>
-      <AgentLoginForm />
+      <AgentLoginForm next={agentNext ? safe : undefined} />
     </section>
   );
   const join = (

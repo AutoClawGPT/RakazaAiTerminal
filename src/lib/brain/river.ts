@@ -5,7 +5,7 @@ export type ChatMsg = { role: "system" | "user" | "assistant"; content: string }
 
 export const PERSONA_MODEL_DEFAULT = "deepseek-ai/DeepSeek-V4.1-Flash";
 
-type Opts = { key?: "persona" | "agent"; model?: string; maxTokens?: number; temperature?: number; timeoutMs?: number };
+type Opts = { key?: "persona" | "agent"; model?: string; maxTokens?: number; temperature?: number; timeoutMs?: number; attempts?: number };
 
 /** OpenAI-compatible chat call to River with a timeout and two retries (River sometimes times out once). */
 export async function riverChat(messages: ChatMsg[], opts: Opts = {}): Promise<{ ok: true; text: string; model: string } | { ok: false; error: string }> {
@@ -14,7 +14,7 @@ export async function riverChat(messages: ChatMsg[], opts: Opts = {}): Promise<{
   if (!apiKey) return { ok: false, error: "River key is not set on the server." };
   const model = opts.model ?? (opts.key === "agent" ? e.RIVER_MODEL_AGENT : e.RIVER_MODEL_PERSONA) ?? PERSONA_MODEL_DEFAULT;
   let lastErr = "unknown error";
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < Math.max(1, opts.attempts ?? 3); attempt++) {
     try {
       const res = await fetch(`${e.RIVER_BASE_URL}/chat/completions`, {
         method: "POST",

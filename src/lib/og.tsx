@@ -40,3 +40,29 @@ export async function siteShareImage(): Promise<ImageResponse> {
     { ...OG_SIZE, fonts: [{ name: "Dela", data: font, weight: 400, style: "normal" }] },
   );
 }
+
+/** A simple branded share card (title, subtitle and a few live lines). Latin text only (the bundled font). */
+export async function titleShareImage(opts: { kicker: string; title: string; sub?: string; lines?: string[] }): Promise<ImageResponse> {
+  const font = await ogFont();
+  const latin = (s: string, n: number) => s.replace(/[^\x20-\x7E]/g, "").trim().slice(0, n);
+  return new ImageResponse(
+    (
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "52px 64px", background: "linear-gradient(150deg,#7347ff,#3a17a8 60%,#1e0a63)", color: "#fff", fontFamily: "Dela" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 28, letterSpacing: 2 }}>
+          <span style={{ color: "#ffc933" }}>{latin(opts.kicker, 40).toUpperCase()}</span>
+          <span style={{ color: "#3ff0c3" }}>{publicEnv.network === "mainnet-beta" ? "MAINNET" : "DEVNET"}</span>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ display: "flex", fontSize: 92, lineHeight: 1, color: "#e4d9ff", textShadow: "5px 6px 0 #ff4da6" }}>{latin(opts.title, 30)}</div>
+          {opts.sub ? <div style={{ display: "flex", fontSize: 34, opacity: 0.95 }}>{latin(opts.sub, 90)}</div> : null}
+          {(opts.lines ?? []).slice(0, 3).map((l, i) => <div key={i} style={{ display: "flex", fontSize: 30, color: "#3ff0c3" }}>{latin(l, 70)}</div>)}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 26 }}>
+          <span>REAL-TIME, SERVER-VERIFIED</span>
+          <span style={{ color: "#ffc933" }}>{new URL(siteUrl()).host.toUpperCase()}</span>
+        </div>
+      </div>
+    ),
+    { ...OG_SIZE, fonts: [{ name: "Dela", data: font, weight: 400, style: "normal" }] },
+  );
+}

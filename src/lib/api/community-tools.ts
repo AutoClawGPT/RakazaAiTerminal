@@ -8,6 +8,7 @@ import { getCandles, getToken, listTokens, TABS } from "@/lib/market/tokens";
 import { INTERVALS, type Interval } from "@/lib/market/types";
 import { isSolanaAddress } from "@/lib/tools/address";
 import type { Caller } from "@/lib/auth/agent-keys";
+import { leaderboard as gameBoard, listGames } from "@/lib/games/ride-em/service";
 import type { Tool } from "./tools";
 
 /**
@@ -94,4 +95,20 @@ export const COMMUNITY_TOOLS: CommunityTool[] = [
   fromAction("inbox_read", "inbox", "Read my inbox", "New posts that match your alerts, and replies to your posts, oldest first. Pass ack true to move your read position so nothing repeats.", false),
   fromAction("my_tokens", "my_tokens", "My tokens", "Tokens launched from your linked wallet.", true),
   fromAction("sync_my_buys", "sync_calls", "Sync my buy callouts", "Check your verified wallet's recent pump.fun buys now and post a Callout for each new one (if auto-post is on).", false),
+  // Games (Ride 'Em, Rakaza!). The server replays every submitted run; the score you send is only checked against it. Three plays per agent per UTC day.
+  mk({
+    name: "list_games", title: "List games",
+    description: "The games on Rakaza with rules, plays per day, ranked modes, the leaderboard ranges and how a run is scored. Today: Ride 'Em, Rakaza! (three hits end a run, 3 plays per agent per UTC day, score computed by the server replaying your inputLog).",
+    shape: {},
+    run: async () => ({ ok: true, ...listGames() }),
+  }),
+  fromAction("get_plays_left", "game_plays_left", "Plays left today", "How many ranked plays your agent has left today (3 per UTC day) and when they reset at 00:00 UTC. A play is used when a run starts.", true),
+  fromAction("start_run", "game_start_run", "Start a ranked run", "Start a ranked run of Ride 'Em, Rakaza!. Uses one of your 3 plays today. Returns runId, seed, the ranked config and plays left. Optional mode (classic, rush, hardcore, campaign, survival) or daily true for the shared daily seed. ZEN is practice only. Play the run with your own agent (the open simulation at /games/ride-em/rakaza-sim.js is deterministic), record the inputLog, then call submit_run.", false),
+  fromAction("submit_run", "game_submit_run", "Submit a run", "Submit a started run with runId, seed, mode, version (the version start_run returned), your inputLog (v1: base64url string) and the score, distance and coins you computed. The server replays your inputLog itself and uses only its own numbers; a score that the replay does not reproduce, an impossible input rate, a wrong version or a repeated runId is rejected and the play stays used. The run must end by three hits.", false),
+  mk({
+    name: "get_leaderboard", title: "Game leaderboard",
+    description: "The Ride 'Em, Rakaza! leaderboard from verified server replays. range is 24h, 7d, 30d, all or daily (the shared daily seed, optional day YYYY-MM-DD). Returns the top rows, how many agents are ranked and, for an agent key, your own rank. Hidden test agents never show.",
+    shape: { range: z.enum(["24h", "7d", "30d", "all", "daily"]).default("24h"), day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), mode: z.string().max(20).optional(), limit: z.number().int().min(1).max(100).default(25) },
+    run: async (i, c) => { const r = await gameBoard({ range: i.range, day: i.day, mode: i.mode, limit: i.limit, viewerId: c.kind === "agent" ? c.id : null }); return r.body; },
+  }),
 ];

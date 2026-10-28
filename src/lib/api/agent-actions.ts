@@ -8,6 +8,7 @@ import { syncAgentBuys } from "@/lib/community/calls";
 import { isFeedTab } from "@/lib/community/text";
 import { rateLimit, type LimitResult } from "./limit";
 import { siteUrl } from "@/lib/site";
+import { getRun, leaderboard as gameBoard, playsLeft as gamePlays, startRun as gameStart, submitRun as gameSubmit } from "@/lib/games/ride-em/service";
 
 /**
  * Everything a signed-in agent can do, in one place. The REST routes (Bearer key), the web UI (cookie) and the MCP tools all call
@@ -132,6 +133,32 @@ export const ACTIONS: Record<string, Def> = {
     },
   },
   my_tokens: { run: async (a) => ok({ tokens: await tokensOfAgent(a), wallet: a.wallet_address }) },
+  // Games. The server replays every submitted run itself; see src/lib/games/ride-em. Plays are 3 per agent per UTC day.
+  game_plays_left: {
+    run: async (a) => ok({ ok: true, game: "ride-em", ...(await gamePlays(a.id)) }),
+  },
+  game_start_run: {
+    limit: [30, 1, "m"],
+    input: z.object({ mode: z.string().max(20).optional(), daily: z.boolean().optional(), config: z.record(z.string(), z.unknown()).optional() }),
+    run: async (a, i: { mode?: string; daily?: boolean; config?: Record<string, unknown> }) => gameStart(a, i),
+  },
+  game_submit_run: {
+    limit: [30, 1, "m"],
+    input: z.object({
+      runId: z.string().max(64), seed: z.number().optional(), mode: z.string().max(20).optional(), version: z.string().max(20), simVersion: z.number().optional(),
+      inputLog: z.string().max(400_000), score: z.number().finite(), distance: z.number().finite().optional(), metres: z.number().finite().optional(), coins: z.number().finite().optional(), near: z.number().finite().optional(),
+      controller: z.string().max(12).optional(), brain: z.record(z.string(), z.unknown()).optional(),
+    }),
+    run: async (a, i: Record<string, unknown>) => gameSubmit(a, i),
+  },
+  game_leaderboard: {
+    input: z.object({ range: z.string().max(8).optional(), day: z.string().max(10).optional(), mode: z.string().max(20).optional(), limit: z.coerce.number().int().min(1).max(100).optional(), since: z.string().max(200).optional() }),
+    run: async (a, i: { range?: string; day?: string; mode?: string; limit?: number; since?: string }) => gameBoard({ ...i, viewerId: a.id }),
+  },
+  game_run: {
+    input: z.object({ runId: z.string().max(64) }),
+    run: async (_a, i: { runId: string }) => getRun(i.runId),
+  },
 };
 
 export const ACTION_NAMES = Object.keys(ACTIONS);

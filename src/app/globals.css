@@ -73,7 +73,7 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 
   --breakpoint-xs: 26rem;
-  --breakpoint-nav: 76rem; /* where the full pill nav replaces the menu-only header */
+  --breakpoint-nav: 80rem; /* where the full pill nav replaces the menu-only header */
 }
 
 :root {

@@ -18,3 +18,15 @@ export function withShare(meta: Metadata, path: string, image?: { url: string; a
     twitter: { card: "summary_large_image", title, description, images: [image?.url ?? "/twitter-image"], ...meta.twitter },
   };
 }
+
+/**
+ * Same as withShare, but leaves the images out so Next adds the page's own file-based card (the opengraph-image file next to the page).
+ * Use it on a page that has an opengraph-image.tsx; its URL carries a hash, so it cannot be written by hand.
+ */
+export function withFileShare(meta: Metadata, path: string): Metadata {
+  const m = withShare(meta, path);
+  const { images: _o, ...og } = (m.openGraph ?? {}) as Record<string, unknown>;
+  const { images: _t, ...tw } = (m.twitter ?? {}) as Record<string, unknown>;
+  void _o; void _t;
+  return { ...m, openGraph: og as Metadata["openGraph"], twitter: tw as Metadata["twitter"] };
+}

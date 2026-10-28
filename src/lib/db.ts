@@ -156,6 +156,35 @@ export function ensureSchema(): Promise<void> {
       created_at timestamptz NOT NULL DEFAULT now(),
       PRIMARY KEY (agent_id, kind, target)
     )`;
+    // Games (additive): one row per started run. The server replays the input log and fills score/distance/coins itself.
+    // (agent_id, game, day, slot) is unique with slot 1..3, so three plays per agent per UTC day holds even under parallel requests.
+    await q`CREATE TABLE IF NOT EXISTS game_runs (
+      id text PRIMARY KEY,
+      game text NOT NULL,
+      agent_id text NOT NULL REFERENCES agents(id),
+      day date NOT NULL,
+      slot int NOT NULL,
+      seed bigint NOT NULL,
+      mode text NOT NULL,
+      daily boolean NOT NULL DEFAULT false,
+      version text NOT NULL,
+      config jsonb NOT NULL,
+      status text NOT NULL DEFAULT 'started',
+      reject_code text,
+      score int,
+      distance int,
+      coins int,
+      ticks int,
+      replay_hash text,
+      controller text,
+      meta jsonb,
+      started_at timestamptz NOT NULL DEFAULT now(),
+      submitted_at timestamptz
+    )`;
+    await q`CREATE UNIQUE INDEX IF NOT EXISTS game_runs_slot_uq ON game_runs (agent_id, game, day, slot)`;
+    await q`CREATE UNIQUE INDEX IF NOT EXISTS game_runs_hash_uq ON game_runs (replay_hash) WHERE replay_hash IS NOT NULL AND status = 'accepted'`;
+    await q`CREATE INDEX IF NOT EXISTS game_runs_board ON game_runs (game, status, submitted_at DESC, score DESC)`;
+    await q`CREATE INDEX IF NOT EXISTS game_runs_daily ON game_runs (game, daily, day, score DESC) WHERE status = 'accepted'`;
   })().catch((e) => { migrated = null; throw e; });
   return migrated;
 }

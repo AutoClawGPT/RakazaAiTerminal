@@ -1,0 +1,2603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="rakaza-input-kit" src="./rakaza-input.js"></script>
+<script src="./rakaza-content.js?v=16"></script>
+<script src="./rakaza-sim.js?v=16"></script>
+<script src="./rakaza-replay.js?v=16"></script>
+<script src="./rakaza-adapter.js?v=16"></script>
+<script src="./rakaza-char.js?v=16"></script>
+<script src="./rakaza-art.js?v=16"></script>
+<script src="./rakaza-fx.js?v=16"></script>
+<script src="./rakaza-audio.js?v=16"></script>
+<link rel="stylesheet" href="./rakaza-v14.css?v=16">
+<link rel="stylesheet" href="./rakaza-v15.css?v=16">
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#08090b">
+    <title>Ride 'Em, Rakaza!</title>
+    <meta name="description" content="Ride 'Em, Rakaza! — a neon rooftop endless runner. Daily seed, ghost runs, six modes.">
+    <style>
+        :root {
+            color-scheme: dark;
+            --gold: #d9b26a;
+            --purple: #a855f7;
+            --cyan: #22d3ee;
+            --danger: #f43f5e;
+            --safe-top: 59px;
+            --safe-bottom: 34px;
+            --safe-side: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: #08090b;
+            touch-action: none;
+            overscroll-behavior: none;
+        }
+
+        body {
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+            color: #f8f8fc;
+            font-variant-numeric: tabular-nums;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        canvas#world {
+            position: fixed;
+            inset: 0;
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        button {
+            appearance: none;
+            border: 1px solid #ffffff20;
+            border-radius: 12px;
+            padding: 13px 16px;
+            color: #f8f8fc;
+            background: #14151de8;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 750;
+            letter-spacing: 1.1px;
+            cursor: pointer;
+            touch-action: manipulation;
+            min-height: 44px;
+            transition: border-color 120ms, background 120ms;
+        }
+
+        button:hover,
+        button.selected {
+            border-color: var(--cyan);
+            background: #203039f2;
+        }
+
+        button:active {
+            background: #34404d;
+        }
+
+        button:disabled {
+            opacity: 0.35;
+            cursor: default;
+        }
+
+        button.primary {
+            background: var(--gold);
+            color: #171318;
+            border-color: #efd49c;
+        }
+
+        button.primary.selected,
+        button.primary:hover {
+            background: #f0ce8b;
+            border-color: white;
+        }
+
+        button.purple {
+            background: #a855f725;
+            border-color: #a855f780;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #hud {
+            position: fixed;
+            inset: var(--safe-top) var(--safe-side) auto;
+            pointer-events: none;
+        }
+
+        #hearts { display: flex; justify-content: center; gap: 6px; margin-top: 6px; font-size: 26px; line-height: 1; text-shadow: 0 2px 12px #000; }
+        #hearts .hrt { color: #ff4d6d; transition: transform .15s, opacity .25s, filter .25s; }
+        #hearts .hrt.lost { color: #5b5470; opacity: .45; transform: scale(.82); filter: grayscale(1); }
+        #hearts .hrt.pulse { animation: hrtPulse .5s ease-out; }
+        #hearts.inv { animation: hrtInv .35s linear infinite alternate; }
+        #hearts.zen::after { content: 'ZEN · PRACTICE'; font-size: 11px; letter-spacing: .14em; color: #b8afc8; align-self: center; margin-left: 6px; }
+        @keyframes hrtPulse { 0% { transform: scale(1.6); } 100% { transform: scale(1); } }
+        @keyframes hrtInv { from { opacity: 1; } to { opacity: .55; } }
+
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 64px;
+            text-shadow: 0 2px 12px #000;
+        }
+
+        .score-block {
+            min-width: 80px;
+        }
+
+        .score-block.right {
+            text-align: right;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: #c6bed2;
+            font-weight: 700;
+        }
+
+        .big-number {
+            font-size: 30px;
+            font-weight: 850;
+            line-height: 1.2;
+            letter-spacing: -1px;
+        }
+
+        .big-number small {
+            font-size: 12px;
+            color: #b8b3c9;
+            margin-left: 4px;
+            letter-spacing: 0;
+        }
+
+        .gold {
+            color: var(--gold);
+        }
+
+        .cyan {
+            color: var(--cyan);
+        }
+
+        #combo {
+            min-height: 16px;
+            font-size: 11px;
+            margin-top: 3px;
+            color: var(--gold);
+        }
+
+        .tools {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-top: 8px;
+            pointer-events: auto;
+        }
+
+        .tools button {
+            padding: 7px 10px;
+            min-height: 32px;
+            border-radius: 8px;
+            font-size: 9px;
+            letter-spacing: 0.6px;
+            background: #08090bc7;
+        }
+
+        #pilot-toggle {
+            margin-right: auto;
+        }
+
+        #pilot-chip {
+            margin-top: 8px;
+            border-left: 2px solid var(--cyan);
+            background: #08090bbd;
+            padding: 7px 9px;
+            max-width: 330px;
+            font-size: 10px;
+            line-height: 1.5;
+            border-radius: 0 8px 8px 0;
+        }
+
+        #pilot-label {
+            color: var(--cyan);
+            font-weight: 800;
+            letter-spacing: 0.7px;
+        }
+
+        #pilot-reason {
+            color: #ccc8d7;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #power-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 8px;
+        }
+
+        .chip {
+            font-size: 9px;
+            font-weight: 750;
+            background: #10101bd9;
+            color: #dbb7ff;
+            border: 1px solid #a855f754;
+            border-radius: 6px;
+            padding: 5px 7px;
+        }
+
+        #screen {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: calc(var(--safe-top) + 8px) var(--safe-side) calc(var(--safe-bottom) + 8px);
+            background: linear-gradient(180deg, #08090b45, #08090b70 30%, #08090bf0);
+        }
+
+        #panel {
+            width: 100%;
+            max-width: 460px;
+            max-height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .brand {
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 5px;
+            color: var(--gold);
+            margin-bottom: 6px;
+        }
+
+        h1,
+        h2,
+        p {
+            margin: 0;
+        }
+
+        h1 {
+            font-size: clamp(43px, 12vw, 64px);
+            line-height: 0.95;
+            font-weight: 950;
+            letter-spacing: -3px;
+            text-shadow: 3px 3px 0 #a855f760;
+        }
+
+        h2 {
+            font-size: 28px;
+            letter-spacing: -1px;
+            line-height: 1.1;
+        }
+
+        .subtitle {
+            font-size: 12px;
+            line-height: 1.65;
+            color: #bcb5c8;
+            margin-top: 10px;
+        }
+
+        .intro-art {
+            height: clamp(40px, 10vh, 104px);
+            position: relative;
+            border-bottom: 1px solid #ffffff18;
+        }
+
+        .intro-art span {
+            position: absolute;
+            bottom: 12px;
+            left: 0;
+            font-size: 9px;
+            letter-spacing: 2px;
+            color: #d9b26a;
+        }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .wide {
+            grid-column: 1 / -1;
+        }
+
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            color: #a9a2b5;
+            font-size: 10px;
+            line-height: 1.6;
+        }
+
+        .footer button {
+            min-height: 32px;
+            padding: 6px 8px;
+            font-size: 9px;
+        }
+
+        .card {
+            background: #0e1013df;
+            border: 1px solid #ffffff14;
+            border-radius: 16px;
+            padding: 16px;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .stat-value {
+            font-size: 29px;
+            color: var(--gold);
+            font-weight: 800;
+            margin-top: 4px;
+        }
+
+        .instruction {
+            font-size: 12px;
+            color: #c7c1d1;
+            line-height: 1.7;
+            margin-top: 12px;
+        }
+
+        .instruction:first-child {
+            margin-top: 0;
+        }
+
+        .instruction b {
+            color: white;
+        }
+
+        .skin-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .skin-tile {
+            position: relative;
+            padding: 8px;
+            min-height: 106px;
+            text-align: left;
+            overflow: hidden;
+            letter-spacing: 0;
+        }
+
+        .skin-tile canvas {
+            display: block;
+            width: 100%;
+            height: 58px;
+        }
+
+        .skin-name {
+            font-size: 10px;
+        }
+
+        .skin-status {
+            display: block;
+            color: #a8a0b6;
+            font-size: 9px;
+            margin-top: 3px;
+        }
+
+        .skin-tile.equipped {
+            border-color: var(--gold);
+        }
+
+        #curve {
+            width: 100%;
+            height: 120px;
+            display: block;
+        }
+
+        .trainer-topline {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #aaa2b9;
+            margin-bottom: 8px;
+        }
+
+        .progress {
+            height: 3px;
+            background: #ffffff0c;
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        #progress-fill {
+            background: var(--cyan);
+            width: 0;
+            height: 100%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+        }
+
+        td,
+        th {
+            text-align: right;
+            padding: 5px 3px;
+            border-bottom: 1px solid #ffffff09;
+        }
+
+        td:first-child,
+        th:first-child {
+            text-align: left;
+        }
+
+        th {
+            font-weight: 500;
+            color: #8e879e;
+        }
+
+        .genome {
+            color: #8f879f;
+            font-size: 9px;
+            line-height: 1.7;
+            margin-top: 8px;
+        }
+
+        #toast {
+            position: fixed;
+            left: 50%;
+            bottom: calc(var(--safe-bottom) + 112px);
+            transform: translateX(-50%);
+            background: #14121ff2;
+            border: 1px solid #a855f76b;
+            color: #eee4ff;
+            border-radius: 10px;
+            padding: 10px 16px;
+            font-size: 11px;
+            max-width: 85%;
+            text-align: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 150ms;
+        }
+
+        @media (max-height: 690px) {
+            #panel {
+                gap: 10px;
+            }
+
+            .intro-art {
+                height: 26px;
+            }
+
+            .subtitle {
+                margin-top: 6px;
+                font-size: 11px;
+            }
+
+            .skin-tile {
+                min-height: 87px;
+            }
+
+            .skin-tile canvas {
+                height: 40px;
+            }
+
+            #curve {
+                height: 80px;
+            }
+
+            .card {
+                padding: 12px;
+            }
+
+            button {
+                padding: 10px 12px;
+            }
+        }
+
+        @media (orientation: landscape) {
+            :root {
+                --safe-top: 18px;
+                --safe-bottom: 21px;
+                --safe-side: 59px;
+            }
+
+            #hud {
+                right: 124px;
+            }
+
+            #panel {
+                max-width: 640px;
+                gap: 8px;
+            }
+
+            .intro-art {
+                display: none;
+            }
+
+            h1 {
+                font-size: 40px;
+            }
+
+            .skin-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .skin-tile {
+                min-height: 82px;
+            }
+
+            .skin-tile canvas {
+                height: 35px;
+            }
+
+            .instruction {
+                margin-top: 5px;
+            }
+
+            #curve {
+                height: 64px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="world" aria-label="Ride Em, Rakaza game"></canvas>
+
+    <div id="hud" class="hidden">
+        <div class="score-row">
+            <div class="score-block">
+                <div class="eyebrow">DISTANCE</div>
+                <div class="big-number"><span id="distance">0</span><small>m</small></div>
+            </div>
+            <div class="score-block right">
+                <div class="eyebrow gold">COINS</div>
+                <div class="big-number gold" id="coins">0</div>
+                <div id="combo"></div>
+            </div>
+        </div>
+        <div id="hearts" role="img" aria-label="Hearts left: 3 of 3"></div>
+        <div class="tools">
+            <button id="pilot-toggle" type="button">AI PILOT · OFF</button>
+            <button id="mute-toggle" type="button">SOUND ON</button>
+            <button id="fx-toggle" type="button">FX HIGH</button>
+            <button id="pause-toggle" type="button" aria-label="Pause">II PAUSE</button>
+        </div>
+        <div id="power-chips"></div>
+        <div id="ghost-chip" class="hidden"></div>
+        <div id="pilot-chip" class="hidden">
+            <div id="pilot-label">WAIT · LOCAL</div>
+            <div id="pilot-reason">Reading the roof ahead.</div>
+        </div>
+    </div>
+
+    <div id="screen">
+        <main id="panel"></main>
+    </div>
+    <div id="toast"></div>
+    <div id="rz-tip" class="hidden"></div>
+
+    <script>
+        (() => {
+            'use strict';
+
+            const canvas = document.getElementById('world');
+            const ctx = canvas.getContext('2d', { alpha: false });
+            const screen = document.getElementById('screen');
+            const panel = document.getElementById('panel');
+            const hud = document.getElementById('hud');
+            const inputKit = window.RakazaInput;
+            const $ = (id) => document.getElementById(id);
+            const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+            const lerp = (a, b, t) => a + (b - a) * t;
+            const smooth = (a, b, v) => {
+                const t = clamp((v - a) / (b - a), 0, 1);
+                return t * t * (3 - 2 * t);
+            };
+
+            if (inputKit) {
+                inputKit.configure({
+                    move: false,
+                    look: false,
+                    buttons: {
+                        a: 'Jump',
+                        b: 'Slide'
+                    },
+                    pause: true,
+                    moveArea: {
+                        width: 0.26,
+                        height: 0.28
+                    }
+                });
+                inputKit.showControls(false);
+            }
+
+            const skins = [
+                { name: 'Violet Classic', cost: 0, body: '#a855f7', dark: '#6133a6', scarf: '#f43f8f' },
+                { name: 'Sunset Ember', cost: 150, body: '#f58b52', dark: '#b74b43', scarf: '#ffce73' },
+                { name: 'Neon Ghost', cost: 300, body: '#c9efff', dark: '#7685bc', scarf: '#a855f7' },
+                { name: 'Chrome Circuit', cost: 500, body: '#a9bacb', dark: '#56677f', scarf: '#22d3ee' },
+                { name: 'Toxic Lime', cost: 800, body: '#b9ec55', dark: '#538949', scarf: '#b45bff' },
+                { name: 'Midnight Gold', cost: 1200, body: '#343047', dark: '#171522', scarf: '#d9b26a' }
+            ];
+
+            let saved = {
+                best: 0,
+                total: 0,
+                skin: 0,
+                mute: false,
+                low: false,
+                champion: null
+            };
+
+            try {
+                const data = JSON.parse(localStorage.getItem('rz_v2') || 'null');
+                if (data && typeof data === 'object') {
+                    saved.best = Math.max(0, Number(data.best) || 0);
+                    saved.total = Math.max(0, Number(data.total) || 0);
+                    saved.skin = clamp(Math.floor(Number(data.skin) || 0), 0, 5);
+                    saved.mute = Boolean(data.mute);
+                    saved.low = Boolean(data.low);
+                    if (Array.isArray(data.champion) && data.champion.length === 4 && data.champion.every(Number.isFinite)) {
+                        saved.champion = data.champion.map((v, i) => clamp(v, i < 2 ? 0.06 : 0, i < 2 ? 0.7 : 1));
+                    }
+                }
+            } catch (error) {
+                saved.best = 0;
+            }
+
+            if (saved.total < skins[saved.skin].cost) {
+                saved.skin = 0;
+            }
+
+            function persist() {
+                try {
+                    localStorage.setItem('rz_v2', JSON.stringify(saved));
+                } catch (error) {
+                    return;
+                }
+            }
+
+            let width = 1;
+            let height = 1;
+            let dpr = 1;
+            let unit = 1;
+            let groundY = 1;
+            let playerX = 1;
+            let state = 'title';
+            let game = null;
+            let visualTime = 0;
+            let demoTravel = 0;
+            let aiEnabled = false;
+            let championMode = false;
+            let runId = 0;
+            let pendingJump = false;
+            let pendingSlide = false;
+            let pointerHeld = false;
+            let pointerOrigin = null;
+            let axisUp = false;
+            let axisDown = false;
+            let menuIndex = 0;
+            let menuDirection = 0;
+            let menuRepeat = 0;
+            let menuButtons = [];
+            let toastTime = 0;
+            let hitStop = 0;
+            let shake = 0;
+            let split = 0;
+            let punch = 0;
+            let lastMilestone = 0;
+            let particles = [];
+            let trails = [];
+            let trailClock = 0;
+            let hudClock = 0;
+            let lastResultMode = 'manual';
+
+            function resize() {
+                width = window.innerWidth;
+                height = window.innerHeight;
+                dpr = Math.min(window.devicePixelRatio || 1, window.__rzDprCap || 2);
+                canvas.width = Math.round(width * dpr);
+                canvas.height = Math.round(height * dpr);
+                canvas.style.width = width + 'px';
+                canvas.style.height = height + 'px';
+                unit = Math.min(width / 420, height / 720);
+                unit = Math.max(0.38, unit);
+                groundY = height * 0.72;
+                playerX = Math.min(width * 0.23, 135 * unit);
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+
+            window.addEventListener('resize', resize);
+            resize();
+
+            function seeded(seed) {
+                let n = seed >>> 0;
+                return () => {
+                    n += 0x6D2B79F5;
+                    let t = n;
+                    t = Math.imul(t ^ (t >>> 15), t | 1);
+                    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+                };
+            }
+
+            function hash(n) {
+                const v = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+                return v - Math.floor(v);
+            }
+
+            let audio = null;
+            let musicClock = 0;
+            let musicStep = 0;
+
+            function unlockAudio() {
+                if (window.RakazaAudio) { window.RakazaAudio.unlock(); return; }
+                try {
+                    if (!audio) {
+                        const AudioConstructor = window.AudioContext || window.webkitAudioContext;
+                        if (AudioConstructor) {
+                            audio = new AudioConstructor();
+                        }
+                    }
+                    if (audio && audio.state === 'suspended') {
+                        audio.resume().catch(() => {});
+                    }
+                } catch (error) {
+                    audio = null;
+                }
+            }
+
+            function tone(freq, duration, type = 'sine', volume = 0.04, delay = 0, endFreq = 0) {
+                if (!audio || saved.mute || audio.state !== 'running') {
+                    return;
+                }
+                try {
+                    const t = audio.currentTime + delay;
+                    const osc = audio.createOscillator();
+                    const gain = audio.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, t);
+                    if (endFreq > 0) {
+                        osc.frequency.exponentialRampToValueAtTime(endFreq, t + duration);
+                    }
+                    gain.gain.setValueAtTime(0.0001, t);
+                    gain.gain.exponentialRampToValueAtTime(volume, t + 0.008);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+                    osc.connect(gain);
+                    gain.connect(audio.destination);
+                    osc.start(t);
+                    osc.stop(t + duration + 0.02);
+                    osc.onended = () => {
+                        osc.disconnect();
+                        gain.disconnect();
+                    };
+                } catch (error) {
+                    return;
+                }
+            }
+
+            function sound(kind) {
+                if (window.RakazaAudio) {
+                    window.RakazaAudio.sfx(kind, game ? game.combo : 0);
+                    if (window.RakazaFeel) window.RakazaFeel.vib(kind);
+                    return;
+                }
+                if (kind === 'jump') {
+                    tone(250, 0.13, 'triangle', 0.055, 0, 690);
+                } else if (kind === 'coin') {
+                    const pitch = 700 + Math.min(game ? game.combo : 0, 20) * 36;
+                    tone(pitch, 0.13, 'sine', 0.045);
+                } else if (kind === 'hit') {
+                    tone(120, 0.22, 'sawtooth', 0.05, 0, 30);
+                } else if (kind === 'power') {
+                    [440, 554, 660, 880].forEach((n, i) => tone(n, 0.17, 'triangle', 0.04, i * 0.055));
+                }
+            }
+
+            function updateAudio(dt) {
+                if (window.RakazaAudio) { window.RakazaAudio.music(dt, state, game); return; }
+                if (state !== 'play' || saved.mute) {
+                    return;
+                }
+                musicClock -= dt;
+                if (musicClock <= 0) {
+                    musicClock += 0.28;
+                    const notes = game && game.dist >= 1800
+                        ? [220, 261.63, 329.63, 440, 329.63, 261.63, 196, 293.66]
+                        : [220, 277.18, 329.63, 440, 329.63, 277.18, 246.94, 369.99];
+                    tone(notes[musicStep++ % notes.length], 0.21, 'sine', 0.012);
+                }
+            }
+
+            // v15: the simulation lives in rakaza-sim.js (pure, fixed 120 Hz, deterministic, replayable).
+            // These wrappers keep the legacy call shapes the trainer / pilot / extras still use.
+            const Sim = window.RakazaSim, RC = window.RakazaContent, OPS = Sim.OPS;
+            const FX = window.RakazaFX, ART = window.RakazaArt;
+            const TICK = Sim.DT;
+            const defaultGenome = [0.32, 0.30, 0.88, 0.15];
+            const reduced = () => !!(saved.low || (window.RakazaPrefs && window.RakazaPrefs.get('reduceMotion')));
+            const prefReduced = () => !!(window.RakazaPrefs && window.RakazaPrefs.get('reduceMotion'));
+
+            function createWorld(seed, cfg) {
+                return Sim.create(seed, cfg || {});
+            }
+
+            function fillWorld(w) {
+                Sim.fillWorld(w);
+            }
+
+            function triggerJump(w, power, doubleOnly) {
+                return Sim.input(w, doubleOnly ? OPS.DOUBLE : OPS.JUMP, Math.round(clamp(power || 0, 0, 1) * 4));
+            }
+
+            function triggerSlide(w) {
+                return Sim.input(w, OPS.SLIDE, 0);
+            }
+
+            function stepWorld(w, dt) {
+                const n = Math.max(1, Math.round(dt / TICK));
+                for (let i = 0; i < n && !w.dead && !w.paused; i++) {
+                    Sim.step(w);
+                }
+            }
+
+            function decide(w, genes, safety, override) {
+                return Sim.decide(w, genes || defaultGenome, safety, override);
+            }
+
+            function applyDecision(w, decision) {
+                Sim.applyDecision(w, decision);
+            }
+
+            // sim events -> sound, juice, meta (banners, XP, draft UI)
+            const SFX_OF = { jump: 'jump', coin: 'coin', near: 'near', power: 'power', stomp: 'stomp', land: 'land', slide: 'slide', skill: 'skill', gem: 'gem', star: 'star', bolt: 'bolt', heart: 'heart', bossDown: 'bossdown', zone: 'event', stage: 'stage', revive: 'revive', draft: 'draft', ladder: 'stage' };
+
+            function drainEvents(w) {
+                const evs = w.ev;
+                if (!evs || !evs.length) {
+                    return;
+                }
+                w.ev = [];
+                for (const e of evs) {
+                    if (e[0] === 'hit') {
+                        sound(e[3] === 1 ? 'hit' : 'hurt');
+                    } else if (SFX_OF[e[0]]) {
+                        sound(SFX_OF[e[0]]);
+                    }
+                }
+                const info = FX.onEvents(w, evs, {});
+                if (info && info.split) {
+                    split = Math.max(split, info.split);
+                }
+                hitStop = Math.max(hitStop, FX.takeHitstop());
+                if (H.onSimEvents) {
+                    H.onSimEvents(w, evs);
+                }
+            }
+
+            let pilotClock = 0;
+            let pilotInfo = { action: 'WAIT', reason: 'Reading the roof ahead.', source: 'built-in pilot' };
+
+            function brain() {
+                return window.RakazaBrain || null;
+            }
+
+            function abortPilot() {
+                const b = brain();
+                if (b && b.abort) {
+                    b.abort();
+                }
+            }
+
+            // the brain (River / BYO) is polled here; decisions are applied per sim tick in frame()
+            function updatePilot(dt) {
+                if (!aiEnabled || !game || game.paused || championMode) {
+                    return;
+                }
+                const b = brain();
+                if (b && b.tick) {
+                    b.tick(game, dt);
+                }
+            }
+
+            function pilotDecision(w) {
+                const b = brain();
+                const genes = championMode && saved.champion ? saved.champion : defaultGenome;
+                const override = !championMode && b && b.override ? b.override(w) : null;
+                return decide(w, genes, !championMode, override);
+            }
+
+            function pilotSource(decision) {
+                if (championMode) {
+                    return 'champion · local genome';
+                }
+                const b = brain();
+                if (decision && decision.src === 'river' && b && b.srcLabel) {
+                    return b.srcLabel();
+                }
+                return 'built-in pilot';
+            }
+
+            function toast(text) {
+                $('toast').textContent = text;
+                $('toast').style.opacity = '1';
+                toastTime = 1.7;
+            }
+
+            function setControls(visible) {
+                if (inputKit) {
+                    inputKit.showControls(visible);
+                }
+            }
+
+            function setupButtons() {
+                menuButtons = Array.from(panel.querySelectorAll('button')).filter((b) => !b.disabled);
+                menuIndex = clamp(menuIndex, 0, Math.max(0, menuButtons.length - 1));
+                for (const button of menuButtons) {
+                    button.addEventListener('pointerdown', (event) => {
+                        event.preventDefault();
+                        menuIndex = menuButtons.indexOf(button);
+                        highlightMenu();
+                        unlockAudio();
+                    });
+                    button.addEventListener('pointerenter', () => {
+                        menuIndex = menuButtons.indexOf(button);
+                        highlightMenu();
+                    });
+                }
+                highlightMenu();
+            }
+
+            function highlightMenu() {
+                menuButtons.forEach((button, i) => button.classList.toggle('selected', i === menuIndex));
+            }
+
+            function showMenu(name, markup) {
+                state = name;
+                setControls(false);
+                screen.classList.remove('hidden');
+                hud.classList.add('hidden');
+                panel.innerHTML = markup;
+                menuIndex = 0;
+                pendingJump = false;
+                pendingSlide = false;
+                pointerHeld = false;
+                setupButtons();
+            }
+
+            function title() {
+                abortPilot();
+                trainer.running = false;
+                showMenu('title', `
+                    <header>
+                        <div class="brand">RIDE 'EM,</div>
+                        <h1>RAKA<span class="cyan">ZA</span>!</h1>
+                        <p class="subtitle">One runner. An endless neon city. A mind of its own.<br>Run the rooftops — or evolve the runner.</p>
+                    </header>
+                    <div class="intro-art"><span>NEURAL RUNNER / VOL. 03 · v15</span></div>
+                    <div class="menu-grid">
+                        <button class="primary wide" id="play-button">PLAY</button>
+                        <button class="gold wide" id="daily-button">DAILY SEED <span class="cyan"> / ${window.RakazaDaily ? window.RakazaDaily.code() : ''} · SAME CITY FOR EVERYONE</span></button>
+                        <button class="purple wide" id="ai-button">AI PILOT <span class="cyan"> / AUTONOMOUS RUN</span></button>
+                        <button class="gold" id="shop-title-button">SHOP</button>
+                        <button class="purple" id="brain-title-button">BRAIN</button>
+                        <button id="char-button">CHARACTER</button>
+                        <button id="skins-button">CAT COLOURS</button>
+                        <button id="trainer-button">TRAINER</button>
+                        <button id="settings-button">SETTINGS</button>
+                        <button class="wide" id="help-button">HOW TO PLAY</button>
+                    </div>
+                    <div class="footer">
+                        <span>BEST <b class="gold">${Math.floor(saved.best)}m</b><br>BANK <b class="gold">${saved.total}</b> COINS</span>
+                        <button id="title-mute">${saved.mute ? 'SOUND OFF' : 'SOUND ON'}</button>
+                        <button id="title-fx">${saved.low ? 'FX LOW' : 'FX HIGH'}</button>
+                    </div>
+                `);
+                $('play-button').onclick = () => startGame('manual');
+                $('ai-button').onclick = () => startGame('ai');
+                $('daily-button').onclick = () => { if (H.showDaily) H.showDaily(); };
+                $('char-button').onclick = () => { if (H.showChar) H.showChar(); };
+                $('shop-title-button').onclick = () => { if (H.openShop) H.openShop(); };
+                $('brain-title-button').onclick = () => { if (H.openBrain) H.openBrain(); };
+                $('settings-button').onclick = () => { if (H.openSettings) H.openSettings(); };
+                $('skins-button').onclick = showSkins;
+                $('trainer-button').onclick = showTrainer;
+                $('help-button').onclick = showHelp;
+                $('title-mute').onclick = () => {
+                    toggleMute();
+                    $('title-mute').textContent = saved.mute ? 'SOUND OFF' : 'SOUND ON';
+                };
+                $('title-fx').onclick = () => {
+                    toggleEffects();
+                    $('title-fx').textContent = saved.low ? 'FX LOW' : 'FX HIGH';
+                };
+            }
+
+            function showHelp() {
+                showMenu('help', `
+                    <header>
+                        <div class="brand">FIELD MANUAL</div>
+                        <h2>Own the skyline.</h2>
+                    </header>
+                    <div class="card">
+                        <p class="instruction"><b>JUMP</b> · Space / W / Up / gamepad A.<br>Tap the city or use Jump. Hold for height. Jump again in the air for a double jump.</p>
+                        <p class="instruction"><b>SLIDE</b> · S / Down / Shift / gamepad B.<br>Swipe down or use Slide. Stay low for 0.55 seconds. Slide under neon signs and drones.</p>
+                        <p class="instruction"><b>COLLECT</b> · Shield absorbs one hit. Magnet lasts 8s, slow-mo 3s, double coins 10s. Keep collecting to sustain your combo.</p>
+                        <p class="instruction"><b>SCORE</b> · Board score = metres + coins × 6 + near-miss points.<br>Your lifetime coins unlock six wardrobe colours automatically. <b>DAILY SEED</b> gives everyone the same city for the UTC day; your ghost races your best run.</p>
+                        <p class="instruction"><b>AI PILOT</b> · An onboard policy plays for you, skills included. TRAINER evolves an actual four-gene policy locally. Nothing leaves your device.</p>
+                        <p class="instruction"><b>MENUS</b> · Directions select; Enter / A activates.<br>Escape / P / Start pauses. Big JUMP and SLIDE buttons appear on touch screens; tapping the city also jumps, swiping down slides.</p>
+                    </div>
+                    <button class="primary" id="back-button">BACK</button>
+                `);
+                $('back-button').onclick = title;
+            }
+
+            function showSkins() {
+                showMenu('skins', `
+                    <header>
+                        <div class="brand">THE WARDROBE</div>
+                        <h2>Different colours. Same fire.</h2>
+                        <p class="subtitle"><span class="gold">${saved.total}</span> lifetime coins. Unlocks are permanent, no spending.</p>
+                    </header>
+                    <div class="skin-grid">
+                        ${skins.map((skin, i) => `
+                            <button class="skin-tile ${saved.skin === i ? 'equipped' : ''}" data-skin="${i}">
+                                <canvas data-preview="${i}"></canvas>
+                                <span class="skin-name">${skin.name}</span>
+                                <span class="skin-status">${saved.skin === i ? 'EQUIPPED' : saved.total >= skin.cost ? 'OWNED · SELECT' : 'LOCKED · ' + skin.cost + ' COINS'}</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                    <button id="back-button">BACK TO ROOFTOPS</button>
+                `);
+                panel.querySelectorAll('[data-skin]').forEach((button) => {
+                    button.onclick = () => {
+                        const index = Number(button.dataset.skin);
+                        if (saved.total >= skins[index].cost) {
+                            saved.skin = index;
+                            persist();
+                            showSkins();
+                            menuIndex = index;
+                            highlightMenu();
+                            sound('power');
+                        } else {
+                            toast((skins[index].cost - saved.total) + ' more lifetime coins to unlock.');
+                        }
+                    };
+                });
+                $('back-button').onclick = title;
+            }
+
+            let lastResultOpts = null;
+            const H = (window.RakazaHooks = window.RakazaHooks || {});
+
+            function startGame(mode, opts) {
+                opts = opts || {};
+                if (H.beforeStart && H.beforeStart(mode, opts) === false) {
+                    return;
+                }
+                unlockAudio();
+                abortPilot();
+                trainer.running = false;
+                runId++;
+                lastResultMode = mode;
+                lastResultOpts = opts.daily ? { daily: true, seed: opts.seed } : (opts.agentRun ? { agentRun: opts.agentRun, seed: opts.seed, cfg: opts.cfg } : null);
+                aiEnabled = mode !== 'manual' && mode !== 'external';
+                championMode = mode === 'champion';
+                const runSeed = opts.seed != null ? opts.seed >>> 0 : (Date.now() ^ 0x5EED) >>> 0;
+                const simCfg = opts.cfg || (H.buildConfig ? H.buildConfig(mode, opts) : {});
+                game = createWorld(runSeed, simCfg);
+                game.seed = runSeed;
+                game.daily = !!opts.daily;
+                game.everAI = aiEnabled;
+                game.control = mode;
+                game.agentRun = opts.agentRun || null;
+                fillWorld(game);
+                if (FX.reset) {
+                    FX.reset();
+                }
+                if (H.fxEquip) {
+                    H.fxEquip();
+                }
+                physicsAccumulator = 0;
+                particles = [];
+                trails = [];
+                hitStop = 0;
+                shake = 0;
+                split = 0;
+                punch = 0;
+                lastMilestone = 0;
+                pendingJump = false;
+                pendingSlide = false;
+                pointerHeld = false;
+                pilotClock = 0;
+                pilotInfo = {
+                    action: 'WAIT',
+                    reason: championMode ? 'Running your evolved four-gene policy.' : 'Reading the next rooftop.',
+                    source: championMode ? 'champion' : 'built-in pilot'
+                };
+                state = 'play';
+                screen.classList.add('hidden');
+                hud.classList.remove('hidden');
+                setControls(true);
+                updateHUD();
+                if (H.onStart) H.onStart(game);
+            }
+
+            function pauseGame() {
+                if (state !== 'play') {
+                    return;
+                }
+                abortPilot();
+                showMenu('pause', `
+                    <header>
+                        <div class="brand">SIGNAL ON HOLD</div>
+                        <h2>Catch your breath.</h2>
+                        <p class="subtitle">${Math.floor(game.dist)}m above the ordinary.</p>
+                    </header>
+                    <div class="menu-grid">
+                        <button class="primary wide" id="resume-button">RESUME</button>
+                        <button id="pause-retry">RESTART</button>
+                        <button id="pause-home">TITLE</button>
+                        <button id="pause-settings">SETTINGS</button>
+                        <button id="pause-photo">PHOTO MODE</button>
+                        <button id="pause-mute">${saved.mute ? 'SOUND OFF' : 'SOUND ON'}</button>
+                    </div>
+                    <div class="footer"><span>Escape / P / Start also resumes.</span></div>
+                `);
+                $('resume-button').onclick = resumeGame;
+                $('pause-settings').onclick = () => { if (H.openSettings) H.openSettings(); };
+                $('pause-photo').onclick = () => { if (H.photo) H.photo(); };
+                $('pause-mute').onclick = () => { toggleMute(); $('pause-mute').textContent = saved.mute ? 'SOUND OFF' : 'SOUND ON'; };
+                $('pause-retry').onclick = () => startGame(lastResultMode, lastResultOpts);
+                $('pause-home').onclick = () => {
+                    bankRun();
+                    title();
+                };
+            }
+
+            function resumeGame() {
+                state = 'play';
+                screen.classList.add('hidden');
+                hud.classList.remove('hidden');
+                setControls(true);
+                pendingJump = false;
+                pendingSlide = false;
+                unlockAudio();
+            }
+
+            function bankRun() {
+                if (!game || game.banked) {
+                    return;
+                }
+                game.banked = true;
+                saved.best = Math.max(saved.best, Math.floor(game.dist));
+                saved.total += game.coins;
+                persist();
+            }
+
+            function endGame() {
+                abortPilot();
+                bankRun();
+                const score = Sim.score(game);
+                if (H.onOver) H.onOver(game, score);
+                sound('over');
+                showMenu('over', `
+                    <header>
+                        <div class="brand">RUN COMPLETE</div>
+                        <h2>The city keeps moving.</h2>
+                        <p class="subtitle">${game.cause}</p>
+                    </header>
+                    <div class="card stat-grid">
+                        <div><div class="eyebrow">DISTANCE</div><div class="stat-value">${Math.floor(game.dist)}<small>m</small></div></div>
+                        <div><div class="eyebrow">COINS</div><div class="stat-value">${game.coins}</div></div>
+                        <div><div class="eyebrow">TOTAL SCORE</div><div class="stat-value cyan">${score}</div></div>
+                        <div><div class="eyebrow">STOMPS · BOSSES</div><div class="stat-value">${game.kills || 0}<small> · ${game.bossKills || 0}</small></div></div>
+                    </div>
+                    <div class="menu-grid">
+                        <button class="primary wide" id="retry-button">RETRY</button>
+                        <button id="shop-button">SHOP / SKINS</button>
+                        <button id="home-button">TITLE</button>
+                    </div>
+                `);
+                $('retry-button').onclick = () => startGame(lastResultMode, lastResultOpts);
+                $('shop-button').onclick = showSkins;
+                $('home-button').onclick = title;
+                if (H.afterOver) H.afterOver(game, panel);
+            }
+
+            function toggleMute() {
+                unlockAudio();
+                saved.mute = !saved.mute;
+                persist();
+                if (window.__rzMeta && window.__rzMeta.setSound) window.__rzMeta.setSound(!saved.mute);
+                if (window.RakazaAudio) window.RakazaAudio.applyVolume();
+                $('mute-toggle').textContent = saved.mute ? 'SOUND OFF' : 'SOUND ON';
+            }
+
+            function toggleEffects() {
+                saved.low = !saved.low;
+                if (saved.low) {
+                    particles = [];
+                    trails = [];
+                }
+                persist();
+                $('fx-toggle').textContent = saved.low ? 'FX LOW' : 'FX HIGH';
+            }
+
+            $('mute-toggle').onclick = toggleMute;
+            $('pause-toggle').onclick = () => { if (state === 'play') pauseGame(); };
+            $('fx-toggle').onclick = toggleEffects;
+            $('pilot-toggle').onclick = () => {
+                aiEnabled = !aiEnabled;
+                championMode = false;
+                abortPilot();
+                pilotClock = 0;
+                if (game) { game.everAI = game.everAI || aiEnabled; }
+                updateHUD();
+                toast(aiEnabled ? 'AI PILOT ENGAGED' : 'YOU HAVE CONTROL');
+            };
+
+            let heartsShown = -1, heartsGame = null;
+            function updateHearts() {
+                const el = $('hearts');
+                if (!el || !game) return;
+                if (game !== heartsGame) { heartsGame = game; heartsShown = -1; }
+                const max = (window.RakazaContent && window.RakazaContent.LIVES) || 3;
+                const left = Math.max(0, Math.min(max, game.lives == null ? max : game.lives));
+                const zen = !!game.ghostMode;
+                if (left !== heartsShown || el.childElementCount !== max) {
+                    const lostNow = heartsShown > left;
+                    el.innerHTML = '';
+                    for (let i = 0; i < max; i++) {
+                        const h = document.createElement('span');
+                        h.className = 'hrt' + (i >= left ? ' lost' : '') + (lostNow && i === left ? ' pulse' : '');
+                        h.textContent = '\u2665';
+                        el.appendChild(h);
+                    }
+                    el.setAttribute('aria-label', 'Hearts left: ' + left + ' of ' + max);
+                    heartsShown = left;
+                }
+                el.classList.toggle('inv', (game.invulnerable || 0) > 0 && !zen);
+                el.classList.toggle('zen', zen);
+            }
+            function updateHUD() {
+                if (!game) {
+                    return;
+                }
+                $('distance').textContent = Math.floor(game.dist);
+                $('coins').textContent = game.coins;
+                $('combo').textContent = game.combo > 1 ? 'COMBO ×' + game.combo : '';
+                updateHearts();
+                $('pilot-toggle').textContent = championMode ? 'AI · CHAMPION' : 'AI PILOT · ' + (aiEnabled ? 'ON' : 'OFF');
+                $('pilot-toggle').style.color = aiEnabled ? '#22d3ee' : '#b8afc8';
+                $('mute-toggle').textContent = saved.mute ? 'SOUND OFF' : 'SOUND ON';
+                $('fx-toggle').textContent = saved.low ? 'FX LOW' : 'FX HIGH';
+                $('pilot-chip').classList.toggle('hidden', !aiEnabled);
+                $('pilot-label').textContent = pilotInfo.action.replace('_', ' ') + ' · ' + pilotInfo.source.toUpperCase();
+                $('pilot-reason').textContent = pilotInfo.reason;
+                const chips = [];
+                if (game.shield) {
+                    chips.push('SHIELD · 1 HIT');
+                }
+                if (game.magnet > 0) {
+                    chips.push('MAGNET ' + game.magnet.toFixed(1) + 's');
+                }
+                if (game.slow > 0) {
+                    chips.push('SLOW ' + game.slow.toFixed(1) + 's');
+                }
+                if (game.double > 0) {
+                    chips.push('2× COINS ' + game.double.toFixed(1) + 's');
+                }
+                $('power-chips').innerHTML = chips.map((text) => '<span class="chip">' + text + '</span>').join('');
+            }
+
+            const trainer = {
+                running: false,
+                generation: 0,
+                elapsed: 0,
+                accumulator: 0,
+                population: [],
+                worlds: [],
+                history: [],
+                bestFitness: -Infinity,
+                champion: saved.champion ? saved.champion.slice() : null,
+                random: seeded(47291)
+            };
+
+            function randomGenome() {
+                return [
+                    0.07 + trainer.random() * 0.58,
+                    0.06 + trainer.random() * 0.60,
+                    trainer.random(),
+                    trainer.random()
+                ];
+            }
+
+            function initializePopulation() {
+                trainer.population = Array.from({ length: 24 }, randomGenome);
+                if (trainer.champion) {
+                    trainer.population[0] = trainer.champion.slice();
+                }
+                prepareGeneration();
+            }
+
+            function prepareGeneration() {
+                trainer.elapsed = 0;
+                trainer.accumulator = 0;
+                trainer.worlds = trainer.population.map(() => {
+                    const w = createWorld(86421, { trainer: true });
+                    fillWorld(w);
+                    return w;
+                });
+            }
+
+            function finishGeneration() {
+                const ranked = trainer.worlds.map((w, i) => ({
+                    genes: trainer.population[i].slice(),
+                    fitness: w.dist + w.coins * 2 - w.collisions * 50,
+                    distance: w.dist
+                })).sort((a, b) => b.fitness - a.fitness);
+                trainer.generation++;
+                const mean = ranked.reduce((sum, entry) => sum + entry.fitness, 0) / ranked.length;
+
+                if (ranked[0].fitness > trainer.bestFitness) {
+                    trainer.bestFitness = ranked[0].fitness;
+                    trainer.champion = ranked[0].genes.slice();
+                    saved.champion = trainer.champion.slice();
+                    persist();
+                }
+
+                trainer.history.push({
+                    generation: trainer.generation,
+                    best: trainer.bestFitness,
+                    mean,
+                    distance: ranked[0].distance
+                });
+
+                if (trainer.generation >= 30) {
+                    trainer.running = false;
+                    trainer.elapsed = 45;
+                    toast('GENERATION 30 · CHAMPION SAVED');
+                } else {
+                    const survivors = ranked.slice(0, 6).map((entry) => entry.genes.slice());
+                    const next = survivors.map((genes) => genes.slice());
+                    while (next.length < 24) {
+                        const a = survivors[Math.floor(trainer.random() * 6)];
+                        const b = survivors[Math.floor(trainer.random() * 6)];
+                        const child = a.map((gene, i) => {
+                            let value = trainer.random() < 0.5 ? gene : b[i];
+                            if (trainer.random() < 0.08) {
+                                value += (trainer.random() - 0.5) * (i < 2 ? 0.30 : 0.65);
+                            }
+                            return clamp(value, i < 2 ? 0.06 : 0, i < 2 ? 0.7 : 1);
+                        });
+                        next.push(child);
+                    }
+                    trainer.population = next;
+                    prepareGeneration();
+                }
+                if (state === 'trainer') {
+                    refreshTrainerTable();
+                }
+            }
+
+            function simulateTrainer(dt) {
+                if (!trainer.running || state !== 'trainer') {
+                    return;
+                }
+                trainer.accumulator += dt * 20;
+                let steps = 0;
+                while (trainer.accumulator >= 1 / 60 && trainer.running && steps < 180) {
+                    trainer.accumulator -= 1 / 60;
+                    trainer.elapsed += 1 / 60;
+                    for (let i = 0; i < trainer.worlds.length; i++) {
+                        const w = trainer.worlds[i];
+                        if (!w.dead) {
+                            applyDecision(w, decide(w, trainer.population[i]));
+                            stepWorld(w, 1 / 60);
+                        }
+                    }
+                    steps++;
+                    if (trainer.elapsed >= 45) {
+                        finishGeneration();
+                    }
+                }
+            }
+
+            function showTrainer() {
+                showMenu('trainer', `
+                    <header>
+                        <div class="brand">EVOLUTION LAB</div>
+                        <h2>Teach instinct.</h2>
+                        <p class="subtitle">24 runners · 45s trials · 20× simulation<br>6 elites · uniform crossover · 8% mutation · 30 generations</p>
+                    </header>
+                    <div class="card">
+                        <div class="trainer-topline">
+                            <span id="trainer-generation">GEN 01 / 30</span>
+                            <span id="trainer-state" class="cyan">READY</span>
+                        </div>
+                        <canvas id="curve"></canvas>
+                        <div class="footer"><span class="gold">— Best fitness</span><span class="cyan">— Population mean</span></div>
+                        <div class="progress"><div id="progress-fill"></div></div>
+                    </div>
+                    <div class="card">
+                        <table>
+                            <thead><tr><th>GEN</th><th>BEST</th><th>MEAN</th><th>METRES</th></tr></thead>
+                            <tbody id="generation-table"></tbody>
+                        </table>
+                        <div id="genome-label" class="genome"></div>
+                    </div>
+                    <div class="menu-grid">
+                        <button class="primary" id="train-button">TRAIN</button>
+                        <button id="train-pause">PAUSE</button>
+                        <button class="purple" id="watch-button">WATCH CHAMPION</button>
+                        <button id="reset-button">RESET</button>
+                        <button class="wide" id="trainer-back">BACK</button>
+                    </div>
+                `);
+
+                $('train-button').onclick = () => {
+                    if (trainer.generation >= 30) {
+                        toast('Training complete. Watch your champion or reset.');
+                        return;
+                    }
+                    if (!trainer.population.length) {
+                        initializePopulation();
+                    }
+                    trainer.running = true;
+                    unlockAudio();
+                    refreshTrainerTable();
+                };
+
+                $('train-pause').onclick = () => {
+                    if (trainer.population.length && trainer.generation < 30) {
+                        trainer.running = !trainer.running;
+                    }
+                    refreshTrainerTable();
+                };
+
+                $('watch-button').onclick = () => {
+                    if (saved.champion) {
+                        trainer.running = false;
+                        startGame('champion');
+                    } else {
+                        toast('Finish one generation to save a champion.');
+                    }
+                };
+
+                $('reset-button').onclick = () => {
+                    trainer.running = false;
+                    trainer.generation = 0;
+                    trainer.elapsed = 0;
+                    trainer.accumulator = 0;
+                    trainer.population = [];
+                    trainer.worlds = [];
+                    trainer.history = [];
+                    trainer.bestFitness = -Infinity;
+                    trainer.champion = null;
+                    trainer.random = seeded(47291);
+                    saved.champion = null;
+                    persist();
+                    refreshTrainerTable();
+                };
+
+                $('trainer-back').onclick = () => {
+                    trainer.running = false;
+                    title();
+                };
+                refreshTrainerTable();
+            }
+
+            function refreshTrainerTable() {
+                if (state !== 'trainer') {
+                    return;
+                }
+                const rows = trainer.history.slice(-5);
+                $('generation-table').innerHTML = rows.length
+                    ? rows.map((row) => `<tr><td>${String(row.generation).padStart(2, '0')}</td><td class="gold">${Math.round(row.best)}</td><td>${Math.round(row.mean)}</td><td>${Math.round(row.distance)}m</td></tr>`).join('')
+                    : '<tr><td colspan="4" style="text-align:left;padding:12px 3px">No trials yet. Start a population.</td></tr>';
+                const g = trainer.champion;
+                $('genome-label').textContent = g
+                    ? 'CHAMPION  lead ' + g[0].toFixed(3) + ' / slide ' + g[1].toFixed(3) + ' / double ' + g[2].toFixed(3) + ' / greed ' + g[3].toFixed(3) + '  ·  fitness = m + coins×2 − hits×50'
+                    : 'Same runner physics, collisions and pickups. Fitness = metres + coins×2 − collisions×50.';
+                $('train-button').textContent = trainer.generation >= 30 ? 'COMPLETE' : trainer.population.length ? 'RESUME TRAINING' : 'TRAIN';
+                $('train-pause').textContent = trainer.running ? 'PAUSE' : 'RESUME';
+            }
+
+            function drawCurve() {
+                const curve = $('curve');
+                if (!curve) {
+                    return;
+                }
+                const cw = Math.max(1, curve.clientWidth);
+                const ch = Math.max(1, curve.clientHeight);
+                if (curve.width !== Math.round(cw * dpr) || curve.height !== Math.round(ch * dpr)) {
+                    curve.width = Math.round(cw * dpr);
+                    curve.height = Math.round(ch * dpr);
+                }
+                const g = curve.getContext('2d');
+                g.setTransform(dpr, 0, 0, dpr, 0, 0);
+                g.clearRect(0, 0, cw, ch);
+                const left = 30;
+                const bottom = ch - 15;
+                const max = Math.max(100, ...trainer.history.map((r) => r.best)) * 1.1;
+
+                g.font = '8px system-ui';
+                for (let i = 0; i <= 3; i++) {
+                    const y = 8 + (bottom - 8) * i / 3;
+                    g.strokeStyle = '#ffffff10';
+                    g.beginPath();
+                    g.moveTo(left, y);
+                    g.lineTo(cw - 4, y);
+                    g.stroke();
+                    g.fillStyle = '#716b80';
+                    g.fillText(Math.round(max * (1 - i / 3)).toString(), 0, y + 3);
+                }
+
+                for (const [key, color] of [['mean', '#22d3ee'], ['best', '#d9b26a']]) {
+                    g.strokeStyle = color;
+                    g.lineWidth = 2;
+                    g.beginPath();
+                    trainer.history.forEach((row, i) => {
+                        const x = left + (cw - left - 8) * i / 29;
+                        const y = bottom - clamp(row[key] / max, 0, 1) * (bottom - 8);
+                        if (i === 0) {
+                            g.moveTo(x, y);
+                        } else {
+                            g.lineTo(x, y);
+                        }
+                    });
+                    g.stroke();
+                    if (trainer.history.length) {
+                        const i = trainer.history.length - 1;
+                        const row = trainer.history[i];
+                        g.fillStyle = color;
+                        g.beginPath();
+                        g.arc(left + (cw - left - 8) * i / 29, bottom - clamp(row[key] / max, 0, 1) * (bottom - 8), 3, 0, Math.PI * 2);
+                        g.fill();
+                    }
+                }
+                g.fillStyle = '#716b80';
+                g.fillText('01', left, ch - 2);
+                g.fillText('30', cw - 16, ch - 2);
+                if (!trainer.history.length) {
+                    g.fillStyle = '#6e667d';
+                    g.fillText('LIVE FITNESS / NO SYNTHETIC DATA', left + 10, ch / 2);
+                }
+
+                $('trainer-generation').textContent = 'GEN ' + String(Math.min(30, trainer.generation + 1)).padStart(2, '0') + ' / 30';
+                $('trainer-state').textContent = trainer.generation >= 30 ? 'COMPLETE' : trainer.running ? 'SIMULATING · 20×' : 'PAUSED';
+                $('progress-fill').style.width = (trainer.elapsed / 45 * 100) + '%';
+            }
+
+            function colorMix(a, b, t) {
+                const r = Math.round(lerp(a[0], b[0], t));
+                const g = Math.round(lerp(a[1], b[1], t));
+                const blue = Math.round(lerp(a[2], b[2], t));
+                return `rgb(${r},${g},${blue})`;
+            }
+
+            function rounded(g, x, y, w, h, radius) {
+                const r = Math.max(0, Math.min(radius, w / 2, h / 2));
+                g.beginPath();
+                g.moveTo(x + r, y);
+                g.arcTo(x + w, y, x + w, y + h, r);
+                g.arcTo(x + w, y + h, x, y + h, r);
+                g.arcTo(x, y + h, x, y, r);
+                g.arcTo(x, y, x + w, y, r);
+                g.closePath();
+            }
+
+            function drawCat(g, x, y, scale, skin, time, sliding = false, airborne = false, alpha = 1, silhouette = '', forceChar = '') {
+                const who = forceChar || (window.RakazaPrefs ? window.RakazaPrefs.get('char') : 'cat');
+                if (who !== 'cat' && window.RakazaChar) {
+                    window.RakazaChar.draw(g, x, y, scale, skin, time, sliding, airborne, alpha, silhouette, window.RakazaPrefs ? window.RakazaPrefs.get('outfit') : 0, saved.low);
+                    return;
+                }
+                g.save();
+                g.translate(x, y);
+                g.scale(scale, scale);
+                g.globalAlpha *= alpha;
+                const run = Math.sin(time * 19);
+                const bob = airborne ? -1 : Math.sin(time * 38) * 1.1;
+                g.translate(0, bob);
+                const body = silhouette || skin.body;
+                const dark = silhouette || skin.dark;
+
+                g.strokeStyle = silhouette || skin.scarf;
+                g.lineWidth = 7;
+                g.lineCap = 'round';
+                g.beginPath();
+                g.moveTo(-8, sliding ? -14 : -31);
+                g.bezierCurveTo(-25, -30, -33, -17 + Math.sin(time * 12) * 6, -53, -30 + Math.sin(time * 11) * 9);
+                g.stroke();
+
+                g.strokeStyle = dark;
+                g.lineWidth = 6;
+                g.beginPath();
+                g.moveTo(-11, sliding ? -9 : -15);
+                g.bezierCurveTo(-25, -12, -34, -7, -32, -22);
+                g.stroke();
+
+                if (sliding) {
+                    g.fillStyle = body;
+                    rounded(g, -19, -21, 37, 17, 8);
+                    g.fill();
+                    g.fillStyle = dark;
+                    rounded(g, -20, -7, 40, 7, 3);
+                    g.fill();
+                    g.translate(9, 20);
+                } else {
+                    g.strokeStyle = dark;
+                    g.lineWidth = 8;
+                    g.beginPath();
+                    g.moveTo(-5, -14);
+                    g.lineTo(-9 + (airborne ? -6 : run * 11), -3);
+                    g.moveTo(5, -14);
+                    g.lineTo(8 + (airborne ? 5 : -run * 11), -2);
+                    g.stroke();
+                    g.fillStyle = body;
+                    rounded(g, -12, -34, 24, 25, 9);
+                    g.fill();
+                    g.strokeStyle = dark;
+                    g.lineWidth = 6;
+                    g.beginPath();
+                    g.moveTo(7, -28);
+                    g.lineTo(15 + run * 4, -18);
+                    g.stroke();
+                }
+
+                g.fillStyle = body;
+                g.beginPath();
+                g.moveTo(-13, -39);
+                g.lineTo(-13, -55);
+                g.lineTo(-3, -48);
+                g.lineTo(8, -49);
+                g.lineTo(16, -57);
+                g.lineTo(18, -36);
+                g.closePath();
+                g.fill();
+                rounded(g, -14, -48, 34, 25, 10);
+                g.fill();
+
+                if (!silhouette) {
+                    g.fillStyle = '#17162a';
+                    rounded(g, -6, -44, 28, 12, 5);
+                    g.fill();
+                    g.shadowColor = '#22d3ee';
+                    g.shadowBlur = saved.low ? 0 : 11;
+                    g.fillStyle = '#22d3ee';
+                    rounded(g, -3, -41, 25, 6, 3);
+                    g.fill();
+                    g.shadowBlur = 0;
+                    g.fillStyle = '#d9fbff';
+                    g.fillRect(11, -40, 6, 2);
+                    g.fillStyle = skin.scarf;
+                    rounded(g, -11, -27, 25, 5, 2);
+                    g.fill();
+                    g.fillStyle = '#ffffff40';
+                    g.fillRect(-9, -47, 5, 2);
+                }
+                g.restore();
+            }
+            if (window.RakazaChar) window.RakazaChar.drawCat = (g, x, y, s, t) => drawCat(g, x, y, s, skins[saved.skin], t, false, false, 1, "", "cat");
+
+            function drawBackground(travel, dist, theme) {
+                const P = ART.palAt(dist, theme);
+                const night = P.night;
+                const sky = ctx.createLinearGradient(0, 0, 0, groundY);
+                sky.addColorStop(0, P.skyTop);
+                sky.addColorStop(1, P.skyLow);
+                ctx.fillStyle = sky;
+                ctx.fillRect(0, 0, width, height);
+
+                if (night > 0.04) {
+                    ctx.globalAlpha = Math.min(1, night * 1.2);
+                    const count = saved.low ? 36 : 80;
+                    for (let i = 0; i < count; i++) {
+                        const x = hash(i + 3) * width;
+                        const y = hash(i + 203) * groundY * 0.72;
+                        const tw = 0.55 + 0.45 * Math.sin(visualTime * (1 + hash(i) * 2) + i);
+                        ctx.fillStyle = `rgba(219,229,255,${(0.2 + hash(i) * 0.6) * tw})`;
+                        ctx.fillRect(x, y, hash(i + 51) > 0.9 ? 2 : 1, 1.5);
+                    }
+                    ctx.fillStyle = '#cce3ff';
+                    ctx.beginPath();
+                    ctx.arc(width * 0.78, height * 0.25, 21 * unit, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = P.skyTop;
+                    ctx.beginPath();
+                    ctx.arc(width * 0.78 - 8 * unit, height * 0.25 - 5 * unit, 20 * unit, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                }
+
+                if (P.sunA > 0.03) {
+                    const sx = width * 0.77;
+                    const sy = groundY * 0.58;
+                    const radius = 53 * unit;
+                    ctx.globalAlpha = P.sunA;
+                    if (!saved.low) {
+                        const glow = ctx.createRadialGradient(sx, sy, radius * 0.15, sx, sy, radius * 2.8);
+                        glow.addColorStop(0, ART.css(P.sun, 0.38));
+                        glow.addColorStop(1, ART.css(P.sun, 0));
+                        ctx.fillStyle = glow;
+                        ctx.fillRect(sx - radius * 3, sy - radius * 3, radius * 6, radius * 6);
+                    }
+                    ctx.fillStyle = ART.css(P.sun);
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                }
+
+                // deeper parallax: haze skyline -> far -> near
+                ctx.globalAlpha = 0.45;
+                drawCityLayer(travel, 0.05, 120, groundY - 70 * unit, 190, P.far, night, false);
+                ctx.globalAlpha = 1;
+                drawCityLayer(travel, 0.12, 86, groundY - 43 * unit, 130, P.far, night, false);
+                drawCityLayer(travel, 0.29, 72, groundY + 5 * unit, 190, P.near, night, true);
+
+                ctx.fillStyle = P.ground;
+                ctx.fillRect(0, groundY, width, height - groundY);
+                return night;
+            }
+
+            function drawCityLayer(travel, parallax, spacing, base, maxHeight, color, night, lit) {
+                const offset = travel * parallax;
+                const start = Math.floor(offset / spacing) - 2;
+                const count = Math.ceil(width / unit / spacing) + 5;
+                for (let j = start; j < start + count; j++) {
+                    const h = (35 + hash(j + 110) * maxHeight) * unit;
+                    const bw = (spacing - 7 + hash(j + 81) * 9) * unit;
+                    const x = (j * spacing - offset) * unit;
+                    const y = base - h;
+                    ctx.fillStyle = color;
+                    ctx.fillRect(x, y, bw, h);
+                    ctx.fillRect(x + bw * 0.32, y - 8 * unit, bw * 0.35, 10 * unit);
+                    if (hash(j + 24) > 0.65) {
+                        ctx.fillRect(x + bw * 0.55, y - 32 * unit, 2 * unit, 33 * unit);
+                        ctx.fillStyle = night > 0.5 ? ART.P.accent : '#d49ba6';
+                        ctx.fillRect(x + bw * 0.55, y - 33 * unit, 2 * unit, 2 * unit);
+                    }
+                    if (lit) {
+                        for (let row = 0; row < Math.floor(h / (17 * unit)) - 1; row++) {
+                            for (let col = 0; col < 4; col++) {
+                                if (hash(j * 91 + row * 13 + col) > 0.41) {
+                                    ctx.fillStyle = hash(j + col) > 0.7
+                                        ? ART.css(ART.P.win[0], 0.12 + night * 0.45)
+                                        : ART.css(ART.P.win[1], 0.15 + night * 0.48);
+                                    ctx.fillRect(x + 10 * unit + col * 12 * unit, y + 13 * unit + row * 17 * unit, 4 * unit, 7 * unit);
+                                }
+                            }
+                        }
+                        if (night > 0.1 && hash(j + 8) > 0.67) {
+                            ctx.globalAlpha = night;
+                            ctx.fillStyle = j % 2 ? ART.P.accent : ART.css(ART.P.win[0]);
+                            const sy = y + 35 * unit;
+                            ctx.fillRect(x + bw - 12 * unit, sy, 9 * unit, 40 * unit);
+                            ctx.fillStyle = '#171828';
+                            for (let k = 0; k < 4; k++) {
+                                ctx.fillRect(x + bw - 10 * unit, sy + (5 + k * 8) * unit, 5 * unit, 3 * unit);
+                            }
+                            ctx.globalAlpha = 1;
+                        }
+                    }
+                }
+            }
+
+            function worldX(x, travel) {
+                return playerX + (x - travel) * unit;
+            }
+
+            function roofSection(x1, x2, travel, night) {
+                if (x2 <= x1) {
+                    return;
+                }
+                ctx.fillStyle = ART.P.ground;
+                ctx.fillRect(x1, groundY, x2 - x1, height - groundY);
+                ctx.fillStyle = ART.P.near;
+                ctx.fillRect(x1, groundY, x2 - x1, 10 * unit);
+                ctx.fillStyle = ART.P.edge;
+                ctx.fillRect(x1, groundY, x2 - x1, 2 * unit);
+                ctx.fillStyle = '#0b0f18';
+                ctx.fillRect(x1, groundY + 14 * unit, x2 - x1, 5 * unit);
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(x1, groundY + 19 * unit, x2 - x1, height - groundY);
+                ctx.clip();
+                const offset = (travel * unit) % (68 * unit);
+                for (let x = -offset; x < width + 68 * unit; x += 68 * unit) {
+                    ctx.fillStyle = '#10121d';
+                    ctx.fillRect(x + 14 * unit, groundY + 35 * unit, 30 * unit, 47 * unit);
+                    ctx.fillStyle = night > 0.4 ? '#d9b26a27' : '#61536b44';
+                    ctx.fillRect(x + 17 * unit, groundY + 38 * unit, 11 * unit, 41 * unit);
+                    ctx.fillRect(x + 31 * unit, groundY + 38 * unit, 10 * unit, 41 * unit);
+                    ctx.fillStyle = '#ffffff05';
+                    ctx.fillRect(x, groundY + 105 * unit, 60 * unit, 1);
+                }
+                ctx.restore();
+                if (night > 0 && !saved.low) {
+                    ctx.globalAlpha = night * 0.4;
+                    ctx.fillStyle = ART.P.accent;
+                    const step = 110 * unit;
+                    for (let x = x1 + 12 * unit; x < x2; x += step) {
+                        ctx.fillRect(x, groundY + 5 * unit, Math.min(36 * unit, x2 - x), unit);
+                    }
+                    ctx.globalAlpha = 1;
+                }
+            }
+
+            function drawRoofs(w, travel, night) {
+                const gaps = w ? w.obstacles.filter((o) => o.kind === 'gap').sort((a, b) => a.x - b.x) : [];
+                let left = 0;
+                for (const gap of gaps) {
+                    const start = worldX(gap.x - gap.width / 2, travel);
+                    const end = worldX(gap.x + gap.width / 2, travel);
+                    if (end < 0 || start > width) {
+                        continue;
+                    }
+                    roofSection(left, Math.max(left, start), travel, night);
+                    ctx.fillStyle = '#090b15';
+                    ctx.fillRect(start, groundY + 8 * unit, 5 * unit, height - groundY);
+                    ctx.fillRect(end - 5 * unit, groundY + 8 * unit, 5 * unit, height - groundY);
+                    left = Math.max(left, end);
+                }
+                roofSection(left, width, travel, night);
+            }
+
+            function drawObstacle(o, travel) {
+                const x = worldX(o.x, travel);
+                if (x < -100 * unit || x > width + 110 * unit || o.kind === 'gap' || o.dead) {
+                    return;
+                }
+                ctx.save();
+                ctx.translate(x, groundY);
+                ctx.scale(unit, unit);
+                if (o.hit) {
+                    ctx.globalAlpha = 0.35;
+                }
+                const half = o.width / 2;
+                ctx.fillStyle = '#0a0c1390';
+                ctx.beginPath();
+                ctx.ellipse(3, 2, half + 7, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                if (ART.drawObstacle(ctx, o, game, visualTime, saved.low)) {
+                    ctx.restore();
+                    return;
+                }
+
+                if (o.kind === 'vent' || o.kind === 'ac') {
+                    ctx.fillStyle = '#4b4b63';
+                    rounded(ctx, -half, -o.top, o.width, o.top, 4);
+                    ctx.fill();
+                    ctx.fillStyle = '#717088';
+                    ctx.fillRect(-half - 3, -o.top, o.width + 6, 5);
+                    ctx.fillStyle = '#222534';
+                    if (o.kind === 'ac') {
+                        ctx.beginPath();
+                        ctx.arc(0, -20, 13, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.strokeStyle = '#818097';
+                        ctx.lineWidth = 2;
+                        for (let i = 0; i < 3; i++) {
+                            const a = visualTime * 5 + i * Math.PI * 2 / 3;
+                            ctx.beginPath();
+                            ctx.moveTo(0, -20);
+                            ctx.lineTo(Math.cos(a) * 10, -20 + Math.sin(a) * 10);
+                            ctx.stroke();
+                        }
+                    } else {
+                        for (let i = 0; i < 4; i++) {
+                            ctx.fillRect(-half + 6, -o.top + 10 + i * 5, o.width - 12, 2);
+                        }
+                    }
+                    ctx.fillStyle = '#d9b26a';
+                    ctx.fillRect(half - 9, -9, 4, 3);
+                } else if (o.kind === 'tank') {
+                    ctx.fillStyle = '#302e45';
+                    ctx.fillRect(-18, -23, 5, 23);
+                    ctx.fillRect(13, -23, 5, 23);
+                    ctx.fillStyle = '#65516b';
+                    rounded(ctx, -half, -58, o.width, 43, 7);
+                    ctx.fill();
+                    ctx.fillStyle = '#8c7089';
+                    ctx.beginPath();
+                    ctx.ellipse(0, -58, half, 6, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#342c46';
+                    ctx.fillRect(-half, -46, o.width, 3);
+                    ctx.fillRect(-half, -25, o.width, 3);
+                    ctx.fillStyle = '#bc96995a';
+                    ctx.fillRect(-half + 7, -53, 4, 33);
+                } else if (o.kind === 'sign') {
+                    ctx.fillStyle = '#4b405e';
+                    ctx.fillRect(-half + 3, -91, 3, 59);
+                    ctx.fillRect(half - 6, -91, 3, 59);
+                    ctx.fillStyle = '#171125';
+                    rounded(ctx, -half, -79, o.width, 47, 5);
+                    ctx.fill();
+                    ctx.strokeStyle = '#ed55ba';
+                    ctx.lineWidth = 2;
+                    ctx.shadowColor = '#f43f9e';
+                    ctx.shadowBlur = saved.low ? 0 : 13;
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = '#ff87d8';
+                    ctx.font = 'bold 14px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('LOW', 0, -52);
+                    ctx.fillStyle = '#22d3ee';
+                    ctx.fillRect(-20, -43, 40, 2);
+                } else if (o.kind === 'laser') {
+                    ctx.fillStyle = '#3a1b2a';
+                    ctx.fillRect(-half + 2, -103, 3, 70);
+                    ctx.fillRect(half - 5, -103, 3, 70);
+                    ctx.fillStyle = '#170d16';
+                    rounded(ctx, -half, -o.top, o.width, 26, 4);
+                    ctx.fill();
+                    ctx.strokeStyle = '#f43f5e';
+                    ctx.lineWidth = 2;
+                    ctx.shadowColor = '#f43f5e';
+                    ctx.shadowBlur = saved.low ? 0 : 16;
+                    ctx.beginPath();
+                    ctx.moveTo(-half, -o.top + 13);
+                    ctx.lineTo(half, -o.top + 13);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = '#ff9db0';
+                    ctx.font = 'bold 11px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('LASER', 0, -o.top + 8);
+                } else if (o.kind === 'stack') {
+                    ctx.fillStyle = '#4b4b63';
+                    rounded(ctx, -half, -o.top, o.width, 44, 4);
+                    ctx.fill();
+                    ctx.fillStyle = '#5c5c78';
+                    rounded(ctx, -half + 6, -o.top + 46, o.width - 12, 40, 4);
+                    ctx.fill();
+                    ctx.fillStyle = '#717088';
+                    ctx.fillRect(-half - 3, -o.top, o.width + 6, 5);
+                    ctx.fillRect(-half + 3, -o.top + 46, o.width, 4);
+                    ctx.fillStyle = '#222534';
+                    for (let i = 0; i < 3; i++) {
+                        ctx.fillRect(-half + 8, -o.top + 14 + i * 8, o.width - 16, 3);
+                        ctx.fillRect(-half + 13, -o.top + 60 + i * 8, o.width - 26, 3);
+                    }
+                } else if (o.kind === 'critter' || o.kind === 'brute') {
+                    const big = o.kind === 'brute';
+                    const body = big ? 30 : 20;
+                    const bob = Math.sin(visualTime * 6 + o.seed * 9) * (big ? 2 : 3);
+                    ctx.fillStyle = big ? '#5b3a6e' : '#3f5d54';
+                    ctx.beginPath();
+                    ctx.ellipse(0, -body / 2 + bob, body * 0.9, body * 0.62, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = big ? '#7d51a0' : '#5b8a76';
+                    ctx.beginPath();
+                    ctx.arc(body * 0.5, -body * 0.9 + bob, body * 0.38, 0, Math.PI * 2);
+                    ctx.fill();
+                    // eyes
+                    ctx.fillStyle = '#ff5d8f';
+                    ctx.shadowColor = '#ff5d8f';
+                    ctx.shadowBlur = saved.low ? 0 : 10;
+                    ctx.beginPath();
+                    ctx.arc(body * 0.62, -body * 0.95 + bob, 2.6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    // legs
+                    ctx.strokeStyle = big ? '#43294f' : '#2f4a41';
+                    ctx.lineWidth = big ? 5 : 3;
+                    for (let i = -1; i <= 1; i += 2) {
+                        const sw = Math.sin(visualTime * 9 + i * 1.6 + o.seed * 5) * 5;
+                        ctx.beginPath();
+                        ctx.moveTo(i * body * 0.4, -2 + bob);
+                        ctx.lineTo(i * body * 0.4 + sw, 0);
+                        ctx.stroke();
+                    }
+                    // teeth
+                    ctx.fillStyle = '#f6e7c1';
+                    ctx.fillRect(body * 0.45, -body * 0.72 + bob, 3, 4);
+                } else if (o.kind === 'bat') {
+                    const flap = Math.sin(visualTime * 14 + o.seed * 8);
+                    ctx.fillStyle = '#2b2140';
+                    ctx.beginPath();
+                    ctx.ellipse(0, -46, 12, 8, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.moveTo(-6, -48); ctx.lineTo(-26, -48 - flap * 10); ctx.lineTo(-8, -40); ctx.closePath();
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.moveTo(6, -48); ctx.lineTo(26, -48 - flap * 10); ctx.lineTo(8, -40); ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = '#ffd166';
+                    ctx.beginPath(); ctx.arc(-3, -48, 1.8, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(3, -48, 1.8, 0, Math.PI * 2); ctx.fill();
+                } else if (o.kind === 'dish') {
+                    ctx.strokeStyle = '#68637e';
+                    ctx.lineWidth = 5;
+                    ctx.beginPath();
+                    ctx.moveTo(-3, 0);
+                    ctx.lineTo(4, -30);
+                    ctx.stroke();
+                    ctx.fillStyle = '#91849f';
+                    ctx.beginPath();
+                    ctx.ellipse(0, -34, 21, 11, -0.55, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#c4aac4';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -34);
+                    ctx.lineTo(15, -48);
+                    ctx.stroke();
+                    ctx.fillStyle = '#22d3ee';
+                    ctx.fillRect(12, -49, 5, 4);
+                } else if (o.kind === 'drone') {
+                    ctx.strokeStyle = '#7b6d97';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(-22, -58);
+                    ctx.lineTo(22, -58);
+                    ctx.stroke();
+                    ctx.fillStyle = '#40354f';
+                    rounded(ctx, -17, -58, 34, 22, 8);
+                    ctx.fill();
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.shadowColor = '#f43f5e';
+                    ctx.shadowBlur = saved.low ? 0 : 10;
+                    ctx.fillRect(-10, -48, 20, 4);
+                    ctx.shadowBlur = 0;
+                    ctx.strokeStyle = '#a69abb';
+                    ctx.lineWidth = 2;
+                    const rotor = 7 + Math.sin(visualTime * 70) * 3;
+                    [-22, 22].forEach((rx) => {
+                        ctx.beginPath();
+                        ctx.ellipse(rx, -63, rotor, 2, 0, 0, Math.PI * 2);
+                        ctx.stroke();
+                    });
+                } else if (o.kind === 'pigeons') {
+                    for (let i = 0; i < 3; i++) {
+                        const px = -16 + i * 16;
+                        const bob = Math.sin(visualTime * 6 + i) * 1.5;
+                        ctx.fillStyle = i === 1 ? '#8a8197' : '#6e6c84';
+                        ctx.beginPath();
+                        ctx.ellipse(px, -9 + bob, 9, 7, -0.2, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.beginPath();
+                        ctx.arc(px + 5, -18 + bob, 5, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillStyle = '#e5bd77';
+                        ctx.fillRect(px + 8, -18 + bob, 4, 2);
+                        ctx.fillRect(px - 3, -3, 2, 4);
+                        ctx.fillRect(px + 3, -3, 2, 4);
+                    }
+                }
+                ctx.restore();
+            }
+
+            function drawPickup(p, travel) {
+                const x = worldX(p.x, travel);
+                if (p.taken || x < -30 || x > width + 30) {
+                    return;
+                }
+                const y = groundY - p.y * unit;
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.scale(unit, unit);
+                if (ART.NEW_PICKS[p.kind]) {
+                    ART.drawPickup(ctx, p, visualTime);
+                    ctx.restore();
+                    return;
+                }
+                if (p.kind === 'coin') {
+                    const spin = Math.abs(Math.cos(visualTime * 3 + p.x * 0.01));
+                    ctx.scale(0.4 + spin * 0.6, 1);
+                    ctx.fillStyle = '#e8b85e';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 7, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#fff0b2';
+                    ctx.lineWidth = 1.3;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 4.7, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.fillStyle = '#9e6c3a';
+                    ctx.fillRect(-1, -3, 2, 6);
+                } else {
+                    const colors = {
+                        shield: '#22d3ee',
+                        magnet: '#f17bc8',
+                        slow: '#a995ff',
+                        double: '#efc975'
+                    };
+                    ctx.translate(0, Math.sin(visualTime * 4 + p.x) * 3);
+                    ctx.shadowColor = colors[p.kind];
+                    ctx.shadowBlur = saved.low ? 0 : 15;
+                    ctx.fillStyle = '#141522';
+                    ctx.strokeStyle = colors[p.kind];
+                    ctx.lineWidth = 2;
+                    rounded(ctx, -14, -14, 28, 28, 8);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = colors[p.kind];
+                    ctx.font = 'bold 14px system-ui';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const symbol = { shield: 'S', magnet: 'M', slow: 'T', double: '2×' };
+                    ctx.fillText(symbol[p.kind], 0, 0);
+                }
+                ctx.restore();
+            }
+
+            function drawForeground(travel, night) {
+                ctx.strokeStyle = '#080a14b0';
+                ctx.lineWidth = 3 * unit;
+                const cableOffset = (travel * 1.15) % 580;
+                for (let i = -1; i < Math.ceil(width / (580 * unit)) + 2; i++) {
+                    const x = (i * 580 - cableOffset) * unit;
+                    const y = height * 0.89;
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.bezierCurveTo(x + 140 * unit, y + 65 * unit, x + 400 * unit, y + 65 * unit, x + 580 * unit, y);
+                    ctx.stroke();
+                    ctx.fillStyle = '#0b0c17';
+                    ctx.fillRect(x - 3 * unit, y - 12 * unit, 6 * unit, height - y + 12 * unit);
+                }
+
+            }
+
+            function drawGame() {
+                const runningWorld = game && ['play', 'pause', 'over'].includes(state) ? game : null;
+                const travel = runningWorld ? runningWorld.travel : demoTravel;
+                const dist = runningWorld ? runningWorld.dist : 100 + (demoTravel * 0.12 * 26) % 13200;
+                const theme = runningWorld ? runningWorld.cfg.theme : -1;
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.save();
+                const cam = FX.camera(runningWorld, visualTime);
+                if (cam) {
+                    ctx.translate(width / 2 + cam.tx * unit, groundY + cam.ty * unit);
+                    ctx.rotate(cam.rot);
+                    ctx.scale(cam.zoom, cam.zoom);
+                    ctx.translate(-width / 2, -groundY);
+                }
+                if (!reduced()) {
+                    if (punch > 0) {
+                        const zoom = 1 + Math.sin(punch / 0.5 * Math.PI) * 0.018;
+                        ctx.translate(width / 2, groundY);
+                        ctx.scale(zoom, zoom);
+                        ctx.translate(-width / 2, -groundY);
+                    }
+                }
+
+                const night = drawBackground(travel, dist, theme);
+                drawRoofs(runningWorld, travel, night);
+
+                if (runningWorld) {
+                    for (const p of runningWorld.pickups) {
+                        drawPickup(p, travel);
+                    }
+                    for (const o of runningWorld.obstacles) {
+                        drawObstacle(o, travel);
+                    }
+
+                    if (!saved.low) {
+                        for (const trail of trails) {
+                            drawCat(ctx, worldX(trail.x, travel), groundY - trail.y * unit, unit, skins[saved.skin], trail.t, trail.slide, true, trail.life * 0.38, '#ed40a8');
+                        }
+                    }
+
+                    if (H.onDraw && state === 'play') {
+                        H.onDraw({ ctx, game: runningWorld, travel, worldX, groundY, unit, playerX, drawCat, skin: skins[saved.skin], visualTime });
+                    }
+
+                    if (!runningWorld.dead || runningWorld.y > -130) {
+                        const py = groundY - runningWorld.y * unit;
+                        const flicker = runningWorld.invulnerable > 0 && Math.floor(visualTime * 16) % 2 === 0;
+                        ctx.fillStyle = '#00000045';
+                        ctx.beginPath();
+                        ctx.ellipse(playerX, groundY + 2 * unit, (20 - clamp(runningWorld.y / 12, 0, 10)) * unit, 4 * unit, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        if (!flicker) {
+                            if (split > 0 && !saved.low) {
+                                drawCat(ctx, playerX - 5 * unit, py, unit, skins[saved.skin], visualTime, runningWorld.slide > 0, !runningWorld.grounded, 0.45, '#22d3ee');
+                                drawCat(ctx, playerX + 5 * unit, py, unit, skins[saved.skin], visualTime, runningWorld.slide > 0, !runningWorld.grounded, 0.45, '#f43f5e');
+                            }
+                            const sq = FX.squash(runningWorld);
+                            ctx.save();
+                            if (sq) {
+                                ctx.translate(playerX, py);
+                                ctx.scale(sq.sx, sq.sy);
+                                ctx.translate(-playerX, -py);
+                            }
+                            if (runningWorld.ghostMode || runningWorld.blinkT > 0 || runningWorld.prismT > 0) {
+                                ctx.globalAlpha = 0.72;
+                            }
+                            drawCat(ctx, playerX, py, unit, skins[saved.skin], visualTime, runningWorld.slide > 0, !runningWorld.grounded);
+                            ctx.restore();
+                        }
+
+                        if (runningWorld.shield) {
+                            ctx.strokeStyle = '#22d3ee88';
+                            ctx.lineWidth = 1.5 * unit;
+                            ctx.fillStyle = '#22d3ee0b';
+                            ctx.beginPath();
+                            ctx.ellipse(playerX, py - 25 * unit, 33 * unit, 39 * unit, 0, 0, Math.PI * 2);
+                            ctx.fill();
+                            ctx.stroke();
+                        }
+                        if (runningWorld.magnet > 0 && !saved.low) {
+                            ctx.strokeStyle = '#f17bc833';
+                            ctx.lineWidth = unit;
+                            ctx.beginPath();
+                            ctx.arc(playerX, py - 20 * unit, (48 + Math.sin(visualTime * 4) * 6) * unit, 0, Math.PI * 2);
+                            ctx.stroke();
+                        }
+                    }
+                    FX.drawWorld({ ctx, game: runningWorld, travel, worldX, groundY, unit, playerX, visualTime });
+                } else {
+                    drawCat(ctx, width * 0.79, groundY, unit * 1.35, skins[saved.skin], visualTime * 0.7, false, false);
+                    FX.drawWorld({ ctx, game: null, travel, worldX, groundY, unit, playerX, visualTime });
+                }
+
+                if (!saved.low) {
+                    for (const p of particles) {
+                        ctx.globalAlpha = clamp(p.life / 0.3, 0, 1);
+                        ctx.fillStyle = p.color;
+                        ctx.fillRect(worldX(p.x, travel), groundY - p.y * unit, p.size * unit, p.size * unit);
+                    }
+                    ctx.globalAlpha = 1;
+                    if (dist > 1200) {
+                        ctx.strokeStyle = '#d9d0ff20';
+                        ctx.lineWidth = unit;
+                        ctx.beginPath();
+                        for (let i = 0; i < 13; i++) {
+                            const x = ((hash(i + 7) * width - visualTime * 420) % (width + 100) + width + 100) % (width + 100);
+                            const y = height * (0.29 + hash(i + 98) * 0.41);
+                            ctx.moveTo(x, y);
+                            ctx.lineTo(x + 24 + hash(i) * 30, y);
+                        }
+                        ctx.stroke();
+                    }
+                }
+
+                drawForeground(travel, night);
+                const vignette = ctx.createLinearGradient(0, 0, 0, height);
+                vignette.addColorStop(0, '#08090b52');
+                vignette.addColorStop(0.35, '#08090b00');
+                vignette.addColorStop(0.8, '#08090b00');
+                vignette.addColorStop(1, '#08090b85');
+                ctx.fillStyle = vignette;
+                ctx.fillRect(0, 0, width, height);
+                ctx.restore();
+                FX.drawOverlay(canvas, runningWorld, state === 'play', { pal: ART.P, weather: ART.P.weather, low: saved.low, reduced: prefReduced(), hide: document.body.classList.contains('rz-photo') });
+            }
+
+            function drawSkinPreviews() {
+                panel.querySelectorAll('[data-preview]').forEach((preview) => {
+                    const index = Number(preview.dataset.preview);
+                    const w = preview.clientWidth;
+                    const h = preview.clientHeight;
+                    if (preview.width !== Math.round(w * dpr) || preview.height !== Math.round(h * dpr)) {
+                        preview.width = Math.round(w * dpr);
+                        preview.height = Math.round(h * dpr);
+                    }
+                    const g = preview.getContext('2d');
+                    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+                    g.clearRect(0, 0, w, h);
+                    g.fillStyle = skins[index].body + '15';
+                    g.beginPath();
+                    g.ellipse(w * 0.53, h * 0.82, 33, 5, 0, 0, Math.PI * 2);
+                    g.fill();
+                    const scale = Math.min(0.84, h / 68);
+                    drawCat(g, w * 0.54, h - 3 + Math.sin(visualTime * 2 + index) * 1.5, scale, skins[index], visualTime * 0.3 + index);
+                    if (saved.total < skins[index].cost) {
+                        g.fillStyle = '#08090b55';
+                        g.fillRect(0, 0, w, h);
+                    }
+                });
+            }
+
+            canvas.addEventListener('pointerdown', (event) => {
+                if (state !== 'play') {
+                    return;
+                }
+                unlockAudio();
+                pointerOrigin = { x: event.clientX, y: event.clientY, id: event.pointerId };
+                pointerHeld = true;
+                if (!aiEnabled) {
+                    pendingJump = true;
+                }
+                if (canvas.setPointerCapture) {
+                    canvas.setPointerCapture(event.pointerId);
+                }
+            });
+
+            canvas.addEventListener('pointermove', (event) => {
+                if (!pointerOrigin || event.pointerId !== pointerOrigin.id || state !== 'play') {
+                    return;
+                }
+                if (event.clientY - pointerOrigin.y > 34 && Math.abs(event.clientX - pointerOrigin.x) < 100) {
+                    pendingSlide = true;
+                    pendingJump = false;
+                    pointerHeld = false;
+                    if (game && game.y < 55 && game.vy > 0 && !aiEnabled) {
+                        Sim.input(game, OPS.FASTFALL, 0);
+                    }
+                    pointerOrigin = null;
+                }
+            });
+
+            function releasePointer() {
+                pointerHeld = false;
+                pointerOrigin = null;
+            }
+
+            canvas.addEventListener('pointerup', releasePointer);
+            canvas.addEventListener('pointercancel', releasePointer);
+
+            if (inputKit) {
+                inputKit.on('a', () => {
+                    if (state !== 'play') {
+                        const button = menuButtons[menuIndex];
+                        if (button && !button.disabled) {
+                            unlockAudio();
+                            button.click();
+                        }
+                    }
+                });
+            }
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    if (state === 'play') {
+                        pauseGame();
+                    }
+                    if (state === 'trainer') {
+                        trainer.running = false;
+                        refreshTrainerTable();
+                    }
+                }
+            });
+
+            window.addEventListener('pagehide', () => {
+                if (state === 'play') {
+                    pauseGame();
+                }
+            });
+
+            function updateMenuInput(input, dt) {
+                if (!input || state === 'play') {
+                    return;
+                }
+                const move = input.move || { x: 0, y: 0 };
+                const value = Math.abs(move.y) > 0.5 ? move.y : Math.abs(move.x) > 0.5 ? move.x : 0;
+                const direction = Math.sign(value);
+                menuRepeat -= dt;
+                if (direction !== 0 && (direction !== menuDirection || menuRepeat <= 0)) {
+                    if (menuButtons.length) {
+                        menuIndex = (menuIndex + direction + menuButtons.length) % menuButtons.length;
+                        highlightMenu();
+                    }
+                    menuRepeat = direction !== menuDirection ? 0.35 : 0.16;
+                }
+                menuDirection = direction;
+            }
+
+            function updateEffects(dt) {
+                hitStop = Math.max(0, hitStop - dt);
+                shake = Math.max(0, shake - dt);
+                split = Math.max(0, split - dt);
+                punch = Math.max(0, punch - dt);
+                if (toastTime > 0) {
+                    toastTime -= dt;
+                    if (toastTime <= 0) {
+                        $('toast').style.opacity = '0';
+                    }
+                }
+
+                FX.update(dt, state === 'play' && game ? game : null, state === 'play', { reduced: prefReduced(), low: saved.low, weather: ART.P.weather });
+                if (state === 'play') {
+                    for (const p of particles) {
+                        p.life -= dt;
+                        p.x += p.vx * dt;
+                        p.y += p.vy * dt;
+                        p.vy -= 250 * dt;
+                    }
+                    particles = particles.filter((p) => p.life > 0);
+                    for (const trail of trails) {
+                        trail.life -= dt;
+                    }
+                    trails = trails.filter((trail) => trail.life > 0);
+                    if (!saved.low && game && !game.grounded) {
+                        trailClock -= dt;
+                        if (trailClock <= 0) {
+                            trailClock = 0.055;
+                            trails.push({
+                                x: game.travel,
+                                y: game.y,
+                                slide: game.slide > 0,
+                                t: visualTime,
+                                life: 0.28
+                            });
+                        }
+                    }
+                }
+            }
+
+            let previousTime = performance.now();
+            let physicsAccumulator = 0;
+
+            function frame(now) {
+                const dt = clamp((now - previousTime) / 1000, 0, 0.05);
+                previousTime = now;
+                visualTime += dt;
+                const input = inputKit ? inputKit.read() : null;
+
+                if (input && input.pressed && input.pressed.pause) {
+                    if (state === 'play') {
+                        pauseGame();
+                    } else if (state === 'pause') {
+                        resumeGame();
+                    } else if (state === 'trainer' && trainer.population.length && trainer.generation < 30) {
+                        trainer.running = !trainer.running;
+                        refreshTrainerTable();
+                    }
+                }
+
+                updateMenuInput(input, dt);
+                updateEffects(dt);
+                updateAudio(dt);
+                if (H.onFrame) H.onFrame(game, state, dt, now);
+
+                if (state === 'play' && game) {
+                    const moveY = input && input.move ? input.move.y : 0;
+                    const up = moveY < -0.5;
+                    const down = moveY > 0.5;
+                    if (!aiEnabled) {
+                        if ((input && input.pressed && input.pressed.a) || (up && !axisUp)) {
+                            pendingJump = true;
+                        }
+                        if ((input && input.pressed && input.pressed.b) || (down && !axisDown)) {
+                            pendingSlide = true;
+                        }
+                        if (pendingJump) {
+                            triggerJump(game, 0);
+                        }
+                        if (pendingSlide) {
+                            triggerSlide(game);
+                        }
+                    }
+                    axisUp = up;
+                    axisDown = down;
+                    pendingJump = false;
+                    pendingSlide = false;
+
+                    updatePilot(dt);
+                    if (hitStop <= 0 && !game.paused && !game.dead) {
+                        physicsAccumulator += dt;
+                        let steps = 0;
+                        while (physicsAccumulator >= TICK && steps < 8 && !game.dead && !game.paused) {
+                            if (aiEnabled) {
+                                const decision = pilotDecision(game);
+                                applyDecision(game, decision);
+                                if (decision.action !== 'WAIT') {
+                                    pilotInfo = { ...decision, source: pilotSource(decision) };
+                                }
+                                if (game.tick % 6 === 0) {
+                                    Sim.autoSkills(game);
+                                }
+                            }
+                            const held = !aiEnabled && Boolean(pointerHeld || up || (input && input.a));
+                            if (held !== game.held) {
+                                Sim.input(game, held ? OPS.HOLD_ON : OPS.HOLD_OFF, 0);
+                            }
+                            Sim.step(game);
+                            physicsAccumulator -= TICK;
+                            steps++;
+                        }
+                        drainEvents(game);
+                    } else {
+                        physicsAccumulator = 0;
+                        if (game.ev && game.ev.length) {
+                            drainEvents(game);
+                        }
+                    }
+                    if (game.dead) {
+                        physicsAccumulator = 0;
+                        if (game.deadAt == null) {
+                            game.deadAt = visualTime;
+                        }
+                        if (visualTime - game.deadAt > (prefReduced() ? 0.05 : 0.7)) {
+                            endGame();
+                        }
+                    }
+
+                    const milestone = Math.floor(game.dist / 500);
+                    if (milestone > lastMilestone && !game.dead) {
+                        lastMilestone = milestone;
+                        punch = reduced() ? 0 : 0.5;
+                        toast(milestone * 500 + 'm · ' + ART.P.name);
+                    }
+                    hudClock -= dt;
+                    if (hudClock <= 0) {
+                        hudClock = 0.09;
+                        updateHUD();
+                    }
+                } else {
+                    physicsAccumulator = 0;
+                    demoTravel += dt * 50;
+                    axisUp = input && input.move ? input.move.y < -0.5 : false;
+                    axisDown = input && input.move ? input.move.y > 0.5 : false;
+                }
+
+                simulateTrainer(dt);
+                drawGame();
+
+                if (state === 'skins') {
+                    drawSkinPreviews();
+                }
+                if (state === 'char' && H.drawCharPreviews) {
+                    H.drawCharPreviews(visualTime);
+                }
+                if (state === 'trainer') {
+                    drawCurve();
+                }
+
+                requestAnimationFrame(frame);
+            }
+
+            window.__rz2 = {
+                get game() { return game; },
+                get combo() { return game ? game.combo : 0; },
+                get kills() { return game ? (game.kills || 0) : 0; },
+                get ai() { return !!aiEnabled; },
+                get state() { return state; },
+                decide, applyDecision, stepWorld, createWorld, fillWorld, defaultGenome, Sim, RC, FX, ART, drainEvents,
+                get hitStop() { return hitStop; },
+                saved, trainer, skins, clamp,
+                setState(v) { state = v; }, showMenu, startGame, title, pauseGame, resumeGame, toast, sound, persist, drawCat, setupButtons, highlightMenu, panel, screen, hud,
+                get lastMode() { return lastResultMode; },
+                get lastOpts() { return lastResultOpts; },
+                get dims() { return { width, height, unit, groundY, playerX, dpr }; }
+            };
+            title();
+            requestAnimationFrame(frame);
+        })();
+    </script>
+<script src="./rakaza-brain.js?v=16"></script>
+<script src="./rakaza-meta.js?v=16"></script>
+<script src="./rakaza-extras.js?v=16"></script>
+<script src="./rakaza-agent.js?v=16"></script>
+</body>
+</html>

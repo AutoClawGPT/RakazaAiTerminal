@@ -1,0 +1,63 @@
+/* Ride 'Em, Rakaza! v14 — UI additions. Loaded before the engine's own <style>, so selectors that must win use body-level specificity. */
+body button.gold { background: #f5c46c22; border-color: #f5c46c99; color: #ffe2a3; }
+body button.gold:hover, body button.gold.selected { background: #f5c46c44; border-color: #ffe2a3; }
+body .menu-grid button.gold.wide span.cyan { font-weight: 600; letter-spacing: .6px; font-size: 10px; }
+
+/* HUD extras */
+#pause-toggle { margin-left: 0; }
+#ghost-chip { margin-top: 8px; display: inline-block; padding: 5px 9px; border-left: 2px solid #22d3ee; background: #08090bbd; border-radius: 0 8px 8px 0;
+  font-size: 10px; font-weight: 800; letter-spacing: 1px; color: #67e8f9; text-shadow: 0 1px 6px #000; }
+#ghost-chip.behind { border-color: #f43f5e; color: #fda4af; }
+#ghost-chip.ahead { border-color: #34d399; color: #6ee7b7; }
+#ghost-chip.done { border-color: #a78bfa; color: #ddd6fe; }
+
+/* tutorial tip */
+#rz-tip { position: fixed; left: 50%; top: 28%; transform: translateX(-50%); z-index: 57; max-width: min(92vw, 460px); padding: 10px 14px 10px 16px;
+  border-radius: 14px; border: 1px solid #f472b688; background: linear-gradient(180deg, #2a1245ee, #12081fee); color: #fff; font-size: 14px; line-height: 1.35;
+  text-align: center; box-shadow: 0 0 28px #f472b633; display: flex; align-items: center; gap: 12px; pointer-events: none; animation: rzTip .35s ease-out; }
+#rz-tip b { color: #67e8f9; }
+#rz-tip button { pointer-events: auto; min-height: 28px; padding: 4px 9px; font-size: 9px; border-radius: 7px; flex: none; }
+@keyframes rzTip { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* game-over strip */
+.rz-strip { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; justify-content: space-between; margin: 10px 0; padding: 10px 14px;
+  border: 1px solid #ffffff1c; border-radius: 12px; background: #ffffff08; }
+.rz-strip div { display: flex; flex-direction: column; gap: 3px; min-width: 110px; }
+.rz-strip b { font-size: 22px; letter-spacing: -.5px; }
+.rz-rank { font-size: 12px; color: #d8d3e6; flex: 1 1 180px; }
+.rz-rank b { font-size: 14px; color: #ffe2a3; display: inline; }
+.rz-blurb { display: block; font-size: 10px; line-height: 1.35; color: #bdb5d1; margin-top: 4px; font-weight: 500; letter-spacing: 0; }
+
+/* share modal + photo mode */
+#rz-modal { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; padding: 16px; background: #05030ccc; backdrop-filter: blur(6px); }
+.rz-box { width: min(94vw, 760px); max-height: 94vh; overflow: auto; padding: 16px; border-radius: 18px; border: 1px solid #f472b655; background: #150b26f5; box-shadow: 0 0 60px #a855f744; touch-action: pan-y; }
+.rz-box h3 { margin: 0 0 10px; font-size: 12px; letter-spacing: 3px; color: #f9a8d4; }
+.rz-box img { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid #ffffff22; }
+.rz-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.rz-actions a, .rz-actions button { flex: 1 1 140px; display: inline-flex; align-items: center; justify-content: center; text-align: center; text-decoration: none; min-height: 44px; padding: 10px 12px;
+  border-radius: 12px; border: 1px solid #ffffff2a; background: #14151de8; color: #f8f8fc; font: 750 12px/1 inherit; letter-spacing: 1.1px; cursor: pointer; }
+.rz-actions a.primary { background: #f5c46c; color: #171318; border-color: #efd49c; }
+.rz-actions a.gold { background: #f5c46c22; border-color: #f5c46c99; color: #ffe2a3; }
+.rz-note { margin: 10px 2px 0; font-size: 12px; color: #c9c2dd; line-height: 1.4; }
+#rz-photobar { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 2147482000; display: flex; gap: 8px; }
+body.rz-photo #screen, body.rz-photo #hud, body.rz-photo #rmTop, body.rz-photo #rmSkills, body.rz-photo #rmDock, body.rz-photo #rmShow, body.rz-photo #toast,
+body.rz-photo #rz-tip, body.rz-photo #rmEvent, body.rz-photo #rmToast { display: none !important; }
+
+/* ---------- touch layout: skill rail becomes a row above the big buttons, nothing overlaps ---------- */
+@media (pointer: coarse) {
+  body #rmSkills { flex-direction: row; left: 50%; right: auto; transform: translateX(-50%); bottom: calc(132px + env(safe-area-inset-bottom)); gap: 6px; max-width: 96vw; justify-content: center; }
+  body #rmSkills button { width: 62px; padding: 6px 4px; font-size: 9px; }
+  .rz-box { padding: 12px; }
+}
+@media (pointer: coarse) and (orientation: landscape) {
+  /* buttons live in the bottom corners; the rail sits centre-bottom between them */
+  body #rmSkills { bottom: calc(10px + env(safe-area-inset-bottom)); }
+}
+@media (max-width: 520px) {
+  #rz-tip { top: 24%; font-size: 13px; }
+  .rz-strip b { font-size: 19px; }
+}
+@media (prefers-reduced-motion: reduce) { #rz-tip { animation: none; } }
+
+/* keep the run HUD clear of the meta top bar (it wraps to 2 rows on phones) */
+body #hud { top: max(var(--safe-top), calc(var(--rz-top, 0px) + 8px)); }

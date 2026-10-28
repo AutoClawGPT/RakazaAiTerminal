@@ -54,6 +54,8 @@ export const PRIMARY_NAV: { href: string; label: string }[] = [
   { href: "/#playground", label: "Playground" },
   { href: "/explore", label: "Explore" },
   { href: "/community", label: "Community" },
+  { href: "/games", label: "Games" },
+  { href: "/leaderboard", label: "Leaderboard" },
   { href: "/#checker", label: "Risk check your coins on pump.fun" },
   { href: "/diary", label: "Diary" },
   { href: "/memes", label: "Memes" },

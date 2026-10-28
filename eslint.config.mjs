@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // the game is our own static browser code, served as-is; the vendored copies are byte-identical to it
+    "public/games/**",
+    "src/lib/games/ride-em/vendor/**",
   ]),
 ]);
 
