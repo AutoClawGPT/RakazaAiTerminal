@@ -67,7 +67,7 @@ async function call(method: string, path: string, key?: string, body?: unknown, 
     const fakeDns = LOCAL && RB ? (await import("node:dns/promises").then((d) => d.lookup(new URL(RB).hostname, { all: true }).catch(() => []))).some((a) => a.address.startsWith("198.18.")) : false;
     if (RB && RK && !fakeDns) {
       const ok = await call("POST", `${G}/byo/test`, K, { base: RB, model: process.env.RIVER_MODEL_PERSONA || "deepseek-ai/DeepSeek-V4.1-Flash" }, { "x-byo-key": RK });
-      check("test PASS against a real OpenAI-compatible endpoint", ok.json.pass === true && /^PASS · HTTP 200/.test(ok.json.summary) && typeof ok.json.ms === "number", ok.text.slice(0, 200).replace(RK, "[key]"));
+      check("test PASS against a real OpenAI-compatible endpoint", ok.json.pass === true && /^PASS · (\d+ models listed · )?HTTP 200/.test(ok.json.summary) && typeof ok.json.ms === "number", ok.text.slice(0, 200).replace(RK, "[key]"));
       check("the key is never echoed", !ok.text.includes(RK));
       const wrong = await call("POST", `${G}/byo/test`, K, { base: RB, model: process.env.RIVER_MODEL_PERSONA || "deepseek-ai/DeepSeek-V4.1-Flash" }, { "x-byo-key": "rk_wrong_key_for_test_000000" });
       check("test FAIL on a wrong key says so", wrong.json.pass === false && /key/i.test(String(wrong.json.hint ?? wrong.json.error)) && wrong.json.status >= 400, wrong.text.slice(0, 200));
