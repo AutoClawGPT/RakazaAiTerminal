@@ -933,7 +933,10 @@
                 const b = brain();
                 const genes = championMode && saved.champion ? saved.champion : defaultGenome;
                 const override = !championMode && b && b.override ? b.override(w) : null;
-                return decide(w, genes, !championMode, override);
+                const d = decide(w, genes, !championMode, override);
+                // AI pilot stages 1-5 (stage 6 = the expert above, unchanged). Your own trained champion or model brain is never handicapped.
+                const st = window.RakazaStages;
+                return st && !championMode && !override ? st.shape(w, d, st.stage()) : d;
             }
 
             function pilotSource(decision) {
@@ -944,7 +947,7 @@
                 if (decision && decision.src === 'river' && b && b.srcLabel) {
                     return b.srcLabel();
                 }
-                return 'built-in pilot';
+                return window.RakazaStages && !(decision && decision.src) ? 'built-in pilot · stage ' + window.RakazaStages.stage() : 'built-in pilot';
             }
 
             function toast(text) {
@@ -2597,6 +2600,7 @@
             requestAnimationFrame(frame);
         })();
     </script>
+<script src="./rakaza-stages.js?v=1"></script>
 <script src="./rakaza-brain.js?v=16"></script>
 <script src="./rakaza-meta.js?v=16"></script>
 <script src="./rakaza-extras.js?v=16"></script>

@@ -197,6 +197,8 @@ export function ensureSchema(): Promise<void> {
       updated_at timestamptz NOT NULL DEFAULT now()
     )`;
     await q`ALTER TABLE agent_game_config ADD COLUMN IF NOT EXISTS byo_protocol text NOT NULL DEFAULT 'openai'`;
+    await q`ALTER TABLE agent_game_config ADD COLUMN IF NOT EXISTS pilot_stage int NOT NULL DEFAULT 1`;
+    await q`ALTER TABLE agent_game_config ADD COLUMN IF NOT EXISTS expert_unlocked boolean NOT NULL DEFAULT false`;
     await q`CREATE TABLE IF NOT EXISTS agent_game_state (
       agent_id text NOT NULL REFERENCES agents(id),
       game text NOT NULL,

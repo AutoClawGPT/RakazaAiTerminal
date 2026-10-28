@@ -12,7 +12,7 @@ const G = "/api/public/games/ride-em";
 const LS_BRAIN = "rz_brain_v15", SS_KEY = "rz_brain_key_tab";
 type Brain = "builtin" | "river" | "byo";
 type Protocol = "openai" | "anthropic";
-interface Setup { brain: Brain; byoBase: string; byoModel: string; byoProtocol?: Protocol; byoTimeout: number; remind: boolean; remindHour: number }
+interface Setup { brain: Brain; byoBase: string; byoModel: string; byoProtocol?: Protocol; byoTimeout: number; pilotStage?: number; pilotMax?: number; remind: boolean; remindHour: number }
 interface Progress { runs: number; best: number; bestMode: string | null; totalDistance: number; totalCoins: number; last: string | null; streak: number; rank: { h24: number | null; all: number | null }; level: number; xp: number; nextAt: number; byMode: { mode: string; runs: number; best: number }[] }
 interface Plays { limit: number; used: number; left: number; resetsAt: string }
 interface MeData { agent: { id: string; handle: string; name: string; avatar: string }; plays: Plays; progress: Progress; setup: Setup }
@@ -74,6 +74,7 @@ function GamesPanel() {
     <section id="games" className="grid min-w-0 gap-5" data-testid="agent-games" aria-labelledby="games-h">
       <Overview d={d} />
       <Reminders d={d} onSaved={load} />
+      <PilotStages d={d} onSaved={load} />
       <BrainPanel d={d} onSaved={load} />
       <PromptCard d={d} />
       <div className="rk-card grid gap-2" data-testid="switch-agent">
@@ -119,6 +120,46 @@ function Overview({ d }: { d: MeData }) {
         </dl>
         {g.byMode.length ? <p className="text-xs opacity-70">{g.byMode.map((m) => `${m.mode.toUpperCase()} ${m.best.toLocaleString()} (${m.runs})`).join(" · ")}</p> : <p className="text-xs opacity-70">No verified run yet. Your first one shows up here and on the live board.</p>}
       </div>
+    </div>
+  );
+}
+
+const STAGES = [
+  { n: 1, name: "Beginner", note: "Often loses focus: it can hit walls and lose a run." },
+  { n: 2, name: "Apprentice", note: "Misses a lot less." },
+  { n: 3, name: "Rider", note: "Solid, but still slips." },
+  { n: 4, name: "Veteran", note: "Rarely slips." },
+  { n: 5, name: "Master", note: "Almost never slips." },
+  { n: 6, name: "Expert", note: "The fully trained pilot that never loses." },
+];
+
+/** AI pilot level of the in-game AI PILOT. Same stages and the same score rules for everybody (the server replay is the only score). Stage 6 is locked: only the owner can unlock it. */
+function PilotStages({ d, onSaved }: { d: MeData; onSaved: () => void }) {
+  const cur = d.setup.pilotStage ?? 1, max = d.setup.pilotMax === 6 ? 6 : 5;
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const pick = async (n: number) => {
+    setBusy(true); setMsg("");
+    const r = await fetch(`${G}/config`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pilotStage: n }) }).catch(() => null);
+    const j = r ? await r.json().catch(() => ({})) : {};
+    setBusy(false);
+    if (r?.ok) { setMsg(`AI pilot is now stage ${n} (${STAGES[n - 1].name}).`); onSaved(); } else setMsg((j as { message?: string }).message ?? "Could not save.");
+  };
+  return (
+    <div className="rk-card grid gap-3" data-testid="pilot-stages">
+      <div><b className="text-sm">AI pilot level</b><p className="mt-1 text-xs opacity-80">The built-in pilot you start with the AI PILOT button. Higher stages slip less. Everyone plays by the same rules and the score always comes from the server replay. Upgrades will come with the Rakaza token later; nothing is bought today.</p></div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {STAGES.map((s) => {
+          const locked = s.n > max, on = s.n === cur;
+          return (
+            <button key={s.n} type="button" data-testid={`pilot-stage-${s.n}`} aria-pressed={on} disabled={busy || locked} onClick={() => void pick(s.n)} className={`rounded-2xl border p-3 text-left text-sm ${on ? "border-white bg-white/10" : "border-white/20"} ${locked ? "opacity-60" : ""}`}>
+              <b>Stage {s.n} · {s.name}</b>{on ? <span className="ml-2 text-xs">current</span> : null}{locked ? <span className="ml-2 text-xs" data-testid="pilot-locked">🔒 Locked</span> : null}
+              <span className="mt-1 block text-xs opacity-80">{locked ? "Locked. Only the owner can unlock this stage." : s.note}</span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-xs opacity-80" role="status" data-testid="pilot-stage-msg">{msg}</p>
     </div>
   );
 }

@@ -13,15 +13,18 @@ const q = () => { const c = sql(); if (!c) throw new Error("DATABASE_URL is not 
 async function rows<T>(text: string, params: unknown[] = []): Promise<T[]> { return (await q().query(text, params)) as T[]; }
 const fail = (status: number, error: string, message: string, extra: Record<string, unknown> = {}): R => ({ status, body: { ok: false, error, message, ...extra } });
 
-export interface Setup { brain: "builtin" | "river" | "byo"; byoBase: string; byoModel: string; byoTimeout: number; byoProtocol: Protocol; remind: boolean; remindHour: number }
-const DEFAULTS: Setup = { brain: "builtin", byoBase: "", byoModel: "", byoTimeout: 4000, byoProtocol: "openai", remind: false, remindHour: 18 };
+export interface Setup { brain: "builtin" | "river" | "byo"; byoBase: string; byoModel: string; byoTimeout: number; byoProtocol: Protocol; pilotStage: number; pilotMax: 5 | 6; remind: boolean; remindHour: number }
+const DEFAULTS: Setup = { brain: "builtin", byoBase: "", byoModel: "", byoTimeout: 4000, byoProtocol: "openai", pilotStage: 1, pilotMax: 5, remind: false, remindHour: 18 };
+
+/** AI pilot stages 1-6. Stage 6 (the expert) is locked: only the owner can unlock it per agent (dash action), it is never settable from here. */
+export function pilotStageOf(n: unknown, unlocked: boolean): number { const v = Math.round(Number(n)); return Number.isFinite(v) ? Math.max(1, Math.min(unlocked ? 6 : 5, v)) : 1; }
 
 export async function getSetup(agentId: string): Promise<Setup> {
   await ensureSchema();
-  const r = await rows<{ brain_mode: string; byo_base: string | null; byo_model: string | null; byo_timeout: number; byo_protocol: string | null; remind: boolean; remind_hour: number }>(`SELECT brain_mode, byo_base, byo_model, byo_timeout, byo_protocol, remind, remind_hour FROM agent_game_config WHERE agent_id = $1`, [agentId]);
+  const r = await rows<{ brain_mode: string; byo_base: string | null; byo_model: string | null; byo_timeout: number; byo_protocol: string | null; pilot_stage: number; expert_unlocked: boolean; remind: boolean; remind_hour: number }>(`SELECT brain_mode, byo_base, byo_model, byo_timeout, byo_protocol, pilot_stage, expert_unlocked, remind, remind_hour FROM agent_game_config WHERE agent_id = $1`, [agentId]);
   const x = r[0];
   if (!x) return { ...DEFAULTS };
-  return { brain: x.brain_mode === "river" || x.brain_mode === "byo" ? x.brain_mode : "builtin", byoBase: x.byo_base ?? "", byoModel: x.byo_model ?? "", byoTimeout: x.byo_timeout, byoProtocol: cleanProtocol(x.byo_protocol), remind: x.remind, remindHour: x.remind_hour };
+  return { brain: x.brain_mode === "river" || x.brain_mode === "byo" ? x.brain_mode : "builtin", byoBase: x.byo_base ?? "", byoModel: x.byo_model ?? "", byoTimeout: x.byo_timeout, byoProtocol: cleanProtocol(x.byo_protocol), pilotMax: x.expert_unlocked ? 6 : 5, pilotStage: pilotStageOf(x.pilot_stage, x.expert_unlocked), remind: x.remind, remindHour: x.remind_hour };
 }
 
 export async function saveSetup(agent: AgentRow, b: Record<string, unknown>): Promise<R> {
@@ -35,13 +38,19 @@ export async function saveSetup(agent: AgentRow, b: Record<string, unknown>): Pr
   if (b.byoProtocol !== undefined) next.byoProtocol = cleanProtocol(b.byoProtocol);
   if (b.byoModel !== undefined) next.byoModel = cleanModelId(b.byoModel);
   if (b.byoTimeout !== undefined) { const n = Number(b.byoTimeout); if (!Number.isFinite(n)) return fail(400, "bad_timeout", "byoTimeout must be a number of milliseconds."); next.byoTimeout = Math.max(800, Math.min(15000, Math.round(n))); }
+  if (b.pilotStage !== undefined) {
+    const n = Number(b.pilotStage);
+    if (!Number.isInteger(n) || n < 1 || n > 6) return fail(400, "bad_stage", "pilotStage is a whole number from 1 to 6.");
+    if (n > cur.pilotMax) return fail(403, "stage_locked", "Stage 6 is locked. It has to be unlocked by the owner.");
+    next.pilotStage = n;
+  }
   if (b.remind !== undefined) next.remind = b.remind === true;
   if (b.remindHour !== undefined) { const n = Number(b.remindHour); if (!Number.isInteger(n) || n < 0 || n > 23) return fail(400, "bad_hour", "remindHour is an hour 0-23 (UTC)."); next.remindHour = n; }
   if (next.brain === "byo" && (!next.byoBase || !next.byoModel)) return fail(400, "byo_incomplete", "Bring-your-own needs a base URL and a model ID.");
   await ensureSchema();
-  await rows(`INSERT INTO agent_game_config (agent_id, brain_mode, byo_base, byo_model, byo_timeout, byo_protocol, remind, remind_hour, updated_at) VALUES ($1,$2,$3,$4,$5,$8,$6,$7, now())
-    ON CONFLICT (agent_id) DO UPDATE SET brain_mode = $2, byo_base = $3, byo_model = $4, byo_timeout = $5, byo_protocol = $8, remind = $6, remind_hour = $7, updated_at = now()`,
-    [agent.id, next.brain, next.byoBase || null, next.byoModel || null, next.byoTimeout, next.remind, next.remindHour, next.byoProtocol]);
+  await rows(`INSERT INTO agent_game_config (agent_id, brain_mode, byo_base, byo_model, byo_timeout, byo_protocol, pilot_stage, remind, remind_hour, updated_at) VALUES ($1,$2,$3,$4,$5,$8,$9,$6,$7, now())
+    ON CONFLICT (agent_id) DO UPDATE SET brain_mode = $2, byo_base = $3, byo_model = $4, byo_timeout = $5, byo_protocol = $8, pilot_stage = $9, remind = $6, remind_hour = $7, updated_at = now()`,
+    [agent.id, next.brain, next.byoBase || null, next.byoModel || null, next.byoTimeout, next.remind, next.remindHour, next.byoProtocol, next.pilotStage]);
   return { status: 200, body: { ok: true, setup: next } };
 }
 
