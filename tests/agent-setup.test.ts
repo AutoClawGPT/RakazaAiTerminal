@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { byoChat, byoDetect, byoTest, candidates, curlOf, isPrivateIp, parseBase, protocolFromUrl } from "../src/lib/games/ride-em/byo";
+import { byoChat, byoDetect, sseToJson, byoTest, candidates, curlOf, isPrivateIp, parseBase, protocolFromUrl } from "../src/lib/games/ride-em/byo";
 import { trainingPrompt } from "../src/lib/games/ride-em/training-prompt";
 
 // Bring-your-own-model base URL rules (SSRF-safe): https only, no credentials, no query, no private hosts.
@@ -29,6 +29,9 @@ assert.equal(protocolFromUrl("https://x.example/v1"), null);
 assert.ok(curlOf("https://tokenplus.net", "m").includes("https://tokenplus.net/v1/chat/completions"));
 assert.ok(curlOf("https://tokenplus.net/v1/messages", "m", "anthropic").includes("https://tokenplus.net/v1/messages"));
 
+const sse = 'data: {"model":"gpt-4o-mini","choices":[{"delta":{"role":"assistant","content":""}}]}\n\ndata: {"choices":[{"delta":{"content":"{\\"decisions\\":"}}]}\n\ndata: {"choices":[{"delta":{"content":"[]}"}}]}\n\ndata: [DONE]\n';
+assert.equal((JSON.parse(sseToJson(sse)) as { choices: { message: { content: string } }[] }).choices[0].message.content, '{"decisions":[]}');
+assert.equal(sseToJson('{"a":1}'), '{"a":1}');
 // A mocked provider that behaves like TokenPlus: the bare host serves a web page, /v1 is the API, an unknown model is a 503 with a message.
 const realFetch = globalThis.fetch;
 const seen: string[] = [];

@@ -227,7 +227,7 @@ function BrainPanel({ d, onSaved }: { d: MeData; onSaved: () => void }) {
     const res: TestRes = r.ok ? j : { pass: false, summary: `FAIL · ${j.message ?? "request failed"}`, curl: "" };
     setTest(res);
     if (res.models?.length) setDet({ ok: true, models: res.models, operator: res.operator, message: `${res.models.length} models found.` });
-    if (res.pass && res.base) { setBase(res.base); setTested({ base: res.base, model, protocol: proto }); }
+    if (res.pass && res.base) { setBase(res.base); setTested({ base: res.base, model, protocol: proto }); if (res.ms) setTimeoutMs((t) => Math.max(t, Math.min(15000, Math.ceil((res.ms ?? 0) * 3 / 200) * 200))); }
     setTesting(false);
   }
   async function save() {
@@ -302,6 +302,7 @@ function BrainPanel({ d, onSaved }: { d: MeData; onSaved: () => void }) {
           <div className="grid gap-2" data-testid="byo-result" data-pass={test.pass} role="status">
             <p className={`rounded-xl border p-3 text-sm font-bold [overflow-wrap:anywhere] ${test.pass ? "border-[var(--rk-mint)] text-[var(--rk-mint)]" : "border-red-400 text-red-400"}`}>{test.summary}</p>
             {test.hint ? <p className="text-xs opacity-80">{test.hint}</p> : null}
+            {test.pass ? <p className="text-xs opacity-80" data-testid="byo-speed-note">In the game your model answers every second or so: pick a fast model (a quick “flash”/“mini”/“haiku” one). A reply slower than the timeout above lets the built-in pilot fly that moment, so a run never stalls.</p> : null}
             {test.curl ? (<>
               <p className="text-xs opacity-70">The same test by hand (replace $API_KEY):</p>
               <pre className="max-w-full overflow-x-auto rounded-xl bg-black/40 p-3 text-xs" data-testid="byo-curl">{test.curl}</pre>

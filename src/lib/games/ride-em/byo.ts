@@ -112,6 +112,18 @@ const detailOf = (raw: string, key: string): string => {
 };
 
 /** One real chat call from our server. OpenAI style (POST {base}/chat/completions) or Anthropic style (POST {base}/messages). The base may be given with or without /v1. */
+/** Some gateways answer with a server-sent-event stream even when `stream:false` is asked for ("data: {chunk}" lines). Fold such a body into one chat.completion JSON; anything else is returned unchanged. */
+export function sseToJson(raw: string): string {
+  const t = raw.trimStart();
+  if (!t.startsWith("data:")) return raw;
+  let text = "", model = "";
+  for (const line of t.split(/\r?\n/)) {
+    const m = /^data:\s*(.*)$/.exec(line); if (!m || m[1] === "[DONE]") continue;
+    try { const c = JSON.parse(m[1]) as { model?: unknown; choices?: { delta?: { content?: unknown }; message?: { content?: unknown } }[] }; if (typeof c.model === "string") model = c.model; const d = c.choices?.[0]?.delta?.content ?? c.choices?.[0]?.message?.content; if (typeof d === "string") text += d; } catch { /* partial chunk */ }
+  }
+  return JSON.stringify({ model, object: "chat.completion", choices: [{ message: { role: "assistant", content: text } }] });
+}
+
 export async function byoChat(o: { base: string; model: string; key: string; messages: { role: string; content: string }[]; maxTokens?: number; temperature?: number; timeoutMs?: number; protocol?: Protocol }): Promise<ByoCall> {
   const proto = o.protocol ?? protocolFromUrl(o.base) ?? "openai";
   const b = await checkBase(o.base);
@@ -127,7 +139,7 @@ export async function byoChat(o: { base: string; model: string; key: string; mes
       const msgs = o.messages.filter((m) => m.role !== "system");
       const payload = proto === "anthropic"
         ? { model, max_tokens: o.maxTokens ?? 160, temperature: o.temperature ?? 0, ...(sys ? { system: sys } : {}), messages: msgs }
-        : { model, messages: o.messages, max_tokens: o.maxTokens ?? 160, temperature: o.temperature ?? 0 };
+        : { model, messages: o.messages, max_tokens: o.maxTokens ?? 160, temperature: o.temperature ?? 0, stream: false };
       const res = await fetch(`${base}/${proto === "anthropic" ? "messages" : "chat/completions"}`, {
         method: "POST", redirect: "manual", cache: "no-store",
         headers: { "content-type": "application/json", ...authHeaders(o.key, proto) },
@@ -141,7 +153,7 @@ export async function byoChat(o: { base: string; model: string; key: string; mes
       if (res.status === 404 || res.status === 405 || (res.ok && looksHtml(raw))) { last = { ok: false, pass: false, ...common, error: looksHtml(raw) ? `HTTP ${res.status}: ${base} answered with a web page, not an API. The base URL probably needs /v1.` : `HTTP ${res.status}${detailOf(raw, o.key) ? ": " + detailOf(raw, o.key) : ""}`, hint: explain(res.status) }; continue; }
       if (!res.ok) { const d = detailOf(raw, o.key); return { ok: false, pass: false, ...common, error: `HTTP ${res.status}${d ? ": " + d : ""}`, hint: explain(res.status) }; }
       let j: { choices?: { message?: { content?: unknown } }[]; content?: { type?: string; text?: unknown }[]; model?: unknown };
-      try { j = JSON.parse(raw); } catch { return { ok: false, pass: false, ...common, error: "The endpoint answered, but not with JSON. Is this an OpenAI-compatible /chat/completions or Anthropic /messages endpoint?" }; }
+      try { j = JSON.parse(sseToJson(raw)); } catch { return { ok: false, pass: false, ...common, error: "The endpoint answered, but not with JSON. Is this an OpenAI-compatible /chat/completions or Anthropic /messages endpoint?" }; }
       const content = proto === "anthropic" ? (Array.isArray(j.content) ? j.content.filter((c) => c?.type === "text" || typeof c?.text === "string").map((c) => String(c.text ?? "")).join("") : undefined) : j.choices?.[0]?.message?.content;
       if (typeof content !== "string") return { ok: false, pass: false, ...common, error: `Answered 200, but the reply has no ${proto === "anthropic" ? "content[].text" : "choices[0].message.content"}.` };
       return { ok: true, pass: true, ...common, text: scrub(content, o.key).slice(0, 4000), model: typeof j.model === "string" ? j.model.slice(0, 120) : model };

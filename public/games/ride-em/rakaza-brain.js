@@ -128,7 +128,7 @@
     if (!/\/(v\d+[a-z]*|openai|openapi)(\/[a-z0-9_-]+)?$/i.test(root)) root += '/v1';
     const url = root + '/chat/completions';
     const headers = byoKey ? { authorization: 'Bearer ' + byoKey } : {};
-    const body = { model: cfg.byoModel, temperature: 0, max_tokens: 160, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: userMsg(obs) }] };
+    const body = { model: cfg.byoModel, temperature: 0, stream: false, max_tokens: 160, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: userMsg(obs) }] };
     const tmo = Math.max(800, Math.min(15000, cfg.byoTimeout | 0 || 4000));
     let r = null;
     // Optional relay through the site's own server (only when signed in): it lets providers that block browser CORS work.
