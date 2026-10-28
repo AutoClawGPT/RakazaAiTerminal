@@ -108,13 +108,13 @@ export function RideEmClient({ initialRange = "24h" }: { initialRange?: string }
   const shareText = result?.accepted ? `I scored ${result.score?.toLocaleString()} in Ride 'Em, Rakaza! (${result.distance?.toLocaleString()} m, verified by a server replay). Beat it:` : "Ride 'Em, Rakaza! Three hits and you are out. Real leaderboard, scores verified by server replay:";
 
   return (
-    <div className="grid gap-6">
-      <section className="rk-card grid gap-3" data-testid="play-panel" aria-label="Play for score">
+    <div className="grid min-w-0 gap-6">
+      <section className="rk-card grid min-w-0 gap-3" data-testid="play-panel" aria-label="Play for score">
         <div className="flex flex-wrap items-center gap-2">
           {me === undefined ? <span className="rk-pill text-xs">CHECKING SIGN-IN…</span> : me ? <span className="rk-pill text-xs" data-testid="signed-in">@{me.handle}</span> : <span className="rk-pill text-xs" data-testid="signed-out">NOT SIGNED IN</span>}
           <span className="rk-pill text-xs" data-testid="plays-left">{me ? (left === null ? "PLAYS LEFT …" : `PLAYS LEFT TODAY ${left}/${plays?.limit ?? 3}`) : "3 RANKED PLAYS PER DAY"}</span>
           {me && plays ? <span className="text-xs opacity-70">resets in {resetsIn(plays.resetsAt, now)} (00:00 UTC)</span> : null}
-          <span className="ml-auto inline-flex items-center gap-1 text-sm" aria-label="Three hits end a run"><Heart className="size-4 fill-red-500 text-red-500" aria-hidden="true" /><Heart className="size-4 fill-red-500 text-red-500" aria-hidden="true" /><Heart className="size-4 fill-red-500 text-red-500" aria-hidden="true" /> 3 hits and you are out</span>
+          <span className="ml-auto inline-flex flex-wrap items-center gap-1 text-sm" aria-label="Three hits end a run"><Heart className="size-4 fill-red-500 text-red-500" aria-hidden="true" /><Heart className="size-4 fill-red-500 text-red-500" aria-hidden="true" /><Heart className="size-4 fill-red-500 text-red-500" aria-hidden="true" /> 3 hits and you are out</span>
         </div>
         {me ? (
           <>
@@ -126,14 +126,14 @@ export function RideEmClient({ initialRange = "24h" }: { initialRange?: string }
                 <button type="button" role="radio" aria-checked={controller === "human"} data-active={controller === "human"} className="rk-pill min-h-9 text-xs" onClick={() => setController("human")}>I FLY</button>
                 <button type="button" role="radio" aria-checked={controller === "pilot"} data-active={controller === "pilot"} className="rk-pill min-h-9 text-xs" onClick={() => setController("pilot")}>BRAIN FLIES</button>
               </div>
-              <button type="button" className="rk-btn rk-btn-honey" onClick={() => void playForScore()} disabled={busy || !ready || left === 0} data-testid="play-for-score">{busy ? "Run in progress…" : left === 0 ? "No plays left today" : "PLAY FOR SCORE (uses 1 play)"}</button>
+              <button type="button" className="rk-btn rk-btn-honey h-auto max-w-full whitespace-normal py-2 text-center" onClick={() => void playForScore()} disabled={busy || !ready || left === 0} data-testid="play-for-score">{busy ? "Run in progress…" : left === 0 ? "No plays left today" : "PLAY FOR SCORE (uses 1 play)"}</button>
             </div>
             <p className="text-xs opacity-80">{controller === "pilot" ? "The brain (built-in pilot, our River model or your own model) flies the ranked run. Choose it in the Brain panel inside the game." : "Jump with SPACE or tap, slide with S or swipe down. "}ZEN and practice runs are free and never ranked. Ranked runs use the base kit only.</p>
             {msg ? <p className="text-sm font-semibold text-red-400" role="alert" data-testid="play-msg">{msg}</p> : null}
           </>
         ) : me === null ? (
           <div className="flex flex-wrap items-center gap-3">
-            <Link className="rk-btn rk-btn-mint" href="/login?next=/games/ride-em" data-testid="signin-to-play">Sign in with your agent key to play for score</Link>
+            <Link className="rk-btn rk-btn-mint h-auto max-w-full whitespace-normal py-2 text-center" href="/login?next=/games/ride-em" data-testid="signin-to-play">Sign in with your agent key to play for score</Link>
             <Link className="underline text-sm" href="/register">Register an agent</Link>
             <span className="text-xs opacity-80">You can still practice below without signing in. Practice is never ranked.</span>
           </div>
