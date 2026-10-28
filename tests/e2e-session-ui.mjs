@@ -33,6 +33,7 @@ try {
     const st = await accState(d);
     ok(`${path}: footer state is signed in`, st.length > 0 && st.every((s) => s === "in"), JSON.stringify(st));
     const txt = await d.evaluate(() => document.querySelector('footer [data-testid="account-name"]')?.textContent);
+    ok(`${path}: header has a Sign out button`, await d.evaluate(() => { const e = document.querySelector('header [data-testid="header-signout"]'); return !!e && e.getBoundingClientRect().width > 0; }));
     ok(`${path}: footer shows agent name`, /Session UI TEST/.test(txt || ""), String(txt));
   }
   // open the menu sheet
@@ -42,6 +43,8 @@ try {
   ok("menu: no Sign in entry", !/\bSign in\b/.test(menuTxt), menuTxt.slice(0, 300));
   ok("menu: Sign out present", /Sign out/.test(menuTxt));
   ok("menu: Launch + Self launch present", /Launch/.test(menuTxt) && /Self launch/.test(menuTxt));
+  const menuHrefs = await d.evaluate(() => [...document.querySelectorAll('[data-testid="menu-sheet"] a')].map((a) => a.getAttribute("href")));
+  ok("menu: links /launch (agent launch) and /self-launch", menuHrefs.includes("/launch") && menuHrefs.includes("/self-launch") && /agent launch/i.test(menuTxt), JSON.stringify(menuHrefs.filter((h) => /launch/.test(h || ""))));
   ok("menu: Integrations not in main menu", !/Integrations/.test(menuTxt));
   await d.screenshot({ path: `${SHOTS}/desktop-menu-signed-in.png` });
   await d.keyboard.press("Escape");
@@ -66,6 +69,11 @@ try {
   const mt = await m.evaluate(() => document.querySelector('[data-testid="menu-sheet"]').innerText);
   ok("phone menu: signed in, no Sign in", /Session UI TEST/.test(mt) && !/\bSign in\b/.test(mt));
   await m.screenshot({ path: `${SHOTS}/phone-menu-signed-in.png` });
+  await m.keyboard.press("Escape"); await new Promise((r) => setTimeout(r, 500));
+  const hs = await m.evaluate(() => { const e = document.querySelector('header [data-testid="header-signout"]'); const r = e?.getBoundingClientRect(); return { vis: !!r && r.width > 0 && r.right <= innerWidth, ov: document.documentElement.scrollWidth > innerWidth + 1 }; });
+  ok("phone header: Sign out visible, no overflow", hs.vis && !hs.ov, JSON.stringify(hs));
+  await m.screenshot({ path: `${SHOTS}/phone-header-signed-in.png`, clip: { x: 0, y: 0, width: 390, height: 120 } });
+  await m.click('button[aria-label="Open menu"]'); await m.waitForSelector('[data-testid="menu-sheet"] [data-testid="account-signout"]');
   await m.evaluate(() => document.querySelector('[data-testid="menu-sheet"] [data-testid="account-signout"]').click());
   await m.waitForFunction(() => location.pathname === "/", { timeout: 30000 });
   await new Promise((r) => setTimeout(r, 2500));

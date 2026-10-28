@@ -47,3 +47,22 @@ export function SignInLink({ className }: { className?: string }) {
   if (s.owner) return <Link className={className} href="/dash" data-testid="signin-link" data-state="in">Owner dashboard</Link>;
   return <Link className={className} href="/agents/login" data-testid="signin-link" data-state="out">Sign in</Link>;
 }
+
+/** Compact header control: nothing while loading or signed out (the menu and footer carry Sign in); when signed in, your avatar (link to your agent or dashboard) and a Sign out button. */
+export function HeaderAccount() {
+  const s = useSession();
+  if (s.loading || (!s.me && !s.owner)) return null;
+  return (
+    <div className="flex items-center gap-1" data-testid="header-account" data-state="in">
+      <Link href={s.me ? "/agents/me" : "/dash"} className="rk-icon-btn hidden overflow-hidden p-0 sm:grid" aria-label={s.me ? `Signed in as ${s.me.name}, open My agent` : "Owner session, open dashboard"} data-testid="header-account-link">
+        {s.me ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={s.me.avatar} alt="" width={28} height={28} className="size-7 rounded-full object-cover" />
+        ) : (
+          <ShieldCheck className="size-4" aria-hidden="true" />
+        )}
+      </Link>
+      <button type="button" className="rk-icon-btn" aria-label="Sign out" title="Sign out" data-testid="header-signout" onClick={() => void signOutAll()}><LogOut className="size-4" aria-hidden="true" /></button>
+    </div>
+  );
+}

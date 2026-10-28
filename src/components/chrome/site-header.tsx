@@ -4,6 +4,7 @@ import { LogoPill } from "@/components/brand/logo";
 import { PRIMARY_NAV, publicMenu } from "@/lib/routes";
 import { publicEnv } from "@/lib/public-env";
 import { MenuSheet, type MenuGroup } from "./menu-sheet";
+import { HeaderAccount } from "./account-state";
 import { NavPills } from "./nav-pills";
 import { NotificationBell } from "./notification-bell";
 import { ThemeControls } from "./theme-controls";
@@ -16,7 +17,7 @@ function XIcon() {
   );
 }
 
-const LAUNCH_NOTES: Record<string, string> = { "/launch": "sponsored 70/30", "/self-launch": "Phantom · you keep 100%" };
+const LAUNCH_NOTES: Record<string, string> = { "/launch": "agent launch · sponsored 70/30", "/self-launch": "Phantom · you keep 100%" };
 
 export function menuGroups(): MenuGroup[] {
   return [
@@ -49,10 +50,11 @@ export function SiteHeader() {
               <Send className="size-4" />
             </a>
           ) : null}
+          <HeaderAccount />
           <NotificationBell />
           <ThemeControls />
-          <Link href="/talk" className="rk-btn rk-btn-honey rk-btn-sm">
-            Try Rakaza
+          <Link href="/talk" className="rk-btn rk-btn-honey rk-btn-sm" aria-label="Try Rakaza">
+            Try<span className="hidden min-[430px]:inline">&nbsp;Rakaza</span>
           </Link>
           <MenuSheet groups={menuGroups()} title="Menu" />
         </div>
