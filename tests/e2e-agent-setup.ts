@@ -66,17 +66,17 @@ async function call(method: string, path: string, key?: string, body?: unknown, 
     // This box resolves every public host to 198.18.x.x (a fake-ip range the SSRF guard correctly refuses), so the live-provider cases only run where DNS is real (the live site, CI).
     const fakeDns = LOCAL && RB ? (await import("node:dns/promises").then((d) => d.lookup(new URL(RB).hostname, { all: true }).catch(() => []))).some((a) => a.address.startsWith("198.18.")) : false;
     if (RB && RK && !fakeDns) {
-      const ok = await call("POST", `${G}/byo/test`, K, { base: RB, model: process.env.RIVER_MODEL_PERSONA ?? "" }, { "x-byo-key": RK });
+      const ok = await call("POST", `${G}/byo/test`, K, { base: RB, model: process.env.RIVER_MODEL_PERSONA || "deepseek-ai/DeepSeek-V4.1-Flash" }, { "x-byo-key": RK });
       check("test PASS against a real OpenAI-compatible endpoint", ok.json.pass === true && /^PASS · HTTP 200/.test(ok.json.summary) && typeof ok.json.ms === "number", ok.text.slice(0, 200).replace(RK, "[key]"));
       check("the key is never echoed", !ok.text.includes(RK));
-      const wrong = await call("POST", `${G}/byo/test`, K, { base: RB, model: process.env.RIVER_MODEL_PERSONA ?? "" }, { "x-byo-key": "rk_wrong_key_for_test_000000" });
+      const wrong = await call("POST", `${G}/byo/test`, K, { base: RB, model: process.env.RIVER_MODEL_PERSONA || "deepseek-ai/DeepSeek-V4.1-Flash" }, { "x-byo-key": "rk_wrong_key_for_test_000000" });
       check("test FAIL on a wrong key says so", wrong.json.pass === false && /key/i.test(String(wrong.json.hint ?? wrong.json.error)) && wrong.json.status >= 400, wrong.text.slice(0, 200));
       const det = await call("POST", `${G}/byo/detect`, K, { base: RB }, { "x-byo-key": RK });
       check("detect names the operator", typeof det.json.operator === "string" && det.json.operator.length > 0, det.text.slice(0, 160));
-      const relay = await call("POST", `${G}/byo/relay`, K, { base: RB, model: process.env.RIVER_MODEL_PERSONA ?? "", timeout: 9000, obs: { speed: 190, state: "ground", jumpsLeft: 2, shield: 0, coinsAhead: 1, obstacles: [{ id: 7, kind: "vent", type: "block", t: 0.9, w: 40, h: 30 }] } }, { "x-byo-key": RK });
+      const relay = await call("POST", `${G}/byo/relay`, K, { base: RB, model: process.env.RIVER_MODEL_PERSONA || "deepseek-ai/DeepSeek-V4.1-Flash", timeout: 9000, obs: { speed: 190, state: "ground", jumpsLeft: 2, shield: 0, coinsAhead: 1, obstacles: [{ id: 7, kind: "vent", type: "block", t: 0.9, w: 40, h: 30 }] } }, { "x-byo-key": RK });
       check("relay returns an OpenAI-shaped reply", relay.json.ok === true && typeof relay.json.choices?.[0]?.message?.content === "string", relay.text.slice(0, 160).replace(RK, "[key]"));
       // BYO chat through the same model
-      await call("POST", `${G}/config`, K, { brain: "byo", byoBase: RB, byoModel: process.env.RIVER_MODEL_PERSONA ?? "river" });
+      await call("POST", `${G}/config`, K, { brain: "byo", byoBase: RB, byoModel: process.env.RIVER_MODEL_PERSONA || "deepseek-ai/DeepSeek-V4.1-Flash" });
       check("byo chat needs the browser key", (await call("POST", `${G}/chat`, K, { message: "hi" })).json.error === "key_needed");
       const bc = await call("POST", `${G}/chat`, K, { message: "One tip for my first run? Max one sentence." }, { "x-byo-key": RK });
       check("byo chat answers", bc.status === 200 && bc.json.via === "byo" && String(bc.json.reply).length > 3, bc.text.slice(0, 200).replace(RK, "[key]"));
