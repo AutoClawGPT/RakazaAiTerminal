@@ -3,7 +3,7 @@ import { ensureSchema, sql } from "@/lib/db";
 import type { AgentRow } from "@/lib/agents/service";
 import { riverChat } from "@/lib/brain/river";
 import { siteUrl } from "@/lib/site";
-import { GAME_ID } from "./engine";
+import { GAME_ID, RUN_EXPIRY_HOURS } from "./engine";
 import { SYSTEM as BRAIN_SYSTEM, cleanObs } from "./brain";
 import { byoChat, byoDetect, byoTest, checkBase, cleanModelId, cleanProtocol, parseBase, protocolFromUrl, type Protocol } from "./byo";
 import { playsLeft, type R } from "./service";
@@ -55,11 +55,12 @@ export async function saveSetup(agent: AgentRow, b: Record<string, unknown>): Pr
 }
 
 /* -------------------------------------------------------------- progress (by agent id, from the verified runs) */
-export interface Progress { runs: number; best: number; bestMode: string | null; totalDistance: number; totalCoins: number; last: string | null; streak: number; rank: { h24: number | null; all: number | null }; level: number; xp: number; nextAt: number; byMode: { mode: string; runs: number; best: number }[] }
+export interface Progress { runs: number; best: number; bestMode: string | null; totalDistance: number; totalCoins: number; last: string | null; streak: number; rank: { h24: number | null; all: number | null }; level: number; xp: number; nextAt: number; byMode: { mode: string; runs: number; best: number }[]; unverified: number }
 
+/** `unverified` = plays that ended without a verified run (rejected, or never handed in and expired). They are listed with their reason in `plays.runs`. */
 export async function progressOf(agentId: string): Promise<Progress> {
   await ensureSchema();
-  const [tot, modes, days, rk] = await Promise.all([
+  const [tot, modes, days, rk, unv] = await Promise.all([
     rows<{ runs: string; best: number | null; dist: string | null; coins: string | null; last: string | null }>(`SELECT count(*)::text AS runs, max(score) AS best, sum(distance)::text AS dist, sum(coins)::text AS coins, max(submitted_at)::text AS last FROM game_runs WHERE agent_id = $1 AND game = $2 AND status = 'accepted'`, [agentId, GAME_ID]),
     rows<{ mode: string; runs: string; best: number }>(`SELECT mode, count(*)::text AS runs, max(score) AS best FROM game_runs WHERE agent_id = $1 AND game = $2 AND status = 'accepted' GROUP BY mode ORDER BY max(score) DESC`, [agentId, GAME_ID]),
     rows<{ d: string }>(`SELECT DISTINCT (submitted_at AT TIME ZONE 'utc')::date::text AS d FROM game_runs WHERE agent_id = $1 AND game = $2 AND status = 'accepted' ORDER BY d DESC LIMIT 60`, [agentId, GAME_ID]),
@@ -68,6 +69,7 @@ export async function progressOf(agentId: string): Promise<Progress> {
         UNION ALL
         SELECT '24h', (SELECT count(*)::int + 1 FROM (SELECT r.agent_id, max(r.score) m FROM game_runs r JOIN agents a ON a.id = r.agent_id WHERE r.game = $2 AND r.status='accepted' AND NOT a.hidden AND NOT a.disabled AND r.submitted_at >= now() - interval '24 hours' GROUP BY r.agent_id) t WHERE t.m > COALESCE((SELECT max(score) FROM game_runs WHERE agent_id = $1 AND game = $2 AND status='accepted' AND submitted_at >= now() - interval '24 hours'), 2147483647))
       ) x`, [agentId, GAME_ID]),
+    rows<{ n: string }>(`SELECT count(*)::text AS n FROM game_runs WHERE agent_id = $1 AND game = $2 AND (status = 'rejected' OR (status = 'started' AND started_at < now() - make_interval(hours => $3)))`, [agentId, GAME_ID, RUN_EXPIRY_HOURS]),
   ]);
   const t = tot[0];
   const runs = Number(t?.runs ?? 0), dist = Number(t?.dist ?? 0), coins = Number(t?.coins ?? 0);
@@ -81,7 +83,7 @@ export async function progressOf(agentId: string): Promise<Progress> {
   const nextAt = (level * level) * 100;
   const hasRun = runs > 0;
   const rkOf = (r: string) => (hasRun ? rk.find((x) => x.range === r)?.rk ?? null : null);
-  return { runs, best: t?.best ?? 0, bestMode: modes[0]?.mode ?? null, totalDistance: dist, totalCoins: coins, last: t?.last ? new Date(t.last).toISOString() : null, streak, rank: { h24: rkOf("24h"), all: rkOf("all") }, level, xp, nextAt, byMode: modes.map((m) => ({ mode: m.mode, runs: Number(m.runs), best: m.best })) };
+  return { runs, best: t?.best ?? 0, bestMode: modes[0]?.mode ?? null, totalDistance: dist, totalCoins: coins, last: t?.last ? new Date(t.last).toISOString() : null, streak, rank: { h24: rkOf("24h"), all: rkOf("all") }, level, xp, nextAt, byMode: modes.map((m) => ({ mode: m.mode, runs: Number(m.runs), best: m.best })), unverified: Number(unv[0]?.n ?? 0) };
 }
 
 export async function me(agent: AgentRow): Promise<R> {

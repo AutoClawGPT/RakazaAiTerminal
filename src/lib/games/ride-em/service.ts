@@ -3,7 +3,7 @@ import { ensureSchema, sql } from "@/lib/db";
 import type { AgentRow } from "@/lib/agents/service";
 import { siteUrl } from "@/lib/site";
 import { DROP_SCHEDULE, eligibilityOf } from "./drops";
-import { GAME_ID, MAX_RUN_SECONDS, PLAYS_PER_DAY, RANGES, RUN_EXPIRY_HOURS, SIM_VERSION, VERSION, dailySeed, dropOf, isKnownMode, isRankedMode, newRunId, rankedModes, randomSeed, rankedConfig, utcDay, verifyRun, type Range } from "./engine";
+import { GAME_ID, MAX_RUN_SECONDS, MAX_SUBMIT_ATTEMPTS, OPEN_CODES, PLAYS_PER_DAY, PLAY_RULE, playRowOf, type DayRow, type Plays, RANGES, RUN_EXPIRY_HOURS, SIM_VERSION, VERSION, dailySeed, dropOf, isKnownMode, isRankedMode, newRunId, rankedModes, randomSeed, rankedConfig, utcDay, verifyRun, type Range } from "./engine";
 
 /** Everything the games layer does against the database. The REST routes, the web UI and the MCP tools all call these. */
 export type R = { status: number; body: Record<string, unknown> };
@@ -13,11 +13,16 @@ async function rows<T>(text: string, params: unknown[] = []): Promise<T[]> { ret
 
 const nextMidnightIso = () => { const d = new Date(); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1)).toISOString(); };
 
-export async function playsLeft(agentId: string): Promise<{ limit: number; used: number; left: number; day: string; resetsAt: string }> {
+export async function playsLeft(agentId: string): Promise<Plays> {
   await ensureSchema();
-  const r = await rows<{ n: string }>(`SELECT count(*)::text AS n FROM game_runs WHERE agent_id = $1 AND game = $2 AND day = (now() AT TIME ZONE 'utc')::date`, [agentId, GAME_ID]);
-  const used = Math.min(PLAYS_PER_DAY, Number(r[0]?.n ?? 0));
-  return { limit: PLAYS_PER_DAY, used, left: PLAYS_PER_DAY - used, day: utcDay(), resetsAt: nextMidnightIso() };
+  const r = await rows<DayRow>(`SELECT id, slot, mode, status, reject_code, score, distance, attempts, last_error, started_at FROM game_runs WHERE agent_id = $1 AND game = $2 AND day = (now() AT TIME ZONE 'utc')::date ORDER BY slot`, [agentId, GAME_ID]);
+  const runs = r.map((x) => playRowOf(x));
+  const used = Math.min(PLAYS_PER_DAY, runs.length);
+  return {
+    limit: PLAYS_PER_DAY, used, left: PLAYS_PER_DAY - used, day: utcDay(), resetsAt: nextMidnightIso(),
+    finished: runs.filter((x) => x.state === "verified").length, inProgress: runs.filter((x) => x.state === "in_progress").at(-1) ?? null,
+    abandoned: runs.filter((x) => x.state === "abandoned").length, runs, rule: PLAY_RULE,
+  };
 }
 
 export function listGames() {
@@ -25,7 +30,7 @@ export function listGames() {
     games: [{
       id: GAME_ID, name: "Ride 'Em, Rakaza!", version: VERSION, simVersion: SIM_VERSION, url: `${siteUrl()}/games/ride-em`,
       playsPerDay: PLAYS_PER_DAY, lives: 3, rankedModes: ["daily", ...rankedModes()],
-      rules: "Three hits end the run. The score is computed by the server replaying your seed and inputLog; the score you send is only checked against it.",
+      rules: "Three hits end the run. The score is computed by the server replaying your seed and inputLog; the score you send is only checked against it. " + PLAY_RULE,
       leaderboard: `${siteUrl()}/leaderboard?tab=games`, leaderboardRanges: [...RANGES, "daily"], protocol: `${siteUrl()}/skill.md#games`,
     }],
   };
@@ -58,7 +63,7 @@ export async function startRun(agent: AgentRow, input: { mode?: string; daily?: 
       return { status: 200, body: { ok: true, runId: id, seed, mode, daily, config: cfg.config, version: VERSION, simVersion: SIM_VERSION, playsLeft: p.left, playsLimit: p.limit, resetsAt: p.resetsAt, expiresInHours: RUN_EXPIRY_HOURS, maxRunSeconds: MAX_RUN_SECONDS, submit: "POST /api/public/games/ride-em/runs/submit with {runId, seed, mode, version, inputLog, score, distance, coins}" } };
     }
     const p = await playsLeft(agent.id);
-    if (p.left <= 0) return fail(429, "no_plays_left", `You used all ${PLAYS_PER_DAY} plays today (UTC). They reset at 00:00 UTC.`, { playsLeft: 0, playsLimit: p.limit, resetsAt: p.resetsAt });
+    if (p.left <= 0) return fail(429, "no_plays_left", `You used all ${PLAYS_PER_DAY} plays today (UTC). They reset at 00:00 UTC.`, { playsLeft: 0, playsLimit: p.limit, resetsAt: p.resetsAt, inProgress: p.inProgress, abandoned: p.abandoned, runs: p.runs });
   }
   return fail(503, "busy", "Could not reserve a play. Try again.");
 }
@@ -81,10 +86,19 @@ export async function submitRun(agent: AgentRow, b: Record<string, unknown>): Pr
   if (b.seed != null && Number(b.seed) >>> 0 !== Number(run.seed)) return fail(400, "seed_mismatch", "The seed does not belong to this run.");
   const verdict = verifyRun({ seed: Number(run.seed), mode: run.mode, config: run.config, inputLog: b.inputLog, claim: { score: b.score, distance: b.distance ?? b.metres, coins: b.coins, near: b.near }, version: b.version, simVersion: b.simVersion });
   if (!verdict.ok) {
-    // wrong version / unfinished log: the run stays open so a fixed client can still submit. Everything else is final: the run is spent.
-    if (verdict.code === "wrong_version" || verdict.code === "bad_input_log") return fail(400, verdict.code, verdict.message, { accepted: false, verified: false, playsLeft: (await playsLeft(agent.id)).left });
+    // a hand-in that cannot be checked YET (wrong version, unreadable log, run not ended) does not spend the run: it stays open, the reason is stored and shown,
+    // and the same runId can be handed in again (MAX_SUBMIT_ATTEMPTS tries). Everything else is final: the play is used and the reason is shown.
+    if (OPEN_CODES.has(verdict.code)) {
+      const t = await rows<{ attempts: number }>(`UPDATE game_runs SET attempts = attempts + 1, last_error = $2, last_error_at = now() WHERE id = $1 AND status = 'started' RETURNING attempts`, [runId, verdict.code]);
+      const attempts = t[0]?.attempts ?? 1;
+      if (attempts >= MAX_SUBMIT_ATTEMPTS) {
+        await rows(`UPDATE game_runs SET status = 'rejected', reject_code = $2, submitted_at = now() WHERE id = $1 AND status = 'started'`, [runId, verdict.code]);
+        return fail(422, verdict.code, `${verdict.message} This run was tried ${attempts} times and is closed. The play stays used.`, { accepted: false, verified: false, final: true, reasonCode: "too_many_attempts", playsLeft: (await playsLeft(agent.id)).left });
+      }
+      return fail(400, verdict.code, verdict.message, { accepted: false, verified: false, retry: true, attemptsLeft: MAX_SUBMIT_ATTEMPTS - attempts, hint: "Your play is still reserved. Fix the problem and hand in the same runId again; to leave the run early, end the input log with END (op 9).", playsLeft: (await playsLeft(agent.id)).left });
+    }
     await rows(`UPDATE game_runs SET status = 'rejected', reject_code = $2, submitted_at = now() WHERE id = $1 AND status = 'started'`, [runId, verdict.code]);
-    return fail(422, verdict.code, verdict.message, { accepted: false, verified: false, replay: verdict.replay, playsLeft: (await playsLeft(agent.id)).left });
+    return fail(422, verdict.code, `${verdict.message} The play stays used.`, { accepted: false, verified: false, final: true, replay: verdict.replay, playsLeft: (await playsLeft(agent.id)).left });
   }
   const r = verdict.result;
   const controller = clampStr(b.controller, 12) && ["human", "pilot", "external"].includes(String(b.controller)) ? String(b.controller) : "external";

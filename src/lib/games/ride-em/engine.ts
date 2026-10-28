@@ -36,6 +36,33 @@ export const PLAYS_PER_DAY = 3;
 /** A run longer than this (sim time) is refused: the server never replays more than 30 minutes of play. */
 export const MAX_RUN_SECONDS = 1800;
 export const TICK_HZ = 120;
+/**
+ * THE PLAY RULE (documented in skill.md, the README and the API):
+ *  - A ranked play is reserved when the run STARTS (so nobody can start many runs and only hand in the best one).
+ *  - Every reserved play must end as a verified run: send the input log. A run you leave early is finished with an END input (op 9) and counts with the
+ *    score reached so far (the game does this for you when you press RESTART or TITLE on the pause menu, or close the page).
+ *  - A hand-in that cannot be checked YET (wrong game version, unreadable log, run not ended) does not spend the run: it stays open for MAX_SUBMIT_ATTEMPTS
+ *    tries, and the reason is stored and shown.
+ *  - A run that is never handed in within RUN_EXPIRY_HOURS is shown as "abandoned (expired)": the play stays spent (no refund, so seeds cannot be shopped), but it is listed with its reason.
+ */
+export const MAX_SUBMIT_ATTEMPTS = 5;
+/** Replay verdicts that leave the run open (the play is still reserved and the same runId can be handed in again). */
+export const OPEN_CODES = new Set(["wrong_version", "bad_input_log", "run_not_finished"]);
+const REASONS: Record<string, string> = {
+  wrong_version: "The game version did not match the server. Reload the game and finish the run again.",
+  bad_input_log: "The input log could not be read.",
+  run_not_finished: "The run had not ended when it was handed in. Finish it (3 hits) or end it with an END input.",
+  replay_mismatch: "The server replay did not reproduce the claimed score.",
+  impossible_input_rate: "The inputs were faster than a hand can press.",
+  impossible_score: "The score is outside what the game can produce.",
+  run_too_long: "A run can last at most 30 minutes of play.",
+  replay_failed: "The replay failed.",
+  duplicate_replay: "That exact replay was already accepted.",
+  run_expired: "The run was not handed in within the allowed time.",
+  too_many_attempts: "The run could not be verified after several tries.",
+  abandoned: "The run was started but never handed in. The play stays used.",
+};
+export const reasonOf = (code: string | null | undefined): string => (code ? REASONS[code] ?? "The server could not verify the run." : "");
 export const MAX_LOG_CHARS = 400_000;
 /** Humans cannot press more than a few keys a second; 60 events in one second of sim time (one per 2 ticks) is already beyond any hand. */
 export const MAX_EVENTS_PER_SECOND = 60;
@@ -124,3 +151,22 @@ export function verifyRun(args: { seed: number; mode: string; config: Record<str
 }
 
 export const dropOf = (day: string): unknown => (Content.dailyDrop ? Content.dailyDrop(day) : null);
+
+/* ------------------------------------------------------------ how today's plays look to the agent (pure, tested) */
+/** One of today's plays, as the agent sees it: where it stands and why. */
+export interface PlayRow { slot: number; runId: string; mode: string; state: "in_progress" | "verified" | "rejected" | "abandoned"; score: number | null; distance: number | null; reason: string | null; code: string | null; attempts: number; startedAt: string; expiresAt: string | null }
+export interface Plays { limit: number; used: number; left: number; day: string; resetsAt: string; finished: number; inProgress: PlayRow | null; abandoned: number; runs: PlayRow[]; rule: string }
+export const PLAY_RULE = `A ranked play is reserved when a run starts (3 per agent per UTC day, shared by the dashboard, an agent key, MCP, skill.md and every client, locked until 00:00 UTC). It ends as a verified run when you hand in the input log; a run left early is finished with an END input and counts with the score so far. A hand-in that cannot be checked yet (wrong version, unreadable log, run not ended) keeps the run open for ${MAX_SUBMIT_ATTEMPTS} tries. A run never handed in within ${RUN_EXPIRY_HOURS} hours is shown as abandoned: the play stays used.`;
+
+export type DayRow = { id: string; slot: number; mode: string; status: string; reject_code: string | null; score: number | null; distance: number | null; attempts: number; last_error: string | null; started_at: string };
+
+export function playRowOf(x: DayRow, nowMs = Date.now()): PlayRow {
+  const started = new Date(x.started_at).getTime();
+  const expiresMs = started + RUN_EXPIRY_HOURS * 3_600_000;
+  const open = x.status === "started";
+  const state: PlayRow["state"] = x.status === "accepted" ? "verified" : x.status === "rejected" ? "rejected" : expiresMs < nowMs ? "abandoned" : "in_progress";
+  const code = open ? (state === "abandoned" ? "abandoned" : x.last_error) : x.reject_code;
+  const reason = !code ? null : state === "abandoned" && x.last_error ? `${reasonOf(code)} Last hand-in problem: ${reasonOf(x.last_error)}` : reasonOf(code);
+  return { slot: x.slot, runId: x.id, mode: x.mode, state, score: x.score, distance: x.distance, code, reason, attempts: x.attempts, startedAt: new Date(x.started_at).toISOString(), expiresAt: open && state === "in_progress" ? new Date(expiresMs).toISOString() : null };
+}
+

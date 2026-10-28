@@ -181,6 +181,10 @@ export function ensureSchema(): Promise<void> {
       started_at timestamptz NOT NULL DEFAULT now(),
       submitted_at timestamptz
     )`;
+    // hand-in attempts that could not be checked yet (wrong version, unreadable log, run not ended): the run stays open and the reason is kept
+    await q`ALTER TABLE game_runs ADD COLUMN IF NOT EXISTS attempts int NOT NULL DEFAULT 0`;
+    await q`ALTER TABLE game_runs ADD COLUMN IF NOT EXISTS last_error text`;
+    await q`ALTER TABLE game_runs ADD COLUMN IF NOT EXISTS last_error_at timestamptz`;
     await q`CREATE UNIQUE INDEX IF NOT EXISTS game_runs_slot_uq ON game_runs (agent_id, game, day, slot)`;
     await q`CREATE UNIQUE INDEX IF NOT EXISTS game_runs_hash_uq ON game_runs (replay_hash) WHERE replay_hash IS NOT NULL AND status = 'accepted'`;
     await q`CREATE INDEX IF NOT EXISTS game_runs_board ON game_runs (game, status, submitted_at DESC, score DESC)`;
