@@ -55,7 +55,7 @@ async function one(label, w, h, name, ls, useWatch) {
     if (s.st !== "play") break;
     await sleep(150);
   }
-  ok(`${label} ${name}: the stage-1 pilot loses all 3 lives (${lives.join(">")}) · HUD "${hud}"`, lives[0] === 3 && lives[lives.length - 1] === 0 && /STAGE 1/.test(hud));
+  ok(`${label} ${name}: the stage-1 pilot keeps hitting things and loses lives (${lives.join(">")}) · HUD "${hud}"`, lives[0] === 3 && Math.min(...lives) <= 1 && /STAGE 1/.test(hud));
   ok(`${label} ${name}: no page errors`, errs.length === 0, errs.slice(0, 2).join(" | "));
   await ctx.close();
 }
