@@ -107,7 +107,10 @@
     const ctl = new AbortController();
     const to = setTimeout(() => ctl.abort(), 12000);
     try {
-      const r = await fetch(base.replace(/\/$/, '') + path, { method, headers, body: body ? JSON.stringify(body) : undefined, cache: 'no-store', signal: ctl.signal });
+      const payload = body ? JSON.stringify(body) : undefined;
+      // a run handed in while the page is closing must survive the unload (keepalive allows up to 64 KB)
+      const keep = !!window.__rzLeaving && payload && payload.length < 60000;
+      const r = await fetch(base.replace(/\/$/, '') + path, { method, headers, body: payload, cache: 'no-store', signal: ctl.signal, keepalive: keep });
       if (!r.ok) {
         const er = new Error('http ' + r.status); er.status = r.status;
         try { er.body = await r.json(); } catch (x) { er.body = null; }
@@ -257,7 +260,7 @@
       if (cfg.apiBase) {
         try { return await http('POST', '/runs/submit', pl); } catch (e) {
           if (e && e.body && typeof e.body === 'object') return Object.assign({ ok: false, accepted: false }, e.body);
-          return { ok: false, accepted: false, reason: 'site_unreachable' };
+          return { ok: false, accepted: false, reason: 'site_unreachable', transient: true };
         }
       }
       const st = agentStore(); const rec = st.pending[pl.runId];

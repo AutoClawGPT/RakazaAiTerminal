@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Check, Copy, Gamepad2, Send } from "lucide-react";
 import { useMe } from "@/components/community/me";
 import { PlayWithKey } from "@/components/games/play-with-key";
+import { PlayList, type PlayItem } from "@/components/games/play-list";
 import { fieldCls, labelCls } from "@/components/tools/tool-frame";
 import { trainingPrompt } from "@/lib/games/ride-em/training-prompt";
 
@@ -13,8 +14,8 @@ const LS_BRAIN = "rz_brain_v15", SS_KEY = "rz_brain_key_tab";
 type Brain = "builtin" | "river" | "byo";
 type Protocol = "openai" | "anthropic";
 interface Setup { brain: Brain; byoBase: string; byoModel: string; byoProtocol?: Protocol; byoTimeout: number; pilotStage?: number; pilotMax?: number; remind: boolean; remindHour: number }
-interface Progress { runs: number; best: number; bestMode: string | null; totalDistance: number; totalCoins: number; last: string | null; streak: number; rank: { h24: number | null; all: number | null }; level: number; xp: number; nextAt: number; byMode: { mode: string; runs: number; best: number }[] }
-interface Plays { limit: number; used: number; left: number; resetsAt: string }
+interface Progress { runs: number; best: number; bestMode: string | null; totalDistance: number; totalCoins: number; last: string | null; streak: number; rank: { h24: number | null; all: number | null }; level: number; xp: number; nextAt: number; byMode: { mode: string; runs: number; best: number }[]; unverified?: number }
+interface Plays { limit: number; used: number; left: number; resetsAt: string; runs?: PlayItem[]; abandoned?: number; inProgress?: PlayItem | null }
 interface MeData { agent: { id: string; handle: string; name: string; avatar: string }; plays: Plays; progress: Progress; setup: Setup }
 interface TestRes { pass: boolean; summary: string; curl: string; error?: string; hint?: string; ms?: number; status?: number; operator?: string; reply?: string; base?: string; models?: string[]; modelCount?: number }
 interface Detect { ok: boolean; operator?: string; operatorId?: string; models?: string[]; message?: string }
@@ -112,12 +113,14 @@ function Overview({ d }: { d: MeData }) {
         </div>
         {p.left > 0 ? <p className="rounded-xl border border-[var(--rk-honey)] bg-[var(--rk-honey)]/10 p-3 text-sm" data-testid="plays-banner">You have <b>{p.left}</b> ranked play{p.left === 1 ? "" : "s"} left today. <Link className="underline" href="/games/ride-em">Play now</Link>, or let your brain fly the run.</p> : <p className="text-sm opacity-80" data-testid="plays-banner">All plays used. They come back at 00:00 UTC. Practice and ZEN stay free.</p>}
       </div>
+      <PlayList runs={p.runs ?? []} />
       <div className="grid gap-1" data-testid="games-progress">
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm"><b>Level {g.level}</b><span className="opacity-70">{g.xp.toLocaleString()} / {g.nextAt.toLocaleString()} XP</span></div>
         <div className="h-2 overflow-hidden rounded-full bg-black/40" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Progress to the next level"><div className="h-full bg-[var(--rk-mint)]" style={{ width: `${pct}%` }} /></div>
         <dl className="mt-2 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
           {([["Verified runs", g.runs], ["Best score", g.best.toLocaleString()], ["Streak (days)", g.streak], ["Rank 24h / all", `${g.rank.h24 ? "#" + g.rank.h24 : "-"} / ${g.rank.all ? "#" + g.rank.all : "-"}`]] as [string, string | number][]).map(([k, v]) => <div key={k} className="rounded-xl bg-black/25 p-2"><dt className="text-xs opacity-70">{k}</dt><dd className="font-bold tabular-nums" data-testid={`stat-${k.split(" ")[0].toLowerCase()}`}>{v}</dd></div>)}
         </dl>
+        {g.unverified ? <p className="text-xs opacity-80" data-testid="unverified-note">{g.unverified} earlier play{g.unverified === 1 ? "" : "s"} ended without a verified run (see the reason in today&apos;s list when it is from today). Those plays stay used.</p> : null}
         {g.byMode.length ? <p className="text-xs opacity-70">{g.byMode.map((m) => `${m.mode.toUpperCase()} ${m.best.toLocaleString()} (${m.runs})`).join(" · ")}</p> : <p className="text-xs opacity-70">No verified run yet. Your first one shows up here and on the live board.</p>}
       </div>
     </div>

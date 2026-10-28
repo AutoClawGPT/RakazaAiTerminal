@@ -2,19 +2,19 @@
 <html lang="en">
 <head>
 <script id="rakaza-input-kit" src="./rakaza-input.js"></script>
-<script src="./rakaza-content.js?v=18"></script>
-<script src="./rakaza-sim.js?v=18"></script>
-<script src="./rakaza-replay.js?v=18"></script>
-<script src="./rakaza-adapter.js?v=18"></script>
-<script src="./rakaza-char.js?v=18"></script>
-<script src="./rakaza-art.js?v=18"></script>
-<script src="./rakaza-fx.js?v=18"></script>
-<script src="./rakaza-audio.js?v=18"></script>
+<script src="./rakaza-content.js?v=19"></script>
+<script src="./rakaza-sim.js?v=19"></script>
+<script src="./rakaza-replay.js?v=19"></script>
+<script src="./rakaza-adapter.js?v=19"></script>
+<script src="./rakaza-char.js?v=19"></script>
+<script src="./rakaza-art.js?v=19"></script>
+<script src="./rakaza-fx.js?v=19"></script>
+<script src="./rakaza-audio.js?v=19"></script>
 <script src="./rakaza-stages.js?v=3"></script>
 <link rel="stylesheet" href="./rakaza-v14.css?v=16">
 <link rel="stylesheet" href="./rakaza-v15.css?v=16">
 <link rel="stylesheet" href="./rakaza-mobile.css?v=17">
-<script src="./rakaza-mobile.js?v=18" defer></script>
+<script src="./rakaza-mobile.js?v=19" defer></script>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1202,15 +1202,22 @@
                         <button id="pause-photo">PHOTO MODE</button>
                         <button id="pause-mute">${saved.mute ? 'SOUND OFF' : 'SOUND ON'}</button>
                     </div>
-                    <div class="footer"><span>Escape / P / Start also resumes.</span></div>
+                    <div class="footer"><span>Escape / P / Start also resumes.${game && game.agentRun ? ' Ranked run: RESTART or TITLE ends it and counts your score so far.' : ''}</span></div>
                 `);
                 $('resume-button').onclick = resumeGame;
                 $('pause-settings').onclick = () => { if (H.openSettings) H.openSettings(); };
                 $('pause-photo').onclick = () => { if (H.photo) H.photo(); };
                 $('pause-mute').onclick = () => { toggleMute(); $('pause-mute').textContent = saved.mute ? 'SOUND OFF' : 'SOUND ON'; };
-                $('pause-retry').onclick = () => startGame(lastResultMode, lastResultOpts);
+                // A ranked run you leave early is not lost: it is ended (END input) and handed in with the score reached so far, then RESTART starts a new play
+                // (3 per day) and TITLE goes home. Practice runs just stop.
+                $('pause-retry').onclick = () => {
+                    forfeitRanked();
+                    startGame(lastResultMode, lastResultOpts);
+                };
                 $('pause-home').onclick = () => {
-                    bankRun();
+                    if (!forfeitRanked()) {
+                        bankRun();
+                    }
                     title();
                 };
             }
@@ -1233,6 +1240,20 @@
                 saved.best = Math.max(saved.best, Math.floor(game.dist));
                 saved.total += game.coins;
                 persist();
+            }
+
+            // Ends a live RANKED run early (pause menu RESTART / TITLE, or the page closing): the END input is logged, the run goes through the normal game-over path
+            // and is handed in to the server like any other, so every spent play becomes a verified run with the score reached so far.
+            function forfeitRanked() {
+                if (!game || !game.agentRun || game.dead || game.over || game.banked) {
+                    return false;
+                }
+                Sim.input(game, Sim.OPS.END, 0);
+                if (!game.dead) {
+                    return false;
+                }
+                endGame();
+                return true;
             }
 
             function endGame() {
@@ -2618,7 +2639,7 @@
                 decide, applyDecision, stepWorld, createWorld, fillWorld, defaultGenome, Sim, RC, FX, ART, drainEvents,
                 get hitStop() { return hitStop; },
                 saved, trainer, skins, clamp,
-                setState(v) { state = v; }, showMenu, startGame, title, pauseGame, resumeGame, toast, sound, persist, drawCat, setupButtons, highlightMenu, panel, screen, hud,
+                setState(v) { state = v; }, forfeitRanked, endGame, showMenu, startGame, title, pauseGame, resumeGame, toast, sound, persist, drawCat, setupButtons, highlightMenu, panel, screen, hud,
                 get lastMode() { return lastResultMode; },
                 get lastOpts() { return lastResultOpts; },
                 get dims() { return { width, height, unit, groundY, playerX, dpr }; }
@@ -2627,9 +2648,9 @@
             requestAnimationFrame(frame);
         })();
     </script>
-<script src="./rakaza-brain.js?v=18"></script>
-<script src="./rakaza-meta.js?v=18"></script>
-<script src="./rakaza-extras.js?v=18"></script>
-<script src="./rakaza-agent.js?v=18"></script>
+<script src="./rakaza-brain.js?v=19"></script>
+<script src="./rakaza-meta.js?v=19"></script>
+<script src="./rakaza-extras.js?v=19"></script>
+<script src="./rakaza-agent.js?v=19"></script>
 </body>
 </html>

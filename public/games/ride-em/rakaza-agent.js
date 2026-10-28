@@ -91,6 +91,45 @@
   const playsLeft = () => API.agent.playsLeft();
   const onResult = (fn) => { if (typeof fn === 'function') listeners.push(fn); return () => { const i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1); }; };
 
+  // --------------------------------------------------------------- hand-in that survives a bad network and a closing page
+  // A finished run is handed in with a few retries when the network drops. If it still cannot reach the server it is kept in this browser and
+  // handed in again the next time the game opens with this agent signed in (the server keeps the play open for the whole expiry window).
+  const PENDING_KEY = 'rz_pending_run_v1';
+  const pendingGet = () => { try { return JSON.parse(localStorage.getItem(PENDING_KEY) || 'null'); } catch (x) { return null; } };
+  const pendingSet = (v) => { try { if (v) localStorage.setItem(PENDING_KEY, JSON.stringify(v)); else localStorage.removeItem(PENDING_KEY); } catch (x) { /* storage blocked */ } };
+  async function submitWithRetry(payload) {
+    let res = null;
+    for (let i = 0; i < 3; i++) {
+      try { res = await submit(payload); } catch (x) { res = { ok: false, reason: 'site_unreachable', transient: true }; }
+      if (!(res && res.transient) || window.__rzLeaving) break;
+      await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
+    }
+    if (res && res.transient) pendingSet({ t: Date.now(), agentId: payload.agentId, payload });
+    else { const p = pendingGet(); if (p && p.payload && p.payload.runId === payload.runId) pendingSet(null); }
+    return res;
+  }
+  async function resendPending() {
+    const p = pendingGet();
+    if (!p || !p.payload || Date.now() - p.t > 6 * 3600000) { if (p) pendingSet(null); return; }
+    const s = API.session;
+    if (!s.signedIn || !cfg.apiBase || (p.agentId && s.agentId && p.agentId !== s.agentId)) return;
+    const res = await submit(p.payload).catch(() => ({ transient: true }));
+    if (res && res.transient) return;
+    pendingSet(null);
+    const A = $A();
+    if (A && A.toast) A.toast(res && res.accepted ? 'Your earlier run was handed in: score ' + (res.score | 0) + '.' : 'Your earlier run was not counted: ' + (res && (res.message || res.reason || res.error) || 'rejected') + '.');
+    try { if (window.parent !== window) window.parent.postMessage({ type: 'rakaza-run-result', protocol: PROTOCOL, payload: p.payload, submit: res }, location.origin && location.origin !== 'null' ? location.origin : '*'); } catch (x) { /* ignore */ }
+  }
+  document.addEventListener('rakaza-session', () => { setTimeout(resendPending, 600); });
+  // The page is closing (tab closed, reload, navigation): a ranked run in progress is ended with the score reached so far and handed in, instead of being left open.
+  window.addEventListener('pagehide', (ev) => {
+    if (ev && ev.persisted) return; // the page may come back from the back/forward cache: the run is still alive
+    const A = $A();
+    if (!A || !A.game || !current || current.submitted || !A.game.agentRun || A.game.dead) return;
+    window.__rzLeaving = true;
+    try { A.forfeitRanked && A.forfeitRanked(); } catch (x) { /* nothing more can be done while closing */ }
+  });
+
   // --------------------------------------------------------------- result emission (game over of an agent run)
   window.addEventListener('rakaza-run', async (e) => {
     const d = e.detail || {}; const run = d.run;
@@ -104,7 +143,7 @@
     };
     last = payload;
     let submitRes = null;
-    if (current.autoSubmit && !current.submitted) { current.submitted = true; try { submitRes = await submit(payload); } catch (x) { submitRes = { ok: false, reason: 'submit failed' }; } }
+    if (current.autoSubmit && !current.submitted) { current.submitted = true; submitRes = await submitWithRetry(payload); }
     try { // the game-over card says what really happened on the server
       const el = document.getElementById('rz-rank');
       if (el && submitRes) {

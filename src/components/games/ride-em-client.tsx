@@ -7,14 +7,15 @@ import { useMe } from "@/components/community/me";
 import { LiveBoard } from "@/components/games/live-board";
 import { pullAgentState, startAgentStateSync } from "@/components/games/game-sync";
 import { PlayWithKey } from "@/components/games/play-with-key";
+import { PlayList, type PlayItem } from "@/components/games/play-list";
 import { startLive } from "@/lib/live/start-live";
 import { absUrl, xIntent } from "@/lib/share";
 
 const API = "/api/public/games/ride-em";
-const FRAME = `/games/ride-em/index.html?api=${API}&river=${API}/brain&embed=1&build=stages3`;
+const FRAME = `/games/ride-em/index.html?api=${API}&river=${API}/brain&embed=1&build=plays1`;
 const MODES = [["classic", "CLASSIC"], ["rush", "RUSH"], ["hardcore", "HARDCORE"], ["survival", "SURVIVAL"], ["campaign", "CAMPAIGN"], ["daily", "DAILY SEED"]] as const;
 
-interface Plays { limit: number; used: number; left: number; resetsAt: string }
+interface Plays { limit: number; used: number; left: number; resetsAt: string; runs?: PlayItem[] }
 interface Drop { eligibility: { eligible: boolean; hasWallet: boolean; walletVerified: boolean; reason: string }; schedule: { startsWhen: string; rule: string; periods: { period: string; winners: number | null; board: string; note: string }[] } }
 interface Result { ok?: boolean; accepted?: boolean; practice?: boolean; score?: number; distance?: number; coins?: number; hits?: number; cause?: string; error?: string; message?: string; reason?: string; rank?: { h24: number | null; all: number | null; daily: number | null }; playsLeft?: number; runId?: string }
 
@@ -171,6 +172,7 @@ export function RideEmClient({ initialRange = "24h" }: { initialRange?: string }
               <button type="button" className="rk-btn rk-btn-honey h-auto max-w-full whitespace-normal py-2 text-center" onClick={() => void playForScore()} disabled={busy || !ready || left === 0} data-testid="play-for-score">{busy ? "Run in progress…" : left === 0 ? "No plays left today" : "PLAY FOR SCORE (uses 1 play)"}</button>
             </div>
             <p className="text-xs opacity-80">{controller === "pilot" ? "The brain (built-in pilot, our River model or your own model) flies the ranked run. Choose it in the Brain panel inside the game." : "Jump with SPACE or tap, slide with S or swipe down. "}ZEN and practice runs are free and never ranked. Ranked runs use the base kit only.</p>
+            <PlayList runs={plays?.runs ?? []} />
             {msg ? <p className="text-sm font-semibold text-red-400" role="alert" data-testid="play-msg">{msg}</p> : null}
           </>
         ) : me === null ? (
