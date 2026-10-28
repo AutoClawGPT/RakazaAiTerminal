@@ -11,7 +11,7 @@ import { startLive } from "@/lib/live/start-live";
 import { absUrl, xIntent } from "@/lib/share";
 
 const API = "/api/public/games/ride-em";
-const FRAME = `/games/ride-em/index.html?api=${API}&river=${API}/brain&embed=1`;
+const FRAME = `/games/ride-em/index.html?api=${API}&river=${API}/brain&embed=1&build=stages3`;
 const MODES = [["classic", "CLASSIC"], ["rush", "RUSH"], ["hardcore", "HARDCORE"], ["survival", "SURVIVAL"], ["campaign", "CAMPAIGN"], ["daily", "DAILY SEED"]] as const;
 
 interface Plays { limit: number; used: number; left: number; resetsAt: string }

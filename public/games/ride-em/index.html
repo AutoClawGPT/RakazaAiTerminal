@@ -2,18 +2,19 @@
 <html lang="en">
 <head>
 <script id="rakaza-input-kit" src="./rakaza-input.js"></script>
-<script src="./rakaza-content.js?v=16"></script>
-<script src="./rakaza-sim.js?v=16"></script>
-<script src="./rakaza-replay.js?v=16"></script>
-<script src="./rakaza-adapter.js?v=16"></script>
-<script src="./rakaza-char.js?v=16"></script>
-<script src="./rakaza-art.js?v=16"></script>
-<script src="./rakaza-fx.js?v=16"></script>
-<script src="./rakaza-audio.js?v=16"></script>
+<script src="./rakaza-content.js?v=18"></script>
+<script src="./rakaza-sim.js?v=18"></script>
+<script src="./rakaza-replay.js?v=18"></script>
+<script src="./rakaza-adapter.js?v=18"></script>
+<script src="./rakaza-char.js?v=18"></script>
+<script src="./rakaza-art.js?v=18"></script>
+<script src="./rakaza-fx.js?v=18"></script>
+<script src="./rakaza-audio.js?v=18"></script>
+<script src="./rakaza-stages.js?v=3"></script>
 <link rel="stylesheet" href="./rakaza-v14.css?v=16">
 <link rel="stylesheet" href="./rakaza-v15.css?v=16">
 <link rel="stylesheet" href="./rakaza-mobile.css?v=17">
-<script src="./rakaza-mobile.js?v=17" defer></script>
+<script src="./rakaza-mobile.js?v=18" defer></script>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -934,9 +935,12 @@
                 const genes = championMode && saved.champion ? saved.champion : defaultGenome;
                 const override = !championMode && b && b.override ? b.override(w) : null;
                 const d = decide(w, genes, !championMode, override);
-                // AI pilot stages 1-5 (stage 6 = the expert above, unchanged). Your own trained champion or model brain is never handicapped.
+                // AI pilot stages 1-5 (stage 6 = the unchanged expert, locked for everyone until the owner unlocks it AND the player picked it).
+                // The only exemption: an obstacle your OWN bring-your-own model gave a live answer for. The platform brain, an empty plan or the champion are NOT exempt.
                 const st = window.RakazaStages;
-                return st && !championMode && !override ? st.shape(w, d, st.stage()) : d;
+                if (!st) { return d; }
+                const own = !championMode && b && b.mode === 'byo' && override ? override : null;
+                return st.shape(w, d, st.stage(), own ? (o) => !!own[o.id] : null);
             }
 
             function pilotSource(decision) {
@@ -997,6 +1001,27 @@
                 setupButtons();
             }
 
+            // AI pilot stage picker (1-5, 6 shown locked) next to the AI PILOT button
+            function renderStageRow() {
+                const row = $('stage-row'), St = window.RakazaStages;
+                if (!row || !St) { return; }
+                const cur = St.stage(), max = St.max();
+                row.innerHTML = '<span style="font-size:11px;letter-spacing:.8px;opacity:.8">PILOT STAGE</span>' + [1, 2, 3, 4, 5, 6].map((n) => {
+                    const locked = n > max, on = n === cur;
+                    return '<button type="button" data-stage="' + n + '" data-testid="stage-' + n + '" aria-pressed="' + on + '" style="min-width:34px;padding:6px 8px;font-size:13px;' + (on ? 'outline:2px solid #22d3ee;' : '') + (locked ? 'opacity:.5;' : '') + '">' + (locked ? '🔒' : '') + n + '</button>';
+                }).join('');
+                row.querySelectorAll('button').forEach((bt) => {
+                    bt.onclick = () => {
+                        const n = Number(bt.dataset.stage);
+                        if (n > St.max()) { toast('Stage 6 is locked. Only the owner can unlock it.'); return; }
+                        St.pick(n).then((r) => { if (r && r.ok) { toast('AI pilot: stage ' + n + ' · ' + St.name()); } else { toast(r && r.locked ? 'Stage 6 is locked.' : 'Could not save the stage.'); } });
+                    };
+                });
+                const sn = $('ai-stage-n');
+                if (sn) { sn.textContent = String(cur); }
+            }
+            if (window.RakazaStages) { window.RakazaStages.onChange(() => { if ($('stage-row')) { renderStageRow(); } }); }
+
             function title() {
                 abortPilot();
                 trainer.running = false;
@@ -1010,7 +1035,8 @@
                     <div class="menu-grid">
                         <button class="primary wide" id="play-button">PLAY</button>
                         <button class="gold wide" id="daily-button">DAILY SEED <span class="cyan"> / ${window.RakazaDaily ? window.RakazaDaily.code() : ''} · SAME CITY FOR EVERYONE</span></button>
-                        <button class="purple wide" id="ai-button">AI PILOT <span class="cyan"> / AUTONOMOUS RUN</span></button>
+                        <button class="purple wide" id="ai-button">AI PILOT · STAGE <span id="ai-stage-n">${window.RakazaStages ? window.RakazaStages.stage() : 1}</span> <span class="cyan"> / AUTONOMOUS RUN</span></button>
+                        <div class="wide" id="stage-row" data-testid="stage-row" style="display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap" aria-label="AI pilot stage"></div>
                         <button class="gold" id="shop-title-button">SHOP</button>
                         <button class="purple" id="brain-title-button">BRAIN</button>
                         <button id="char-button">CHARACTER</button>
@@ -1027,6 +1053,7 @@
                 `);
                 $('play-button').onclick = () => startGame('manual');
                 $('ai-button').onclick = () => startGame('ai');
+                renderStageRow();
                 $('daily-button').onclick = () => { if (H.showDaily) H.showDaily(); };
                 $('char-button').onclick = () => { if (H.showChar) H.showChar(); };
                 $('shop-title-button').onclick = () => { if (H.openShop) H.openShop(); };
@@ -1301,7 +1328,7 @@
                 $('coins').textContent = game.coins;
                 $('combo').textContent = game.combo > 1 ? 'COMBO ×' + game.combo : '';
                 updateHearts();
-                $('pilot-toggle').textContent = championMode ? 'AI · CHAMPION' : 'AI PILOT · ' + (aiEnabled ? 'ON' : 'OFF');
+                $('pilot-toggle').textContent = (championMode ? 'AI · CHAMPION' : 'AI PILOT · ' + (aiEnabled ? 'ON' : 'OFF')) + (aiEnabled && window.RakazaStages ? ' · STAGE ' + window.RakazaStages.stage() + (window.RakazaBrain && window.RakazaBrain.mode === 'byo' ? ' + YOUR MODEL' : '') : '');
                 $('pilot-toggle').style.color = aiEnabled ? '#22d3ee' : '#b8afc8';
                 $('mute-toggle').textContent = saved.mute ? 'SOUND OFF' : 'SOUND ON';
                 $('fx-toggle').textContent = saved.low ? 'FX LOW' : 'FX HIGH';
@@ -2600,10 +2627,9 @@
             requestAnimationFrame(frame);
         })();
     </script>
-<script src="./rakaza-stages.js?v=1"></script>
-<script src="./rakaza-brain.js?v=16"></script>
-<script src="./rakaza-meta.js?v=16"></script>
-<script src="./rakaza-extras.js?v=16"></script>
-<script src="./rakaza-agent.js?v=16"></script>
+<script src="./rakaza-brain.js?v=18"></script>
+<script src="./rakaza-meta.js?v=18"></script>
+<script src="./rakaza-extras.js?v=18"></script>
+<script src="./rakaza-agent.js?v=18"></script>
 </body>
 </html>

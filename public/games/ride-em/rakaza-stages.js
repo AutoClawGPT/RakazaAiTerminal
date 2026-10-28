@@ -16,14 +16,16 @@
     for (var i = 0; i < w.obstacles.length; i++) { var c = w.obstacles[i]; if (!c.hit && c.x + c.width / 2 > w.travel - 12 && (o === null || c.x < o.x)) o = c; }
     return o;
   }
-  function shape(w, d, stage) {
+  // exempt(o): true only when the user's OWN model (bring-your-own) gave a live answer for that obstacle. Nothing else is exempt: not the platform brain, not an empty plan, not the champion.
+  function shape(w, d, stage, exempt) {
     stage = stage | 0;
-    if (stage >= 6 || stage < 1 || !w || !d) return d;
+    if (stage >= 6 || !w || !d) return d;
+    if (stage < 1) stage = 1;
     var o = target(w);
-    if (!o || h(w.seed, o.id) >= MISS[stage]) return d;
+    if (!o || (exempt && exempt(o)) || h(w.seed, o.id) >= MISS[stage]) return d;
     return { action: 'WAIT', power: 0, reason: NAMES[stage] + ' pilot lost focus on the ' + o.kind + '.' };
   }
-  var cur = { stage: 1, max: 5, signedIn: false };
+  var cur = { stage: 1, max: 5, signedIn: false }; var subs = [];
   var KEY = 'rz_stage_guest';
   function clamp(n, lo, hi) { n = Math.round(Number(n)); return isFinite(n) ? Math.max(lo, Math.min(hi, n)) : lo; }
   function stage() {
@@ -36,8 +38,22 @@
     fetch('/api/public/games/ride-em/me', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
       var s = j && j.setup; if (!s) return;
       cur = { stage: clamp(s.pilotStage, 1, 6), max: s.pilotMax === 6 ? 6 : 5, signedIn: true };
+      subs.forEach(function (f) { try { f(); } catch (e) { /* ignore */ } });
     }).catch(function () { /* guests keep the local stage */ });
   }
-  var api = { shape: shape, stage: stage, name: function () { return NAMES[stage()]; }, MISS: MISS.slice(), NAMES: NAMES.slice(), refresh: load, set: function (n) { if (!cur.signedIn) { try { root.localStorage.setItem(KEY, String(clamp(n, 1, 5))); } catch (e) { /* ignore */ } } } };
+  // choose a stage: signed-in agents save it on the server (which refuses 6 unless the owner unlocked it); guests keep it on this device (1-5 only)
+  function pick(n) {
+    n = clamp(n, 1, 6);
+    if (cur.signedIn) {
+      if (n > cur.max) return Promise.resolve({ ok: false, locked: true });
+      return fetch('/api/public/games/ride-em/config', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pilotStage: n }) })
+        .then(function (r) { if (r.ok) { cur.stage = n; subs.forEach(function (f) { f(); }); } return { ok: r.ok, locked: r.status === 403 }; }).catch(function () { return { ok: false }; });
+    }
+    if (n > 5) return Promise.resolve({ ok: false, locked: true });
+    try { root.localStorage.setItem(KEY, String(n)); } catch (e) { /* ignore */ }
+    subs.forEach(function (f) { f(); });
+    return Promise.resolve({ ok: true });
+  }
+  var api = { pick: pick, max: function () { return cur.signedIn ? cur.max : 5; }, onChange: function (f) { subs.push(f); }, shape: shape, stage: stage, name: function () { return NAMES[stage()]; }, MISS: MISS.slice(), NAMES: NAMES.slice(), refresh: load, set: function (n) { if (!cur.signedIn) { try { root.localStorage.setItem(KEY, String(clamp(n, 1, 5))); } catch (e) { /* ignore */ } } } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else { root.RakazaStages = api; load(); }
 })(typeof window !== 'undefined' ? window : globalThis);
