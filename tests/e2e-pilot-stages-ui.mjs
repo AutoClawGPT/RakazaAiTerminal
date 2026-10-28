@@ -3,6 +3,7 @@
 // Usage: BASE=http://localhost:3200 SHOTS=/workspace/shots/x node tests/e2e-ranked-play.mjs
 import { createRequire } from "node:module";
 import { mkdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 const require = createRequire("/workspace/shot-tool/package.json");
 const puppeteer = require("puppeteer-core");
 const BASE = process.env.BASE ?? "http://localhost:3200";
@@ -15,6 +16,9 @@ const ipH = { "x-forwarded-for": `10.${Math.floor(Math.random() * 250)}.${Math.f
 const handle = `rkplay${tag}`;
 const reg = await (await fetch(BASE + "/api/public/register", { method: "POST", headers: { "content-type": "application/json", ...ipH }, body: JSON.stringify({ name: `Ranked Play TEST ${tag}`, handle, bio: "automated demo agent (hidden afterwards)" }) })).json();
 ok("register fresh agent", String(reg.key).startsWith("rk_"));
+if (process.env.OLD) { // an agent from before the stage feature: back-dated, legacy config row with the River brain, and the River brain also chosen in the browser
+  console.log(execFileSync("/workspace/runenv.sh", ["node_modules/.bin/tsx", "tests/make-old-agent.ts", handle], { encoding: "utf8" }).trim());
+}
 console.log("AGENT_ID", reg.agent?.id ?? reg.id ?? "?", "HANDLE", handle);
 const b = await puppeteer.launch({ executablePath: "/usr/bin/google-chrome", headless: "new", args: ["--no-sandbox", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 async function gf(p) { // the game frame can be re-created once the agent's saved progress is pulled: re-resolve until #play-button exists
@@ -46,12 +50,16 @@ try {
     await p.click('[data-testid="pilot-stage-1"]');
     await p.waitForFunction(() => document.querySelector('[data-testid="pilot-stage-1"]')?.getAttribute("aria-pressed") === "true", { timeout: 15000 });
     // the beginner pilot in the real game: it loses (3 hits) and the score posts
+    if (process.env.OLD) await p.evaluate(() => localStorage.setItem("rz_brain_v15", JSON.stringify({ mode: "river" })));
     await p.goto(BASE + "/games/ride-em", { waitUntil: "networkidle2", timeout: 90000 });
     const f2 = await gf(p);
     await sleep(2500);
     const stg = await f2.evaluate(() => window.RakazaStages && { stage: window.RakazaStages.stage(), name: window.RakazaStages.name() });
     ok(`${label}: the game picked up stage 1 from the server (${JSON.stringify(stg)})`, stg && stg.stage === 1);
     await p.evaluate(() => document.querySelector("[data-testid=game-stage]").scrollIntoView({ behavior: "instant" })); await sleep(400);
+    const inGame = await f2.evaluate(() => ({ cur: [1,2,3,4,5,6].filter((n) => document.querySelector(`[data-testid="stage-${n}"]`)?.getAttribute("aria-pressed") === "true").join(), six: document.querySelector('[data-testid="stage-6"]')?.textContent, btn: document.getElementById("ai-button").textContent }));
+    ok(`${label}: in the game the picker shows the saved stage 1, stage 6 locked, and the AI PILOT button says so (${JSON.stringify(inGame)})`, inGame.cur === "1" && /🔒/.test(inGame.six || "") && /STAGE 1/.test(inGame.btn));
+    await p.screenshot({ path: `${SHOTS}/${label}-game-picker.png` });
     await f2.click("#ai-button");
     await f2.waitForFunction(() => window.__rz2 && window.__rz2.state === "play", { timeout: 20000, polling: 200 });
     const lives = []; const t0 = Date.now(); let src = "";
@@ -61,7 +69,8 @@ try {
       if (s.st !== "play") break;
       await sleep(150);
     }
-    ok(`${label}: the beginner pilot loses all 3 lives (${lives.join(">")})`, lives[0] === 3 && lives[lives.length - 1] === 0);
+    const hud = await f2.evaluate(() => (document.getElementById("pilot-toggle") || {}).textContent || "");
+    ok(`${label}: the beginner pilot loses all 3 lives (${lives.join(">")}), HUD "${hud}"`, lives[0] === 3 && lives[lives.length - 1] === 0 && /STAGE 1/.test(hud));
     await f2.waitForFunction(() => /posted|Rank #|not recorded/i.test(document.getElementById("rz-rank")?.textContent || ""), { timeout: 30000, polling: 300 }).catch(() => {});
     const rk = await f2.evaluate(() => document.getElementById("rz-rank")?.textContent || "");
     ok(`${label}: the beginner run is posted by the server (${rk})`, /posted|Rank #/.test(rk));

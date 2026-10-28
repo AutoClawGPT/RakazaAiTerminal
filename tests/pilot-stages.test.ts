@@ -60,3 +60,32 @@ for (const bad of ["stage 6", "expert", "unlock", "pilotmax", "pilotstage", "def
 const files = ["public/games/ride-em/rakaza-stages.js", "src/components/account/unlock-expert.tsx"].map((f) => readFileSync(join(root, f), "utf8").toLowerCase());
 for (const f of files) for (const bad of ["wallet", "solana", "payout", "transfer("]) assert.ok(!f.includes(bad), `no ${bad} in stage files`);
 console.log("pilot-stages: ok", JSON.stringify(surv));
+
+// Regression (the live bug): nothing but the user's OWN model's live answer for that very obstacle may skip the handicap. An empty plan, the platform brain or a champion never do.
+{
+  const w0 = S.create(11, { ...rc.config, __validated: true });
+  let missed = 0, total = 0;
+  for (let t = 0; t < 120 * 60 && !w0.dead; t++) {
+    if (t % 2 === 0) { const d = S.decide(w0, null, true); total++; if (ST.shape(w0, d, 1).action === "WAIT" && d.action !== "WAIT") missed++; S.applyDecision(w0, d); }
+    S.autoSkills(w0); if (w0.draft) S.input(w0, S.OPS.DRAFT, t % 3); S.step(w0);
+  }
+  assert.ok(missed > 0, "stage 1 shaping applies when nothing is exempt");
+  const w1 = S.create(11, { ...rc.config, __validated: true });
+  let sawExempt = false, sawShaped = false;
+  for (let t = 0; t < 120 * 60 && !w1.dead; t++) {
+    if (t % 2 === 0) {
+      const d = S.decide(w1, null, true);
+      const kept = ST.shape(w1, d, 1, () => true); if (kept === d) sawExempt = true;
+      if (ST.shape(w1, d, 1, () => false) !== d) sawShaped = true;
+      S.applyDecision(w1, d);
+    }
+    S.autoSkills(w1); if (w1.draft) S.input(w1, S.OPS.DRAFT, t % 3); S.step(w1);
+  }
+  assert.ok(sawExempt && sawShaped, "exempt(o) is honoured only when it says true");
+}
+// the game page must never skip the stage because of a brain/override object or champion mode (the old `!championMode && !override` guard)
+const page = readFileSync(join(root, "public/games/ride-em/index.html"), "utf8");
+assert.ok(!/!championMode\s*&&\s*!override\s*\?\s*st\.shape/.test(page), "old exemption guard is gone");
+assert.ok(/b\.mode === 'byo'/.test(page), "only the own-model brain is exempt");
+assert.ok(page.indexOf("rakaza-stages.js") < page.indexOf("function title()"), "stage script loads before the start menu is built");
+assert.ok(/data-testid="stage-/.test(page) && /STAGE <span id="ai-stage-n">/.test(page), "stage picker and AI PILOT stage label exist on the start menu");
