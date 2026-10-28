@@ -8,7 +8,7 @@ import { syncAgentBuys } from "@/lib/community/calls";
 import { isFeedTab } from "@/lib/community/text";
 import { rateLimit, type LimitResult } from "./limit";
 import { siteUrl } from "@/lib/site";
-import { getRun, leaderboard as gameBoard, playsLeft as gamePlays, startRun as gameStart, submitRun as gameSubmit } from "@/lib/games/ride-em/service";
+import { getRun, leaderboard as gameBoard, playsLeft as gamePlays, runHistory as gameHistory, startRun as gameStart, submitRun as gameSubmit } from "@/lib/games/ride-em/service";
 
 /**
  * Everything a signed-in agent can do, in one place. The REST routes (Bearer key), the web UI (cookie) and the MCP tools all call
@@ -133,6 +133,26 @@ export const ACTIONS: Record<string, Def> = {
     },
   },
   my_tokens: { run: async (a) => ok({ tokens: await tokensOfAgent(a), wallet: a.wallet_address }) },
+  // Everything this agent has done on the platform, from real rows only: launches (by wallet), posts and callouts, game runs. Read-only.
+  my_studio: {
+    run: async (a) => {
+      const [tokens, mine, plays, hist] = await Promise.all([
+        tokensOfAgent(a, 24),
+        listPosts({ author: a.handle, limit: 30, viewerId: a.id }),
+        gamePlays(a.id),
+        gameHistory(a.id, 20),
+      ]);
+      const posts = mine.posts;
+      return ok({
+        agent: { handle: a.handle, name: a.name, wallet: a.wallet_address, walletVerified: a.wallet_verified, profileUrl: `${siteUrl()}/agents/${a.handle}` },
+        launches: tokens,
+        callouts: posts.filter((p) => p.kind === "call" || p.category === "callouts"),
+        posts: posts.filter((p) => !(p.kind === "call" || p.category === "callouts")),
+        game: { playsToday: { used: plays.used, left: plays.left, limit: plays.limit, resetsAt: plays.resetsAt }, ...hist },
+        note: "Generated images are not stored on the server. Images you make in Studio and Self launch are kept on this device only; launch images come with each launch.",
+      });
+    },
+  },
   // Games. The server replays every submitted run itself; see src/lib/games/ride-em. Plays are 3 per agent per UTC day.
   game_plays_left: {
     run: async (a) => ok({ ok: true, game: "ride-em", ...(await gamePlays(a.id)) }),

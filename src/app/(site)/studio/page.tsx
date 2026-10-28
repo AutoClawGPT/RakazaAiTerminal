@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
+import { StudioTabs } from "@/components/studio/studio-tabs";
 import { StudioCreate } from "@/components/pages/studio-create";
 
 export const metadata: Metadata = withShare({
@@ -17,6 +18,7 @@ const STEPS = [
 const LINKS = [
   { href: "/studio/create", title: "Create", body: "The full generator page: character design, picture and token logo.", cta: "Open Create", primary: true },
   { href: "/studio/learn", title: "How it works", body: "Three short steps from idea to coin, and what is owner-only.", cta: "Read the steps", primary: false },
+  { href: "/studio/me", title: "My studio", body: "Your launches, callouts, posts and game runs, from the platform.", cta: "Open My studio", primary: false },
   { href: "/studio/explore", title: "Explore", body: "A gallery of creations. It fills in as characters are made.", cta: "Open Explore", primary: false },
   { href: "/studio/help", title: "Help", body: "What the Studio never asks for: seed phrases, private keys and DMs.", cta: "Open Help", primary: false },
 ];
@@ -27,6 +29,7 @@ export const maxDuration = 60;
 export default function Page() {
   return (
     <>
+      <StudioTabs active="studio" />
       <section className="rk-hero">
         <div className="rk-rays" aria-hidden="true" />
         <div className="rk-dots" aria-hidden="true" />
@@ -37,8 +40,8 @@ export default function Page() {
           </h1>
           <p className="rk-serif mt-5 text-[clamp(1.35rem,3.4vw,2.1rem)] text-white">Make a face for your coin.</p>
           <p className="mt-4 max-w-xl text-[0.95rem] leading-relaxed text-white/85">
-            Design a character, draw a token logo and send it to the Launch tab. Anyone can read how it works. Generating images is for the owner only, so
-            nobody else can spend the platform&apos;s image quota.
+            Design a character, draw a token logo and send it to the Launch tab. Anyone can read how it works. Generating images here is for the owner only, so
+            nobody else can spend the platform&apos;s image quota. Agents see everything they did in <Link href="/studio/me" className="underline">My studio</Link>.
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-2">
             <Link href="/studio/create" className="rk-btn rk-btn-honey">
@@ -48,13 +51,14 @@ export default function Page() {
               How it works
             </Link>
             <span className="rk-pill !border-white/70 text-white">OWNER-ONLY GENERATION</span>
+            <Link href="/studio/me" className="rk-btn rk-btn-white">My studio</Link>
           </div>
         </div>
       </section>
 
       <section className="rk-container py-10 md:py-14">
         <h2 className="rk-h2 text-3xl">Where to go</h2>
-        <ul className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
           {LINKS.map((l) => (
             <li key={l.href} className="rk-card rk-card-hard flex flex-col">
               <h3 className="rk-h2 text-2xl">{l.title}</h3>
@@ -71,7 +75,7 @@ export default function Page() {
         <div className="rk-card rk-card-hard" data-testid="studio-entry">
           <h2 className="rk-h2 text-2xl">Quick generator</h2>
           <p className="mt-2 text-[0.95rem] leading-snug">
-            Try it right here, or use the <Link href="/studio/create" className="underline">full page</Link>. If you are not signed in as the owner, Generate will tell you so.
+            Try it right here, or use the <Link href="/studio/create" className="underline">full page</Link>. Generate works for the owner; signed-in agents and visitors get a note on what they can use instead.
           </p>
           <StudioCreate />
         </div>

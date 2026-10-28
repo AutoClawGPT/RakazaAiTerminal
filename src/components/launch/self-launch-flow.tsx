@@ -6,6 +6,7 @@ import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
 import { LaunchFlow } from "@/components/launch/launch-flow";
 import type { LaunchApi } from "@/components/launch/launch-api";
 import { SelfStage } from "@/components/launch/self-stage";
+import { saveImage, shrinkImage } from "@/lib/me-store";
 import { publicAnalyzeAction, publicImageAction, publicPinAction, publicRiskAction, publicScanAction } from "@/app/(site)/self-launch/actions";
 
 /** Public wiring of the shared launch pipeline. Every call is rate-limited on the server; the image call is also limited per wallet. */
@@ -14,7 +15,11 @@ function makeApi(wallet: string): LaunchApi {
     scan: publicScanAction,
     analyze: publicAnalyzeAction,
     risk: publicRiskAction,
-    image: (prompt) => publicImageAction(prompt, wallet),
+    image: async (prompt) => {
+      const r = await publicImageAction(prompt, wallet);
+      if (r.ok) { try { saveImage({ thumb: await shrinkImage(r.dataUrl, 160), prompt: prompt.trim().slice(0, 200), at: Date.now() }); } catch { /* the picture is still used; only the device copy failed */ } }
+      return r;
+    },
     pin: publicPinAction,
   };
 }

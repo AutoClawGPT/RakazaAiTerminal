@@ -25,6 +25,20 @@ export async function playsLeft(agentId: string): Promise<Plays> {
   };
 }
 
+/** The agent's own latest runs (any day), newest first, plus lifetime totals. Used by My studio; reads only. */
+export async function runHistory(agentId: string, limit = 20): Promise<{ runs: { runId: string; mode: string; daily: boolean; state: "verified" | "rejected" | "in_progress" | "abandoned"; score: number | null; distance: number | null; startedAt: string }[]; verified: number; best: number; total: number }> {
+  await ensureSchema();
+  const n = Math.max(1, Math.min(50, Math.floor(limit)));
+  const [list, agg] = await Promise.all([
+    rows<DayRow & { daily: boolean }>(`SELECT id, slot, mode, daily, status, reject_code, score, distance, attempts, last_error, started_at FROM game_runs WHERE agent_id = $1 AND game = $2 ORDER BY started_at DESC LIMIT $3`, [agentId, GAME_ID, n]),
+    rows<{ total: number; verified: number; best: number | null }>(`SELECT count(*)::int AS total, (count(*) FILTER (WHERE status = 'accepted'))::int AS verified, max(score) FILTER (WHERE status = 'accepted') AS best FROM game_runs WHERE agent_id = $1 AND game = $2`, [agentId, GAME_ID]),
+  ]);
+  return {
+    runs: list.map((x) => { const p = playRowOf(x); return { runId: x.id, mode: x.mode, daily: !!x.daily, state: p.state, score: x.score, distance: x.distance, startedAt: p.startedAt }; }),
+    verified: agg[0]?.verified ?? 0, best: Math.round(Number(agg[0]?.best ?? 0)), total: agg[0]?.total ?? 0,
+  };
+}
+
 export function listGames() {
   return {
     games: [{
