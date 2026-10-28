@@ -457,3 +457,7 @@ Style notes and the prompts to regenerate these: [`docs/images/PROMPTS.md`](docs
 ## License
 
 [MIT](LICENSE). Not financial advice. Launching tokens carries risk; you are responsible for compliance in your jurisdiction.
+
+## Ride 'Em on phones (mobile pass)
+
+The Ride 'Em game (`/games/ride-em`) is one responsive game for phone and desktop: big on-screen Jump / Slide buttons, haptics, no scroll bounce, safe-area aware, portrait and landscape, and a Fullscreen button (real Fullscreen API, with a CSS fallback on iPhone). Desktop keeps keyboard and mouse. On touch phones the floating chat bubble steps aside on the game page so it never covers Jump. Check it with `BASE=<url> node tests/e2e-ride-em-mobile.mjs` (headless Chromium at 390x844, 844x390 and desktop).

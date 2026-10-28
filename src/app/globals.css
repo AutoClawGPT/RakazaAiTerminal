@@ -605,6 +605,7 @@
   .rk-widget-label { font-size: 0.85rem; }
   .rk-widget-panel { display: flex; flex-direction: column; overflow: hidden; width: min(24rem, calc(100vw - 1.5rem)); height: min(34rem, calc(100dvh - var(--bottom-nav-h, 4rem) - 6.5rem)); border: 2px solid var(--rk-line); border-radius: 1.4rem; background: var(--card); color: var(--card-foreground); box-shadow: 6px 6px 0 var(--rk-violet); }
   .rk-widget-panel.hidden { display: none; }
+  @media (pointer: coarse) and (max-width: 1000px) { .rk-widget[data-on-game="true"][data-open="false"] { display: none; } }
   @media (min-width: 1024px) { .rk-widget { right: 1.25rem; bottom: 1.25rem; } .rk-widget-panel { height: min(36rem, calc(100dvh - 7rem)); } }
   @media (max-width: 480px) { .rk-widget-label { display: none; } .rk-widget-bubble { padding: 0; width: 3.2rem; justify-content: center; } }
 }

@@ -1,5 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { MessageCircle } from "lucide-react";
 
@@ -16,6 +17,8 @@ const Panel = dynamic(() => import("./widget-panel").then((m) => m.WidgetPanel),
 /** Floating bubble, bottom-right. Mounted once in the public-site and dashboard layouts (not on /talk, which is the full version). */
 export function RakazaWidget() {
   const [open, setOpen] = useState(false);
+  // On a touch phone the bubble would sit on top of the game's Jump button, so it steps aside on the game page (Talk and the menu are still one tap away).
+  const onGame = (usePathname() ?? "").startsWith("/games/ride-em");
   const [everOpened, setEverOpened] = useState(false);
   const toggle = useCallback(() => {
     setOpen((o) => !o);
@@ -29,7 +32,7 @@ export function RakazaWidget() {
   }, [open]);
 
   return (
-    <div className="rk-widget" data-testid="rakaza-widget" data-open={open}>
+    <div className="rk-widget" data-testid="rakaza-widget" data-open={open} data-on-game={onGame}>
       {everOpened ? <Panel open={open} onMinimize={() => setOpen(false)} /> : null}
       <button type="button" className="rk-widget-bubble" onClick={toggle} aria-expanded={open} aria-label={open ? "Minimize the Rakaza chat" : "Chat with Rakaza"} data-testid="widget-bubble">
         {open ? <span aria-hidden="true" className="text-xl leading-none">×</span> : <MessageCircle className="size-6" aria-hidden="true" />}

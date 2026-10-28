@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BadgeCheck, Heart, ShieldAlert } from "lucide-react";
+import { BadgeCheck, Heart, Maximize2, Minimize2, ShieldAlert } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMe } from "@/components/community/me";
 import { LiveBoard } from "@/components/games/live-board";
@@ -36,6 +36,32 @@ export function RideEmClient({ initialRange = "24h" }: { initialRange?: string }
   const [result, setResult] = useState<Result | null>(null);
   const [bump, setBump] = useState(0);
   const [now, setNow] = useState(() => Date.now());
+  const stage = useRef<HTMLDivElement>(null);
+  const [full, setFull] = useState(false);
+  const [cssFull, setCssFull] = useState(false);
+
+  // Fullscreen: the real Fullscreen API where it exists, otherwise (iPhone Safari) a CSS cover-the-screen mode.
+  const toggleFull = useCallback(() => {
+    const el = stage.current;
+    if (!el) return;
+    if (document.fullscreenElement) { void document.exitFullscreen().catch(() => {}); return; }
+    if (cssFull) { setCssFull(false); setFull(false); return; }
+    if (document.fullscreenEnabled && el.requestFullscreen) {
+      el.requestFullscreen().then(() => {
+        try { const o = screen.orientation as ScreenOrientation & { lock?: (v: string) => Promise<void> }; if (window.innerHeight < 520 || window.innerWidth < 520) void o.lock?.("landscape")?.catch(() => {}); } catch { /* not supported */ }
+      }).catch(() => { setCssFull(true); setFull(true); });
+    } else { setCssFull(true); setFull(true); }
+  }, [cssFull]);
+  useEffect(() => {
+    const onFs = () => setFull(!!document.fullscreenElement || cssFull);
+    const onMsg = (ev: MessageEvent) => { if (ev.origin === window.location.origin && (ev.data as { rakaza?: string } | null)?.rakaza === "fs-toggle") toggleFull(); };
+    const onKey = (ev: KeyboardEvent) => { if (ev.key === "Escape" && cssFull) { setCssFull(false); setFull(false); } };
+    document.addEventListener("fullscreenchange", onFs);
+    window.addEventListener("message", onMsg);
+    window.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("fullscreenchange", onFs); window.removeEventListener("message", onMsg); window.removeEventListener("keydown", onKey); };
+  }, [cssFull, toggleFull]);
+  useEffect(() => { document.documentElement.style.overflow = cssFull ? "hidden" : ""; return () => { document.documentElement.style.overflow = ""; }; }, [cssFull]);
 
   const loadPlays = useCallback(async (): Promise<boolean> => {
     const r = await fetch(`${API}/plays`, { cache: "no-store" }).catch(() => null);
@@ -100,7 +126,7 @@ export function RideEmClient({ initialRange = "24h" }: { initialRange?: string }
     }
     void loadPlays();
     frame.current?.focus();
-    frame.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    stage.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   }
 
   const left = plays?.left ?? null;
@@ -157,10 +183,22 @@ export function RideEmClient({ initialRange = "24h" }: { initialRange?: string }
       ) : null}
 
       <section aria-label="The game" className="grid gap-2">
-        <div className="mx-auto w-full max-w-[1100px] overflow-hidden rounded-2xl border-2 border-[var(--rk-line)] bg-black" style={{ aspectRatio: "16 / 9", minHeight: 300 }}>
-          <iframe ref={frame} title="Ride 'Em, Rakaza!" src={FRAME} onLoad={() => { setReady(true); }} className="size-full border-0" allow="autoplay; fullscreen; gamepad" allowFullScreen data-testid="game-frame" />
+        <style>{`
+          .rz-stage{position:relative;margin-inline:auto;width:100%;max-width:1100px;overflow:hidden;border-radius:1rem;border:2px solid var(--rk-line);background:#000;aspect-ratio:16/9;min-height:300px}
+          @media (max-width:820px) and (orientation:portrait){.rz-stage{aspect-ratio:auto;height:min(calc(100dvh - 182px),860px);min-height:500px;max-width:560px}}
+          @media (orientation:landscape) and (max-height:520px){.rz-stage{aspect-ratio:auto;height:calc(100dvh - var(--header-h,56px) - 1.5rem);min-height:260px;max-width:none;border-radius:.75rem}}
+          .rz-stage[data-full="true"]{position:fixed;inset:0;z-index:2147483000;max-width:none;width:100vw;height:100dvh;min-height:0;aspect-ratio:auto;border-radius:0;border:0;margin:0}
+          .rz-stage:fullscreen{max-width:none;width:100vw;height:100dvh;min-height:0;aspect-ratio:auto;border-radius:0;border:0}
+        `}</style>
+        <div className="flex flex-wrap items-center justify-between gap-2" data-testid="game-toolbar">
+          <span className="text-xs opacity-70">Touch: tap the city or Jump, swipe down or Slide. Keyboard: SPACE / W jump, S slide.</span>
+          <button type="button" className="rk-pill min-h-9 text-xs" onClick={toggleFull} data-testid="game-fullscreen" aria-pressed={full}>{full ? <Minimize2 className="mr-1 inline size-3.5" aria-hidden="true" /> : <Maximize2 className="mr-1 inline size-3.5" aria-hidden="true" />}{full ? "EXIT FULLSCREEN" : "FULLSCREEN"}</button>
         </div>
-        <p className="text-center text-xs opacity-70">Best on a computer or a phone held sideways. Fullscreen is inside the game.</p>
+        <div ref={stage} className="rz-stage" data-full={cssFull ? "true" : "false"} data-testid="game-stage">
+          <iframe ref={frame} title="Ride 'Em, Rakaza!" src={FRAME} onLoad={() => { setReady(true); }} className="size-full border-0" allow="autoplay; fullscreen; gamepad; accelerometer" allowFullScreen data-testid="game-frame" />
+          {(cssFull || full) ? <button type="button" onClick={toggleFull} className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full border border-white/30 bg-black/60 px-3 py-1 text-xs text-white" data-testid="game-exit-fullscreen">Exit fullscreen</button> : null}
+        </div>
+        <p className="text-center text-xs opacity-70">One game for phone and computer: portrait or sideways, touch or keyboard. Use FULLSCREEN for the best view.</p>
       </section>
 
       <section className="grid gap-3" aria-labelledby="lb-h">
