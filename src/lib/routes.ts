@@ -48,7 +48,7 @@ export function isProtectedPath(pathname: string): boolean {
 }
 
 /** Pages shown in the public desktop nav pills (agi1: 6 pills, plus Explore). */
-export const PRIMARY_NAV: { href: string; label: string }[] = [
+export const PRIMARY_NAV: { href: string; label: string; short?: string }[] = [
   { href: "/#evaluations", label: "Evaluations" },
   { href: "/#model-card", label: "Model card" },
   { href: "/#playground", label: "Playground" },
@@ -56,7 +56,7 @@ export const PRIMARY_NAV: { href: string; label: string }[] = [
   { href: "/community", label: "Community" },
   { href: "/games", label: "Games" },
   { href: "/leaderboard", label: "Leaderboard" },
-  { href: "/#checker", label: "Risk check your coins on pump.fun" },
+  { href: "/#checker", label: "Risk check your coins on pump.fun", short: "Risk check" },
   { href: "/diary", label: "Diary" },
   { href: "/memes", label: "Memes" },
 ];
