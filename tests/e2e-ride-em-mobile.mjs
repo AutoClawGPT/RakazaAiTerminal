@@ -104,7 +104,7 @@ for (const [name, w, h] of [["portrait", 390, 844], ["landscape", 844, 390]]) {
   await sleep(1200);
   const fr = await p.evaluate(() => { const r = document.querySelector("iframe").getBoundingClientRect(); return { w: r.width, h: r.height }; });
   ok(Math.abs(fr.w / fr.h - 16 / 9) < 0.06, `desktop: 16:9 stage (${Math.round(fr.w)}x${Math.round(fr.h)})`);
-  await p.evaluate(() => document.querySelector("[data-testid=game-stage]").scrollIntoView());
+  await p.evaluate(() => document.querySelector("[data-testid=game-stage]").scrollIntoView({ behavior: "instant", block: "center" })); await sleep(500);
   await startRun(p, f, false);
   ok(await f.evaluate(() => !!document.getElementById("rzFs")), "desktop: fullscreen button present");
   await f.evaluate(() => { window.__seen = { a: 0, up: 0, down: 0 }; const o = window.RakazaInput.read.bind(window.RakazaInput); window.RakazaInput.read = () => { const r = o(); if (r.pressed.a) window.__seen.a++; if (r.move.y < -0.5) window.__seen.up++; if (r.move.y > 0.5) window.__seen.down++; return r; }; });

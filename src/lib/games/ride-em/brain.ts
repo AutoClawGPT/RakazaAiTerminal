@@ -14,7 +14,7 @@ const ACTIONS = ["jump", "slide", "stomp", "double", "wait"];
 const TYPES = ["gap", "low", "monster", "block"];
 const VERIFIED = new Set([PERSONA_MODEL_DEFAULT, "deepseek-ai/DeepSeek-V4.1-Flash-1017"]);
 
-const SYSTEM = "You pilot a rooftop runner. You get the next obstacles (id, type, t = seconds until contact, w = width, h = height). "
+export const SYSTEM = "You pilot a rooftop runner. You get the next obstacles (id, type, t = seconds until contact, w = width, h = height). "
   + "Choose one action per obstacle: jump (over blocks and gaps), slide (under low things like drones/signs), stomp (jump onto a monster), double (double jump over tall blocks), wait. "
   + 'Reply with ONLY compact JSON: {"decisions":[{"id":<number>,"do":"jump|slide|stomp|double|wait"}]} and nothing else.';
 

@@ -2,8 +2,9 @@ import "server-only";
 import { NextResponse, type NextRequest } from "next/server";
 import { bearerAgent, cookieAgent, CORS, isBadJson, NO_STORE, readJson } from "@/lib/api/agent-http";
 import { runAction } from "@/lib/api/agent-actions";
-import { limitHeaders } from "@/lib/api/limit";
+import { limitHeaders, rateLimit } from "@/lib/api/limit";
 import type { AgentRow } from "@/lib/agents/service";
+import { byoDetectFor, byoTestFor, chatWithAgent, getState, me, putState, relayFor, saveSetup } from "./agent-setup";
 import { dropStatus, getRun, leaderboard, registry } from "./service";
 
 /**
@@ -77,5 +78,27 @@ export async function handleGames(req: NextRequest, path: string[], method: "GET
     if (isBadJson(input)) return json({ error: "bad_json", message: "Send a JSON body." }, 400, { ...au!.headers });
     return act(au!, b === "start" ? "game_start_run" : "game_submit_run", input);
   }
-  return json({ error: "not_found", message: "No such games route. See /skill.md#games.", routes: ["GET leaderboard", "GET plays", "POST runs/start", "POST runs/submit", "GET run/{id}"] }, 404, cors);
+  // ---- /agents/me game setup (per agent id; the BYO key only ever travels in x-byo-key for one call and is never stored or logged)
+  if ((a === "me" || a === "config" || a === "state" || a === "chat" || a === "byo") && (method === "GET" ? a === "me" || a === "state" : true)) {
+    const write = method === "POST";
+    const au = await authOf(req, write, false);
+    if (au && "response" in au) return au.response;
+    const ag = au!.agent, h = { ...au!.headers, ...cors };
+    const key = (req.headers.get("x-byo-key") ?? "").slice(0, 400);
+    const lim = async (scope: string, max: number) => { const l = await rateLimit(`games:${scope}`, ag.id, max, 1, "m"); return l.ok ? null : json({ error: "rate_limited", message: "Slow down a little and try again." }, 429, { ...h, ...limitHeaders(l) }); };
+    if (method === "GET" && a === "me") { const r = await me(ag); return json(r.body, r.status, h); }
+    if (method === "GET" && a === "state") { const r = await getState(ag); return json(r.body, r.status, h); }
+    if (method === "POST") {
+      const input = await readJson(req);
+      if (isBadJson(input)) return json({ error: "bad_json", message: "Send a JSON body." }, 400, h);
+      const body = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
+      if (a === "config") { const r = await saveSetup(ag, body); return json(r.body, r.status, h); }
+      if (a === "state") { const l = await lim("state", 60); if (l) return l; const r = await putState(ag, body); return json(r.body, r.status, h); }
+      if (a === "chat") { const l = await lim("chat", 20); if (l) return l; const r = await chatWithAgent(ag, body, key); return json(r.body, r.status, h); }
+      if (a === "byo" && b === "test") { const l = await lim("byotest", 20); if (l) return l; const r = await byoTestFor(body, key); return json(r.body, r.status, h); }
+      if (a === "byo" && b === "detect") { const l = await lim("byodetect", 20); if (l) return l; const r = await byoDetectFor(body, key); return json(r.body, r.status, h); }
+      if (a === "byo" && b === "relay") { const l = await lim("byorelay", 240); if (l) return l; const r = await relayFor(body, key); return json(r.body, r.status, h); }
+    }
+  }
+  return json({ error: "not_found", message: "No such games route. See /skill.md#games.", routes: ["GET leaderboard", "GET plays", "POST runs/start", "POST runs/submit", "GET run/{id}", "GET me", "POST config", "GET|POST state", "POST chat", "POST byo/test", "POST byo/detect"] }, 404, cors);
 }

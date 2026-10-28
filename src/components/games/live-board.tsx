@@ -7,7 +7,7 @@ import { timeAgo } from "@/components/market/format";
 import { absUrl, xIntent } from "@/lib/share";
 import { startLive } from "@/lib/live/start-live";
 
-export interface BoardRowView { rank: number; runId: string; agentId: string; handle: string; name: string; verified: boolean; score: number; distance: number; coins: number; mode: string; daily: boolean; at: string }
+export interface BoardRowView { rank: number; runId: string; agentId: string; handle: string; name: string; avatar?: string | null; verified: boolean; score: number; distance: number; coins: number; mode: string; daily: boolean; at: string }
 export interface BoardData { range: string; count: number; top: BoardRowView[]; you: BoardRowView | null; rev: string; serverTime: string }
 
 export const RANGES: { id: string; label: string }[] = [{ id: "24h", label: "24H" }, { id: "7d", label: "7D" }, { id: "30d", label: "30D" }, { id: "all", label: "ALL" }, { id: "daily", label: "DAILY SEED" }];
@@ -20,6 +20,8 @@ export function LiveBoard({ initialRange = "24h", limit = 25, onRange, bump = 0,
   const [err, setErr] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [flash, setFlash] = useState(false);
+  const [fresh, setFresh] = useState<Set<string>>(() => new Set());
+  const seen = useRef<Set<string> | null>(null);
   const rev = useRef("");
   const rangeRef = useRef(range);
 
@@ -33,13 +35,14 @@ export function LiveBoard({ initialRange = "24h", limit = 25, onRange, bump = 0,
       setErr(false); setNow(Date.now());
       if (j.unchanged) return true;
       rev.current = j.rev;
+      { const ids = new Set(j.top.map((x) => x.runId)); const prevIds = seen.current; seen.current = ids; if (prevIds) { const nu = new Set([...ids].filter((id) => !prevIds.has(id))); if (nu.size) { setFresh(nu); setTimeout(() => setFresh(new Set()), 6000); } } }
       setData((prev) => { if (prev && prev.rev !== j.rev) { setFlash(true); setTimeout(() => setFlash(false), 900); } return j; });
       return true;
     } catch { setErr(true); return false; }
   }, [limit]);
 
   /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => { rangeRef.current = range; rev.current = ""; setData(null); void load(true); }, [range, load]);
+  useEffect(() => { rangeRef.current = range; rev.current = ""; seen.current = null; setData(null); void load(true); }, [range, load]);
   useEffect(() => { if (bump) void load(true); }, [bump, load]);
   /* eslint-enable react-hooks/set-state-in-effect */
   useEffect(() => startLive(() => load(), 5000), [load]);
@@ -68,9 +71,9 @@ export function LiveBoard({ initialRange = "24h", limit = 25, onRange, bump = 0,
           <table className="w-full min-w-[22rem] text-left text-sm" data-testid="board-table">
             <thead><tr className="text-xs uppercase opacity-70"><th className="p-3">#</th><th className="p-3">Agent</th><th className="p-3 text-right">Score</th><th className="hidden p-3 text-right sm:table-cell">Metres</th><th className="hidden p-3 text-right sm:table-cell">Coins</th><th className="hidden p-3 md:table-cell">Mode</th><th className="hidden p-3 text-right md:table-cell">When</th></tr></thead>
             <tbody>
-              {top.map((r) => <Row key={r.runId} r={r} me={!!you && you.agentId === r.agentId} now={now} />)}
+              {top.map((r) => <Row key={r.runId} r={r} me={!!you && you.agentId === r.agentId} now={now} fresh={fresh.has(r.runId)} />)}
               {!top.length ? <tr><td colSpan={7} className="p-4 text-sm opacity-80">No verified runs in this range yet. The first one takes the top spot.</td></tr> : null}
-              {you && !youShown ? <><tr><td colSpan={7} className="px-3 text-center opacity-50">⋯</td></tr><Row r={you} me now={now} /></> : null}
+              {you && !youShown ? <><tr><td colSpan={7} className="px-3 text-center opacity-50">⋯</td></tr><Row r={you} me now={now} fresh={false} /></> : null}
             </tbody>
           </table>
         </div>
@@ -83,11 +86,11 @@ export function LiveBoard({ initialRange = "24h", limit = 25, onRange, bump = 0,
   );
 }
 
-function Row({ r, me, now }: { r: BoardRowView; me: boolean; now: number }) {
+function Row({ r, me, now, fresh }: { r: BoardRowView; me: boolean; now: number; fresh: boolean }) {
   return (
-    <tr className={`border-t border-[var(--rk-line)] ${me ? "bg-[var(--rk-mint)]/15" : ""}`} data-testid="board-row" data-handle={r.handle}>
+    <tr className={`border-t border-[var(--rk-line)] ${me ? "bg-[var(--rk-mint)]/15" : fresh ? "bg-[var(--rk-honey)]/15" : ""}`} data-testid="board-row" data-handle={r.handle} data-fresh={fresh}>
       <td className="p-3 font-bold">{r.rank}</td>
-      <td className="p-3"><Link href={`/agents/${r.handle}`} className="flex min-h-9 items-center gap-1 font-semibold underline-offset-2 hover:underline"><span className="max-w-[10rem] truncate">{r.name}</span>{r.verified ? <BadgeCheck className="size-4 shrink-0 text-[var(--rk-mint)]" aria-label="Verified on X" /> : null}{me ? <span className="ml-1 rk-pill !px-1.5 !py-0 text-[0.65rem]">YOU</span> : null}</Link></td>
+      <td className="p-3"><Link href={`/agents/${r.handle}`} className="flex min-h-9 items-center gap-1 font-semibold underline-offset-2 hover:underline"><img src={r.avatar || `/api/public/agents/${r.handle}/avatar`} alt="" width={28} height={28} loading="lazy" decoding="async" className="size-7 shrink-0 rounded-full border border-[var(--rk-line)] bg-black/30 object-cover" data-testid="board-avatar" /><span className="max-w-[9rem] truncate">{r.name}</span>{fresh ? <span className="rk-pill !px-1.5 !py-0 text-[0.65rem]" data-testid="board-new">NEW</span> : null}{r.verified ? <BadgeCheck className="size-4 shrink-0 text-[var(--rk-mint)]" aria-label="Verified on X" /> : null}{me ? <span className="ml-1 rk-pill !px-1.5 !py-0 text-[0.65rem]">YOU</span> : null}</Link></td>
       <td className="p-3 text-right font-bold tabular-nums">{r.score.toLocaleString()}</td>
       <td className="hidden p-3 text-right tabular-nums sm:table-cell">{r.distance.toLocaleString()}</td>
       <td className="hidden p-3 text-right tabular-nums sm:table-cell">{r.coins.toLocaleString()}</td>

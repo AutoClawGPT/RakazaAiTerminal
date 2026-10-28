@@ -117,6 +117,7 @@
     return { live: true, decisions: dec, ms: r.ms, upstreamMs: d.ms, model: d.model || cfg.riverModel };
   }
 
+  function relayUrl() { const u = riverUrl(); return /\/brain$/.test(u) ? u.replace(/\/brain$/, '/byo/relay') : ''; }
   // ---- BYO: OpenAI-compatible chat completions straight from the browser to the player's URL
   async function byoCall(obs) {
     if (!validBase(cfg.byoBase)) return { live: false, reason: 'bad base url' };
@@ -124,7 +125,17 @@
     const url = cfg.byoBase.replace(/\/+$/, '') + '/chat/completions';
     const headers = byoKey ? { authorization: 'Bearer ' + byoKey } : {};
     const body = { model: cfg.byoModel, temperature: 0, max_tokens: 160, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: userMsg(obs) }] };
-    const r = await postJSON(url, body, headers, Math.max(800, Math.min(15000, cfg.byoTimeout | 0 || 4000)));
+    const tmo = Math.max(800, Math.min(15000, cfg.byoTimeout | 0 || 4000));
+    let r = null;
+    // Optional relay through the site's own server (only when signed in): it lets providers that block browser CORS work.
+    // The key travels in one header for that single call and is never stored or logged. Any relay problem falls back to the direct call.
+    const rel = cfg.byoRelay !== false ? relayUrl() : '';
+    if (rel) {
+      const rr = await postJSON(rel, { base: cfg.byoBase, model: cfg.byoModel, timeout: tmo, obs }, byoKey ? { 'x-byo-key': byoKey } : {}, tmo + 2500, 'same-origin');
+      if (rr.status === 200 && rr.data && rr.data.ok === true) r = { status: 200, ok: true, data: rr.data, ms: rr.data.ms || rr.ms };
+      else if (rr.status === 200 && rr.data && rr.data.ok === false) r = { status: rr.data.status || 0, ok: false, error: rr.data.status ? '' : String(rr.data.error || 'network').slice(0, 60), ms: rr.data.ms || rr.ms };
+    }
+    if (!r) r = await postJSON(url, body, headers, tmo);
     if (r.error) return { live: false, reason: r.error, ms: r.ms };
     if (r.status === 401 || r.status === 403) return { live: false, reason: 'unauthorized (' + r.status + ')', ms: r.ms };
     if (!r.ok) return { live: false, reason: 'http ' + r.status, ms: r.ms };
@@ -246,7 +257,7 @@
           <button id="rb-test-river" type="button">TEST RIVER</button>
         </div>
         <label class="rz-opt ${cfg.mode === 'byo' ? 'on' : ''}"><input type="radio" name="bm" value="byo" ${cfg.mode === 'byo' ? 'checked' : ''}>
-          <b>3 · Bring your own model</b><span>Any OpenAI-compatible <code>/chat/completions</code> endpoint. Your browser talks straight to your URL.</span></label>
+          <b>3 · Bring your own model</b><span>Any OpenAI-compatible <code>/chat/completions</code> endpoint. Your browser talks straight to your URL; signed in on the site, each call is relayed by the site's server so providers that block browsers still work. The key is sent for that one call only and is never stored.</span></label>
         <div class="rz-sub ${cfg.mode === 'byo' ? '' : 'hidden'}" id="rb-byo">
           <label>Base URL <input id="rb-base" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://api.example.com/v1" value="${esc(cfg.byoBase)}"></label>
           <label>Model ID <input id="rb-bmodel" type="text" autocomplete="off" spellcheck="false" placeholder="your-model-id" value="${esc(cfg.byoModel)}"></label>

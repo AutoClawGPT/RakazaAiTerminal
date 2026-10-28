@@ -185,6 +185,24 @@ export function ensureSchema(): Promise<void> {
     await q`CREATE UNIQUE INDEX IF NOT EXISTS game_runs_hash_uq ON game_runs (replay_hash) WHERE replay_hash IS NOT NULL AND status = 'accepted'`;
     await q`CREATE INDEX IF NOT EXISTS game_runs_board ON game_runs (game, status, submitted_at DESC, score DESC)`;
     await q`CREATE INDEX IF NOT EXISTS game_runs_daily ON game_runs (game, daily, day, score DESC) WHERE status = 'accepted'`;
+    // Games setup (additive). Per-agent game settings (never a key: the BYO model key is only ever kept in the browser) and the saved game progress, both by agent id.
+    await q`CREATE TABLE IF NOT EXISTS agent_game_config (
+      agent_id text PRIMARY KEY REFERENCES agents(id),
+      brain_mode text NOT NULL DEFAULT 'builtin',
+      byo_base text,
+      byo_model text,
+      byo_timeout int NOT NULL DEFAULT 4000,
+      remind boolean NOT NULL DEFAULT false,
+      remind_hour int NOT NULL DEFAULT 18,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )`;
+    await q`CREATE TABLE IF NOT EXISTS agent_game_state (
+      agent_id text NOT NULL REFERENCES agents(id),
+      game text NOT NULL,
+      state jsonb NOT NULL,
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (agent_id, game)
+    )`;
   })().catch((e) => { migrated = null; throw e; });
   return migrated;
 }

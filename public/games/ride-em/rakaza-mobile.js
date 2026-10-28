@@ -5,20 +5,28 @@
   var fsApi = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
   var LS = { get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } } };
 
-  function isFull() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  var hostFull = false; // true while the host page (stage) is fullscreen or in its CSS fullscreen
+  function isFull() { return hostFull || !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  // Two clean modes, never a forced rotation: windowed, or fullscreen. Inside the site page the HOST fullscreens the stage (so the Exit button,
+  // Escape and the aspect rules are all in one place); standalone, the page itself goes fullscreen. We never lock or change the screen orientation.
   function toggleFullscreen() {
+    if (inFrame) { parent.postMessage({ rakaza: 'fs-toggle' }, location.origin); return; }
     var el = document.documentElement;
     if (fsApi) {
-      if (isFull()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+      if (document.fullscreenElement || document.webkitFullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
       var req = el.requestFullscreen || el.webkitRequestFullscreen;
       var p = req && req.call(el);
-      if (p && p.catch) p.catch(function () { if (inFrame) parent.postMessage({ rakaza: 'fs-toggle' }, location.origin); });
-      try { var o = screen.orientation; if (o && o.lock && innerHeight < 520) o.lock('landscape').catch(function () {}); } catch (e) {}
-      return;
+      if (p && p.catch) p.catch(function () {});
     }
-    // iPhone Safari has no Fullscreen API for pages: ask the host page for a CSS fullscreen.
-    if (inFrame) parent.postMessage({ rakaza: 'fs-toggle' }, location.origin);
   }
+  // Size changes (fullscreen, rotate, browser bars) report stale sizes on phones for a moment: measure again a few times so the canvas always matches the real screen.
+  function remeasure() { [0, 120, 350, 800].forEach(function (ms) { setTimeout(function () { window.dispatchEvent(new Event('resize')); }, ms); }); }
+  ['orientationchange', 'fullscreenchange', 'webkitfullscreenchange'].forEach(function (n) { addEventListener(n, remeasure); document.addEventListener(n, remeasure); });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', remeasure);
+  addEventListener('message', function (ev) {
+    if (ev.origin !== location.origin || !ev.data || ev.data.rakaza !== 'fs-state') return;
+    hostFull = !!ev.data.on; var b = document.getElementById('rzFs'); if (b) b.textContent = isFull() ? '✕' : '⛶'; remeasure();
+  });
   window.RakazaMobile = { toggleFullscreen: toggleFullscreen, isFull: isFull };
 
   function addButton() {

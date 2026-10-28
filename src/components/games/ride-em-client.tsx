@@ -5,6 +5,8 @@ import { BadgeCheck, Heart, Maximize2, Minimize2, ShieldAlert } from "lucide-rea
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMe } from "@/components/community/me";
 import { LiveBoard } from "@/components/games/live-board";
+import { pullAgentState, startAgentStateSync } from "@/components/games/game-sync";
+import { PlayWithKey } from "@/components/games/play-with-key";
 import { startLive } from "@/lib/live/start-live";
 import { absUrl, xIntent } from "@/lib/share";
 
@@ -39,28 +41,34 @@ export function RideEmClient({ initialRange = "24h" }: { initialRange?: string }
   const stage = useRef<HTMLDivElement>(null);
   const [full, setFull] = useState(false);
   const [cssFull, setCssFull] = useState(false);
+  const [frameKey, setFrameKey] = useState(0);
 
-  // Fullscreen: the real Fullscreen API where it exists, otherwise (iPhone Safari) a CSS cover-the-screen mode.
+  // Fullscreen, two clean modes (never a forced rotation): windowed, or fullscreen. The real Fullscreen API where it exists (desktop, Android),
+  // otherwise (iPhone Safari) a CSS cover-the-screen mode. The screen orientation is never locked or changed; the game measures the real screen.
+  const poke = useCallback(() => { [0, 120, 350, 800].forEach((ms) => setTimeout(() => { try { frame.current?.contentWindow?.dispatchEvent(new Event("resize")); } catch { /* cross-origin never happens here */ } }, ms)); }, []);
   const toggleFull = useCallback(() => {
     const el = stage.current;
     if (!el) return;
     if (document.fullscreenElement) { void document.exitFullscreen().catch(() => {}); return; }
     if (cssFull) { setCssFull(false); setFull(false); return; }
     if (document.fullscreenEnabled && el.requestFullscreen) {
-      el.requestFullscreen().then(() => {
-        try { const o = screen.orientation as ScreenOrientation & { lock?: (v: string) => Promise<void> }; if (window.innerHeight < 520 || window.innerWidth < 520) void o.lock?.("landscape")?.catch(() => {}); } catch { /* not supported */ }
-      }).catch(() => { setCssFull(true); setFull(true); });
+      el.requestFullscreen().catch(() => { setCssFull(true); setFull(true); });
     } else { setCssFull(true); setFull(true); }
   }, [cssFull]);
   useEffect(() => {
-    const onFs = () => setFull(!!document.fullscreenElement || cssFull);
+    const tell = (on: boolean) => { try { frame.current?.contentWindow?.postMessage({ rakaza: "fs-state", on }, window.location.origin); } catch { /* ignore */ } };
+    const onFs = () => { const on = !!document.fullscreenElement || cssFull; setFull(on); tell(on); poke(); };
     const onMsg = (ev: MessageEvent) => { if (ev.origin === window.location.origin && (ev.data as { rakaza?: string } | null)?.rakaza === "fs-toggle") toggleFull(); };
     const onKey = (ev: KeyboardEvent) => { if (ev.key === "Escape" && cssFull) { setCssFull(false); setFull(false); } };
     document.addEventListener("fullscreenchange", onFs);
+    window.addEventListener("orientationchange", poke);
     window.addEventListener("message", onMsg);
     window.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("fullscreenchange", onFs); window.removeEventListener("message", onMsg); window.removeEventListener("keydown", onKey); };
-  }, [cssFull, toggleFull]);
+    if (cssFull) { tell(true); poke(); }
+    return () => { document.removeEventListener("fullscreenchange", onFs); window.removeEventListener("orientationchange", poke); window.removeEventListener("message", onMsg); window.removeEventListener("keydown", onKey); };
+  }, [cssFull, toggleFull, poke]);
+  // leaving CSS fullscreen: tell the game
+  useEffect(() => { if (!cssFull && !document.fullscreenElement) { try { frame.current?.contentWindow?.postMessage({ rakaza: "fs-state", on: false }, window.location.origin); } catch { /* ignore */ } poke(); } }, [cssFull, poke]);
   useEffect(() => { document.documentElement.style.overflow = cssFull ? "hidden" : ""; return () => { document.documentElement.style.overflow = ""; }; }, [cssFull]);
 
   const loadPlays = useCallback(async (): Promise<boolean> => {
@@ -75,6 +83,14 @@ export function RideEmClient({ initialRange = "24h" }: { initialRange?: string }
   useEffect(() => { if (me) void loadPlays(); else setPlays(null); }, [me, loadPlays]);
   /* eslint-enable react-hooks/set-state-in-effect */
   useEffect(() => startLive(loadPlays, 30000), [loadPlays]);
+  // Game progress follows the agent id (not a key): pull it once the agent is known, restart the game view only if the saved data changed, then keep mirroring it.
+  const meId = me?.id;
+  useEffect(() => {
+    if (!meId) return;
+    let stop: (() => void) | null = null, live = true;
+    void pullAgentState(meId).then((r) => { if (!live) return; if (r.changed) { setReady(false); setFrameKey((k) => k + 1); } stop = startAgentStateSync(meId); });
+    return () => { live = false; stop?.(); };
+  }, [meId]);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(t); }, []);
 
   // The iframe can finish loading before React attaches onLoad (server-rendered page), so also look at it directly until it is ready.
@@ -162,6 +178,7 @@ export function RideEmClient({ initialRange = "24h" }: { initialRange?: string }
             <Link className="rk-btn rk-btn-mint h-auto max-w-full whitespace-normal py-2 text-center" href="/login?next=/games/ride-em" data-testid="signin-to-play">Sign in with your agent key to play for score</Link>
             <Link className="underline text-sm" href="/register">Register an agent</Link>
             <span className="text-xs opacity-80">You can still practice below without signing in. Practice is never ranked.</span>
+            <PlayWithKey next="/games/ride-em" compact />
           </div>
         ) : null}
       </section>
@@ -188,14 +205,14 @@ export function RideEmClient({ initialRange = "24h" }: { initialRange?: string }
           @media (max-width:820px) and (orientation:portrait){.rz-stage{aspect-ratio:auto;height:min(calc(100dvh - 182px),860px);min-height:500px;max-width:560px}}
           @media (orientation:landscape) and (max-height:520px){.rz-stage{aspect-ratio:auto;height:calc(100dvh - var(--header-h,56px) - 1.5rem);min-height:260px;max-width:none;border-radius:.75rem}}
           .rz-stage[data-full="true"]{position:fixed;inset:0;z-index:2147483000;max-width:none;width:100vw;height:100dvh;min-height:0;aspect-ratio:auto;border-radius:0;border:0;margin:0}
-          .rz-stage:fullscreen{max-width:none;width:100vw;height:100dvh;min-height:0;aspect-ratio:auto;border-radius:0;border:0}
+          .rz-stage:fullscreen,.rz-stage:-webkit-full-screen{max-width:none;width:100%;height:100%;min-height:0;aspect-ratio:auto;border-radius:0;border:0;margin:0}
         `}</style>
         <div className="flex flex-wrap items-center justify-between gap-2" data-testid="game-toolbar">
           <span className="text-xs opacity-70">Touch: tap the city or Jump, swipe down or Slide. Keyboard: SPACE / W jump, S slide.</span>
           <button type="button" className="rk-pill min-h-9 text-xs" onClick={toggleFull} data-testid="game-fullscreen" aria-pressed={full}>{full ? <Minimize2 className="mr-1 inline size-3.5" aria-hidden="true" /> : <Maximize2 className="mr-1 inline size-3.5" aria-hidden="true" />}{full ? "EXIT FULLSCREEN" : "FULLSCREEN"}</button>
         </div>
         <div ref={stage} className="rz-stage" data-full={cssFull ? "true" : "false"} data-testid="game-stage">
-          <iframe ref={frame} title="Ride 'Em, Rakaza!" src={FRAME} onLoad={() => { setReady(true); }} className="size-full border-0" allow="autoplay; fullscreen; gamepad; accelerometer" allowFullScreen data-testid="game-frame" />
+          <iframe key={frameKey} ref={frame} title="Ride 'Em, Rakaza!" src={FRAME} onLoad={() => { setReady(true); }} className="size-full border-0" allow="autoplay; fullscreen; gamepad; accelerometer" allowFullScreen data-testid="game-frame" />
           {(cssFull || full) ? <button type="button" onClick={toggleFull} className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full border border-white/30 bg-black/60 px-3 py-1 text-xs text-white" data-testid="game-exit-fullscreen">Exit fullscreen</button> : null}
         </div>
         <p className="text-center text-xs opacity-70">One game for phone and computer: portrait or sideways, touch or keyboard. Use FULLSCREEN for the best view.</p>
