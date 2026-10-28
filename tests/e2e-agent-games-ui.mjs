@@ -56,15 +56,15 @@ try {
     const curl = await p.$eval(T("byo-curl"), (e) => e.textContent);
     ok(`${label}: curl shown with placeholder, never the key`, /curl /.test(curl) && /\$API_KEY/.test(curl) && !/sk-not-a-real/.test(curl));
     ok(`${label}: copy curl button present`, !!(await p.$(T("byo-curl-copy"))));
-    // http base is refused on save
+    // an http base is refused by Test, and "Use for the game" stays locked until a Test passes
     await setVal(p, T("byo-base"), "http://example.com/v1");
-    await tap(p, T("byo-save")); await p.waitForSelector(T("brain-note"));
-    await new Promise((r) => setTimeout(r, 800));
-    ok(`${label}: http base URL refused with a message`, /https|http/i.test(await p.$eval(T("brain-note"), (e) => e.textContent)) && !/Saved/.test(await p.$eval(T("brain-note"), (e) => e.textContent)));
-    // valid https config saves and persists by agent id
+    await tap(p, T("byo-test")); await p.waitForFunction((s) => /https/i.test(document.querySelector(s)?.textContent || ""), { timeout: 30000, polling: 300 }, T("byo-result"));
+    ok(`${label}: http base URL refused with a message`, /FAIL/.test(await p.$eval(T("byo-result"), (e) => e.textContent)));
+    ok(`${label}: "Use for the game" is locked until a Test passes`, await p.$eval(T("byo-save"), (e) => e.disabled));
+    // a valid https config persists by agent id (saved through the same route the button uses)
     await setVal(p, T("byo-base"), "https://api.example.com/v1");
-    await tap(p, T("byo-save")); await new Promise((r) => setTimeout(r, 1500));
-    ok(`${label}: valid https config saves`, /Saved/.test(await p.$eval(T("brain-note"), (e) => e.textContent)));
+    const sv = await p.evaluate(async () => { const r = await fetch("/api/public/games/ride-em/config", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ byoBase: "https://api.example.com/v1", byoModel: "m", byoProtocol: "openai" }) }); return r.status; });
+    ok(`${label}: valid https config saves`, sv === 200);
     // training prompt
     const prompt = await p.$eval(T("prompt-text"), (e) => e.textContent);
     ok(`${label}: training prompt has rules, scoring, API, MCP, reply format`, /RULES/i.test(prompt) && /SCORING/i.test(prompt) && /runs\/start/.test(prompt) && /MCP/.test(prompt) && /REPLY/i.test(prompt), prompt.slice(0, 80));
@@ -75,10 +75,9 @@ try {
     await tap(p, T("remind-on")); await p.waitForFunction((s) => /Reminder on/.test(document.querySelector(s)?.textContent || ""), { polling: 300 }, T("remind-note"));
     const mn = await p.$eval(T("remind-note"), (e) => e.textContent); ok(`${label}: reminder saves`, /Reminder on/.test(mn), mn);
     ok(`${label}: .ics link present`, (await p.$eval(T("remind-ics"), (e) => e.getAttribute("href"))).startsWith("data:text/calendar"));
-    // chat
-    await p.type(T("chat-input"), "Give me one tip"); await tap(p, T("chat-send"));
-    await p.waitForFunction(() => document.querySelector('[data-testid="chat-msg-agent"]') || document.querySelector('[data-testid="chat-err"]'), { timeout: 60000, polling: 300 });
-    ok(`${label}: chat shows my message and an answer or a clear error`, !!(await p.$(T("chat-msg-user"))) && !!(await p.$(`${T("chat-msg-agent")}, ${T("chat-err")}`)));
+    // the old "Chat with <agent> / uses your selected brain" window is gone; the small chat only exists for a tested own model
+    ok(`${label}: no platform chat window`, !(await p.evaluate(() => /uses your selected brain/i.test(document.body.innerText))));
+    ok(`${label}: chat is locked until a Test passes`, !!(await p.$(T("chat-locked"))) && !(await p.$(T("chat-card"))));
     ok(`${label}: no horizontal overflow`, (await overflow(p)) <= 1, String(await overflow(p)));
     await p.evaluate(() => document.querySelector('[data-testid="brain-panel"]').scrollIntoView());
     await p.screenshot({ path: `${SHOTS}/${label}-brain.png` });

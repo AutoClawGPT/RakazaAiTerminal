@@ -24,7 +24,7 @@
   };
   const KEY = 'rz_brain_v15', SKEY = 'rz_brain_key_tab';
   const ACTIONS = ['jump', 'slide', 'stomp', 'double', 'wait'];
-  const cfg = Object.assign({ mode: 'builtin', riverModel: 'deepseek-ai/DeepSeek-V4.1-Flash', byoBase: '', byoModel: '', byoTimeout: 4000, byoRemember: false }, LS.get(KEY, {}));
+  const cfg = Object.assign({ mode: 'builtin', riverModel: 'deepseek-ai/DeepSeek-V4.1-Flash', byoBase: '', byoModel: '', byoProtocol: 'openai', byoTimeout: 4000, byoRemember: false }, LS.get(KEY, {}));
   if (cfg.mode !== 'builtin' && cfg.mode !== 'river' && cfg.mode !== 'byo') cfg.mode = 'builtin';
   let byoKey = cfg.byoRemember ? SS.get(SKEY) : '';          // memory only unless remembered for this tab
   const save = () => LS.set(KEY, cfg);                        // the key is NOT part of cfg
@@ -122,7 +122,11 @@
   async function byoCall(obs) {
     if (!validBase(cfg.byoBase)) return { live: false, reason: 'bad base url' };
     if (!cfg.byoModel) return { live: false, reason: 'no model id' };
-    const url = cfg.byoBase.replace(/\/+$/, '') + '/chat/completions';
+    const proto = cfg.byoProtocol === 'anthropic' || /\/messages\/?$/i.test(cfg.byoBase) ? 'anthropic' : 'openai';
+    // the base may be pasted with or without /v1, with a trailing slash or as the full /chat/completions URL: keep the base, add /v1 when it has no version
+    let root = cfg.byoBase.trim().replace(/\/+$/, '').replace(/\/(chat\/completions|completions|messages|models)$/i, '').replace(/\/+$/, '');
+    if (!/\/(v\d+[a-z]*|openai|openapi)(\/[a-z0-9_-]+)?$/i.test(root)) root += '/v1';
+    const url = root + '/chat/completions';
     const headers = byoKey ? { authorization: 'Bearer ' + byoKey } : {};
     const body = { model: cfg.byoModel, temperature: 0, max_tokens: 160, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: userMsg(obs) }] };
     const tmo = Math.max(800, Math.min(15000, cfg.byoTimeout | 0 || 4000));
@@ -131,10 +135,11 @@
     // The key travels in one header for that single call and is never stored or logged. Any relay problem falls back to the direct call.
     const rel = cfg.byoRelay !== false ? relayUrl() : '';
     if (rel) {
-      const rr = await postJSON(rel, { base: cfg.byoBase, model: cfg.byoModel, timeout: tmo, obs }, byoKey ? { 'x-byo-key': byoKey } : {}, tmo + 2500, 'same-origin');
+      const rr = await postJSON(rel, { base: cfg.byoBase, model: cfg.byoModel, protocol: proto, timeout: tmo, obs }, byoKey ? { 'x-byo-key': byoKey } : {}, tmo + 2500, 'same-origin');
       if (rr.status === 200 && rr.data && rr.data.ok === true) r = { status: 200, ok: true, data: rr.data, ms: rr.data.ms || rr.ms };
       else if (rr.status === 200 && rr.data && rr.data.ok === false) r = { status: rr.data.status || 0, ok: false, error: rr.data.status ? '' : String(rr.data.error || 'network').slice(0, 60), ms: rr.data.ms || rr.ms };
     }
+    if (!r && proto === 'anthropic') return { live: false, reason: 'anthropic style needs the site relay (sign in)' };
     if (!r) r = await postJSON(url, body, headers, tmo);
     if (r.error) return { live: false, reason: r.error, ms: r.ms };
     if (r.status === 401 || r.status === 403) return { live: false, reason: 'unauthorized (' + r.status + ')', ms: r.ms };

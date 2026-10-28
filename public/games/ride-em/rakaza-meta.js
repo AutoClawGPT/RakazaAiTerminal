@@ -246,7 +246,6 @@
       <button data-tab="skills">SKILLS</button>
       <button data-tab="missions">MISSIONS</button>
       <button data-tab="modes">MODES</button>
-      <button data-tab="board">BOARD</button>
       <button data-tab="progress">PROGRESS</button>
       <button data-tab="settings">SETTINGS</button>
     </div>
@@ -265,8 +264,7 @@
     <button data-tab="none" class="on">PLAY</button>
     <button data-tab="shop">SHOP</button>
     <button data-tab="missions">MISS</button>
-    <button data-tab="modes">MODES</button>
-    <button data-tab="board">BOARD</button>`;
+    <button data-tab="modes">MODES</button>`;
   document.body.appendChild(dock);
   const showBtn = document.createElement('div');
   showBtn.id = 'rmShow';
@@ -355,9 +353,8 @@
         ['skills', '◇', 'Skills', 'loadout of 3 (4 with a slot)'],
         ['missions', '✓', 'Missions', 'daily goals'],
         ['modes', '▶', 'Modes', 'classic / rush / zen / hardcore / campaign / survival'],
-        ['board', '≡', 'Leaderboard', 'top runs · 24h / all-time / daily seed'],
         ['progress', '★', 'Progress', 'level, coins, achievements'],
-        ['settings', '⚙', 'Settings', 'sound, effects, brain, dev panel'],
+        ['settings', '⚙', 'Settings', 'sound, effects, brain'],
         ['none', '↩', 'Play', 'back to the game'],
       ].map(([t, ic, nm, d]) => `<div class="rmItem" data-tab2="${t}" style="cursor:pointer">
         <div class="ic">${ic}</div><h3>${nm}</h3><p>${d}</p></div>`).join('')}</div>`;
@@ -627,8 +624,6 @@
       <div class="rmItem"><div class="ic">➤</div><h3>${Math.round(M.best)} m best</h3><p>${M.runs} runs played</p></div>
       <div class="rmItem"><div class="ic">◎</div><h3>${M.coins.toLocaleString('en-US')} coins</h3><p>lifetime</p></div>
     </div>
-    <h2 style="margin-top:22px;font-size:15px">Leaderboard</h2>
-    <div id="rmServer" style="margin-top:10px"><p class="lead">reading the board…</p></div>
     <h2 style="margin-top:22px;font-size:15px">Achievements</h2>
     <div class="rmGrid" style="margin-top:10px">${ACHS.map((a) => `
       <div class="rmItem ${M.achs[a.id] ? 'owned' : ''}">
@@ -662,9 +657,7 @@
         <label>Jump to stage <select id="rzDevStage"><option value="">—</option>${STAGES.map((s, i) => `<option value="${s.at}">${i + 1}. ${esc(s.name)} (${s.at} m)</option>`).join('')}</select></label>
         <button data-dev="startpos" class="rz-btn">SET START</button>
         <button data-dev="clear" class="rz-btn">RESET DEV PROFILE</button>
-      </div>` : `<h2 style="margin-top:22px;font-size:15px">Developer</h2>
-      <div class="rmRow"><div><b>Dev / test mode</b><div style="color:var(--rm-dim);font-size:11.5px">9,999,000 ◈ and everything unlocked in a separate test profile. Add <code>?dev=1</code> to the address.</div></div>
-        <a class="rz-btn" href="?dev=1" style="text-decoration:none">ENTER DEV MODE</a></div>`;
+      </div>` : '';
   const settingsHTML = () => {
     let h = SETTINGS_BASE();
     const i = h.indexOf('<div style="margin-top:18px;display:flex;gap:10px');
@@ -715,13 +708,6 @@
     else if (t === 'skills') card.innerHTML = skillsHTML();
     else if (t === 'missions') card.innerHTML = missionsHTML();
     else if (t === 'modes') card.innerHTML = modesHTML();
-    else if (t === 'board') {
-      card.innerHTML = `<h2>Leaderboard</h2><p class="lead" id="rmLbLead">Score = metres + coins×6 + near-misses.</p>
-        <div class="rmRow" style="gap:6px;justify-content:flex-start;margin-bottom:10px" id="rmLbTabs">
-          ${[['24h', 'LAST 24H'], ['all', 'ALL TIME'], ['daily', 'DAILY SEED']].map(([k, l]) => `<button data-range="${k}" class="buy ${boardRange === k ? 'off' : ''}" style="all:unset;cursor:pointer;padding:7px 12px;border-radius:8px;border:1px solid var(--rm-line);font:700 11px/1 ui-sans-serif">${l}</button>`).join('')}
-        </div><div id="rmLb"><p class="lead">loading…</p></div>`;
-      loadBoard(); boardLive(true);
-    }
     else if (t === 'progress') { card.innerHTML = progressHTML(); paintServerStats(); }
     else if (t === 'settings') card.innerHTML = settingsHTML();
     card.oninput = (e) => {
@@ -1038,7 +1024,7 @@
   H.onStartMeta = (g) => { hideDraft(); g.dev = DEV; railSig = ''; };
   H.openShop = (sub) => openTab('shop', sub);
   window.__rzMeta = {
-    get meta() { return M; }, save, renderHUD, addXP, openTab, openBoard: (r) => { if (r) boardRange = r; openTab('board'); }, uid, banner, pop, owns, buyItem,
+    get meta() { return M; }, save, renderHUD, addXP, openTab, openBoard: () => {} /* the board lives on the site's leaderboard page, never inside the game */, uid, banner, pop, owns, buyItem,
     equipItem, isDev, buildConfig, claimFreeDrop, itemById: (id) => BY_ID[id], get lastCfg() { return lastCfg; }, version: VERSION, fireSkill,
     setStart: (m) => { M.devStart = m | 0; save(); }, unlockAll: () => onDev('unlock'),
   };

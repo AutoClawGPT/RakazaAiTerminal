@@ -86,7 +86,7 @@ assert.equal((v({ mode: "zen" }) as { code?: string }).code, "unranked_mode");
 assert.equal((v({ inputLog: "v2:abc" }) as { code?: string }).code, "bad_input_log");
 assert.equal((v({ inputLog: 12 }) as { code?: string }).code, "bad_input_log");
 assert.equal((v({ inputLog: "v1:" + "A".repeat(500_000) }) as { code?: string }).code, "bad_input_log");
-assert.equal((v({ inputLog: R.encode([]) }) as { code?: string }).code, "bad_input_log");
+assert.equal((v({ inputLog: R.encode([]) }) as { code?: string }).code, "replay_mismatch"); // an empty log is allowed, but it must still reproduce the claimed result
 // impossible input rates: 70 inputs inside one second, and 9 on the same tick
 const flood = R.encode(Array.from({ length: 70 }, (_, i) => [i, 1, 4]));
 assert.equal((v({ inputLog: flood }) as { code?: string }).code, "impossible_input_rate");
@@ -162,6 +162,15 @@ for (const seed of [1, 2, 3, 777, 12345]) {
   const v = verifyRun({ seed, mode, config: rc.config, inputLog: log, claim: { score: rep.score, distance: rep.distance, coins: rep.coins, near: rep.near, kills: rep.kills }, version: VERSION });
   assert.equal(v.ok, true, "server accepts the 3-hit run " + JSON.stringify(v).slice(0, 300));
   assert.equal((v as unknown as { result: { hits: number } }).result.hits, 3);
+}
+{ // a run with no input at all (just standing there) is a normal run: three hits end it, and the server replay agrees
+  const seed = 99, mode = "classic";
+  const rc = rankedConfig({}, mode) as { ok: boolean; config: Record<string, unknown> };
+  const log = R.encode([]);
+  const rep = R.replay(seed, log, rc.config);
+  assert.equal(rep.hits, 3); assert.equal(rep.over, true);
+  const v = verifyRun({ seed, mode, config: rc.config, inputLog: log, claim: { score: rep.score, distance: rep.distance, coins: rep.coins, near: rep.near, kills: rep.kills }, version: VERSION });
+  assert.equal(v.ok, true, "server accepts an empty-input 3-hit run " + JSON.stringify(v).slice(0, 300));
 }
 assert.equal(C.SIM_VERSION, 3);
 

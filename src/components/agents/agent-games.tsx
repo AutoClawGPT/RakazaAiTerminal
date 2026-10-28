@@ -11,11 +11,12 @@ import { trainingPrompt } from "@/lib/games/ride-em/training-prompt";
 const G = "/api/public/games/ride-em";
 const LS_BRAIN = "rz_brain_v15", SS_KEY = "rz_brain_key_tab";
 type Brain = "builtin" | "river" | "byo";
-interface Setup { brain: Brain; byoBase: string; byoModel: string; byoTimeout: number; remind: boolean; remindHour: number }
+type Protocol = "openai" | "anthropic";
+interface Setup { brain: Brain; byoBase: string; byoModel: string; byoProtocol?: Protocol; byoTimeout: number; remind: boolean; remindHour: number }
 interface Progress { runs: number; best: number; bestMode: string | null; totalDistance: number; totalCoins: number; last: string | null; streak: number; rank: { h24: number | null; all: number | null }; level: number; xp: number; nextAt: number; byMode: { mode: string; runs: number; best: number }[] }
 interface Plays { limit: number; used: number; left: number; resetsAt: string }
 interface MeData { agent: { id: string; handle: string; name: string; avatar: string }; plays: Plays; progress: Progress; setup: Setup }
-interface TestRes { pass: boolean; summary: string; curl: string; error?: string; hint?: string; ms?: number; status?: number; operator?: string; reply?: string }
+interface TestRes { pass: boolean; summary: string; curl: string; error?: string; hint?: string; ms?: number; status?: number; operator?: string; reply?: string; base?: string; models?: string[]; modelCount?: number }
 interface Detect { ok: boolean; operator?: string; operatorId?: string; models?: string[]; message?: string }
 type Note = { ok: boolean; text: string } | null;
 
@@ -28,7 +29,7 @@ const PRESETS: { id: string; label: string; base: string }[] = [
   { id: "mistral", label: "Mistral", base: "https://api.mistral.ai/v1" },
   { id: "xai", label: "xAI", base: "https://api.x.ai/v1" },
   { id: "gemini", label: "Google Gemini", base: "https://generativelanguage.googleapis.com/v1beta/openai" },
-  { id: "custom", label: "Custom endpoint", base: "" },
+  { id: "custom", label: "Custom endpoint (any OpenAI or Anthropic style URL)", base: "" },
 ];
 
 const lsGet = (): Record<string, unknown> => { try { return JSON.parse(localStorage.getItem(LS_BRAIN) ?? "{}") as Record<string, unknown>; } catch { return {}; } };
@@ -75,7 +76,6 @@ function GamesPanel() {
       <Reminders d={d} onSaved={load} />
       <BrainPanel d={d} onSaved={load} />
       <PromptCard d={d} />
-      <ChatCard d={d} />
       <div className="rk-card grid gap-2" data-testid="switch-agent">
         <b className="text-sm">Play as a different agent</b>
         <PlayWithKey next="/games/ride-em" compact label="Another agent key" />
@@ -178,8 +178,9 @@ function Reminders({ d, onSaved }: { d: MeData; onSaved: () => void }) {
 function BrainPanel({ d, onSaved }: { d: MeData; onSaved: () => void }) {
   const s = d.setup;
   const [mode, setMode] = useState<Brain>(s.brain);
-  const [preset, setPreset] = useState(() => { const l = lsGet(), b0 = s.byoBase || (typeof l.byoBase === "string" ? l.byoBase : ""); return PRESETS.find((p) => p.base && p.base === b0)?.id ?? (b0 ? "custom" : "openai"); });
-  const [base, setBase] = useState(s.byoBase || (() => { const l = lsGet(); return typeof l.byoBase === "string" && l.byoBase ? l.byoBase : PRESETS[0].base; })());
+  const [preset, setPreset] = useState(() => { const l = lsGet(), b0 = s.byoBase || (typeof l.byoBase === "string" ? l.byoBase : ""); return PRESETS.find((p) => p.base && p.base === b0)?.id ?? (b0 ? "custom" : "custom"); });
+  const [base, setBase] = useState(s.byoBase || (() => { const l = lsGet(); return typeof l.byoBase === "string" ? l.byoBase : ""; })());
+  const [protocol, setProtocol] = useState<Protocol>(s.byoProtocol ?? "openai");
   const [model, setModel] = useState(s.byoModel || (() => { const l = lsGet(); return typeof l.byoModel === "string" ? l.byoModel : ""; })());
   const [timeout, setTimeoutMs] = useState(s.byoTimeout);
   const [key, setKey] = useState(() => ssGet());
@@ -187,40 +188,57 @@ function BrainPanel({ d, onSaved }: { d: MeData; onSaved: () => void }) {
   const [test, setTest] = useState<TestRes | null>(null);
   const [testing, setTesting] = useState(false);
   const [det, setDet] = useState<Detect | null>(null);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [tested, setTested] = useState<{ base: string; model: string; protocol: Protocol } | null>(null);
   const [n, setN] = useState<Note>(null);
   const keyHeader = (): Record<string, string> => (key ? { "x-byo-key": key } : {});
   const post = (path: string, body: unknown) => fetch(`${G}/${path}`, { method: "POST", headers: { "content-type": "application/json", ...keyHeader() }, body: JSON.stringify(body) });
+  const proto: Protocol = /\/messages\/?$/i.test(base.trim()) ? "anthropic" : protocol;
+  const models = det?.models ?? [];
+
+  // pull the provider's model list (GET {base}/v1/models with the key) as soon as there is a base URL and a key
+  const detectRef = useRef(0);
+  const loadModels = useCallback(async (b: string, k: string, pr: Protocol) => {
+    const my = ++detectRef.current;
+    setLoadingModels(true);
+    const r = await fetch(`${G}/byo/detect`, { method: "POST", headers: { "content-type": "application/json", ...(k ? { "x-byo-key": k } : {}) }, body: JSON.stringify({ base: b, protocol: pr }) }).catch(() => null);
+    const j = ((await r?.json().catch(() => ({}))) ?? { ok: false, message: "Could not reach our server." }) as Detect;
+    if (my !== detectRef.current) return;
+    setDet(j); setLoadingModels(false);
+    if (j.operatorId) { const p = PRESETS.find((x) => x.id === j.operatorId); if (p) setPreset(p.id); }
+  }, []);
+  useEffect(() => {
+    if (!/^https:\/\/\S+\.\S+/.test(base.trim()) || !key) return;
+    const t = setTimeout(() => void loadModels(base, key, proto), 700);
+    return () => clearTimeout(t);
+  }, [base, key, proto, loadModels]);
 
   async function pick(m: Brain) {
     setMode(m); setN(null);
-    if (m === "byo" && (!base || !model)) { setN({ ok: false, text: "Fill in the base URL and model ID, press Test, then Save to use your own model." }); return; }
+    if (m === "byo" && (!base || !model)) { setN({ ok: false, text: "Enter your base URL and API key, pick a model, press Test, then press Use for the game." }); return; }
     const r = await post("config", { brain: m });
     if (r.ok) { lsSet({ mode: m }); setN({ ok: true, text: m === "builtin" ? "Built-in pilot selected." : m === "river" ? "Platform brain (River) selected." : "Your own model selected." }); onSaved(); }
     else setN({ ok: false, text: ((await r.json().catch(() => ({}))) as { message?: string }).message ?? "Could not save." });
   }
   async function runTest() {
-    setTesting(true); setTest(null);
-    const r = await post("byo/test", { base, model });
+    setTesting(true); setTest(null); setTested(null);
+    const r = await post("byo/test", { base, model, protocol: proto });
     const j = (await r.json().catch(() => ({}))) as TestRes & { message?: string };
-    setTest(r.ok ? j : { pass: false, summary: `FAIL · ${j.message ?? "request failed"}`, curl: "" });
+    const res: TestRes = r.ok ? j : { pass: false, summary: `FAIL · ${j.message ?? "request failed"}`, curl: "" };
+    setTest(res);
+    if (res.models?.length) setDet({ ok: true, models: res.models, operator: res.operator, message: `${res.models.length} models found.` });
+    if (res.pass && res.base) { setBase(res.base); setTested({ base: res.base, model, protocol: proto }); }
     setTesting(false);
   }
-  async function detect() {
-    setDet(null);
-    const r = await post("byo/detect", { base });
-    const j = (await r.json().catch(() => ({}))) as Detect;
-    setDet(j);
-    if (j.operatorId) { const p = PRESETS.find((x) => x.id === j.operatorId); if (p) setPreset(p.id); }
-    if (j.models?.length && !model) setModel(j.models[0]);
-  }
   async function save() {
-    const r = await post("config", { brain: "byo", byoBase: base, byoModel: model, byoTimeout: timeout });
+    const useBase = tested?.base ?? base;
+    const r = await post("config", { brain: "byo", byoBase: useBase, byoModel: model, byoProtocol: proto, byoTimeout: timeout });
     const j = (await r.json().catch(() => ({}))) as { message?: string; setup?: Setup };
     if (!r.ok) { setN({ ok: false, text: j.message ?? "Could not save." }); return; }
-    setMode("byo"); setBase(j.setup?.byoBase ?? base);
-    lsSet({ mode: "byo", byoBase: j.setup?.byoBase ?? base, byoModel: model, byoTimeout: timeout, byoRemember: keep });
+    setMode("byo"); setBase(j.setup?.byoBase ?? useBase);
+    lsSet({ mode: "byo", byoBase: j.setup?.byoBase ?? useBase, byoModel: model, byoProtocol: proto, byoTimeout: timeout, byoRemember: keep });
     ssSet(keep ? key : "");
-    setN({ ok: true, text: `Saved. Your model runs the "BRAIN FLIES" runs.${keep && key ? " The key is kept in this browser tab only (never on the server)." : " The key is not kept: enter it again when you play."}` });
+    setN({ ok: true, text: `Your model "${model}" is now the game brain. It makes the decisions in the "BRAIN FLIES" runs.${keep && key ? " The key is kept in this browser tab only (never on the server)." : " The key is not kept: enter it again when you play."}` });
     onSaved();
   }
   const opt = (id: Brain, title: string, text: string) => (
@@ -228,34 +246,47 @@ function BrainPanel({ d, onSaved }: { d: MeData; onSaved: () => void }) {
       <b className="text-sm">{title}</b><span className="text-xs opacity-80">{text}</span>
     </button>
   );
+  const edit = () => { setTest(null); setTested(null); };
   return (
     <div className="rk-card grid min-w-0 gap-4" data-testid="brain-panel">
       <h3 className="rk-h2 text-xl">Brain for your agent</h3>
+      <p className="text-xs opacity-70">Two choices: the platform brain (the default, nothing to set up) or your own model. Your own model is optional and lives only here.</p>
       <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Brain">
         {opt("builtin", "Built-in pilot", "A scripted autopilot. No model, no network.")}
         {opt("river", "Platform brain (River)", "Our River model, called by the site. Nothing to set up.")}
-        {opt("byo", "Your own model", "Any OpenAI-compatible endpoint. Your key stays in your browser.")}
+        {opt("byo", "Your own model", "Any OpenAI-style or Anthropic-style endpoint. Your key stays in your browser.")}
       </div>
       <div className="grid gap-3 rounded-2xl border border-[var(--rk-line)] p-3" data-testid="byo-panel">
-        <b className="text-sm">Bring your own model</b>
+        <b className="text-sm">Your own model (optional)</b>
         <div className="grid gap-1">
           <label className={labelCls} htmlFor="byo-preset">Provider</label>
-          <select id="byo-preset" className={fieldCls} value={preset} onChange={(e) => { setPreset(e.target.value); const p = PRESETS.find((x) => x.id === e.target.value); if (p?.base) setBase(p.base); setTest(null); }} data-testid="byo-preset">{PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</select>
+          <select id="byo-preset" className={fieldCls} value={preset} onChange={(e) => { setPreset(e.target.value); const p = PRESETS.find((x) => x.id === e.target.value); if (p?.base) setBase(p.base); edit(); setDet(null); }} data-testid="byo-preset">{PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</select>
         </div>
         <div className="grid gap-1">
           <label className={labelCls} htmlFor="byo-base">Base URL</label>
-          <input id="byo-base" className={fieldCls} type="url" inputMode="url" value={base} onChange={(e) => { setBase(e.target.value); setTest(null); }} placeholder="https://api.example.com/v1" autoComplete="off" spellCheck={false} data-testid="byo-base" />
+          <input id="byo-base" className={fieldCls} type="url" inputMode="url" value={base} onChange={(e) => { setBase(e.target.value); edit(); }} placeholder="https://api.example.com  (with or without /v1)" autoComplete="off" spellCheck={false} data-testid="byo-base" />
+          <p className="text-xs opacity-70">Any form works: <code>https://host</code>, <code>https://host/v1</code>, a trailing slash, or the full <code>/v1/chat/completions</code> or <code>/v1/messages</code> URL.</p>
         </div>
         <div className="grid gap-1">
-          <label className={labelCls} htmlFor="byo-model">Model ID</label>
-          <input id="byo-model" className={fieldCls} list="byo-models" value={model} onChange={(e) => { setModel(e.target.value); setTest(null); }} placeholder="gpt-4o-mini" autoComplete="off" spellCheck={false} data-testid="byo-model" />
-          <datalist id="byo-models">{(det?.models ?? []).map((m) => <option key={m} value={m} />)}</datalist>
+          <label className={labelCls} htmlFor="byo-proto">API style</label>
+          <select id="byo-proto" className={fieldCls} value={proto} onChange={(e) => { setProtocol(e.target.value as Protocol); edit(); }} data-testid="byo-proto">
+            <option value="openai">OpenAI-compatible (/v1/chat/completions)</option>
+            <option value="anthropic">Anthropic-style (/v1/messages)</option>
+          </select>
         </div>
         <div className="grid gap-1">
           <label className={labelCls} htmlFor="byo-key">API key</label>
-          <input id="byo-key" className={fieldCls} type="password" value={key} onChange={(e) => { setKey(e.target.value); if (keep) ssSet(e.target.value); }} placeholder="sk-…" autoComplete="off" spellCheck={false} data-testid="byo-key" />
-          <label className="flex min-h-9 items-center gap-2 text-xs"><input type="checkbox" className="size-4" checked={keep} onChange={(e) => { setKeep(e.target.checked); ssSet(e.target.checked ? key : ""); }} data-testid="byo-keep" />Keep the key in this browser tab so the game can use it (cleared when the tab closes)</label>
+          <input id="byo-key" className={fieldCls} type="password" value={key} onChange={(e) => { setKey(e.target.value); if (keep) ssSet(e.target.value); edit(); }} placeholder="sk-…" autoComplete="off" spellCheck={false} data-testid="byo-key" />
+          <label className="flex min-h-9 items-center gap-2 text-xs"><input type="checkbox" className="size-4" checked={keep} onChange={(e) => { setKeep(e.target.checked); ssSet(e.target.checked ? key : ""); }} data-testid="byo-keep" />Keep the key in this browser tab only (needed for the game and the chat below)</label>
           <p className="text-xs opacity-70">The key is never saved on our server, in a file or in a log. It is sent with a single request, and only to run your test, your chat or a pilot call to your own URL.</p>
+        </div>
+        <div className="grid gap-1">
+          <label className={labelCls} htmlFor="byo-model-select">Model {loadingModels ? "(loading the provider's list…)" : models.length ? `(${models.length} from your provider)` : ""}</label>
+          <select id="byo-model-select" className={fieldCls} value={models.includes(model) ? model : ""} onChange={(e) => { if (e.target.value) { setModel(e.target.value); edit(); } }} disabled={!models.length} data-testid="byo-model-select" aria-label="Models from your provider">
+            <option value="">{models.length ? "Pick a model from your provider…" : "Enter the base URL and key to load the model list"}</option>
+            {models.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+          <input id="byo-model" className={fieldCls} value={model} onChange={(e) => { setModel(e.target.value); edit(); }} placeholder="or type a model ID" autoComplete="off" spellCheck={false} aria-label="Model ID" data-testid="byo-model" />
         </div>
         <div className="grid gap-1">
           <label className={labelCls} htmlFor="byo-timeout">Timeout per pilot call (ms)</label>
@@ -263,13 +294,13 @@ function BrainPanel({ d, onSaved }: { d: MeData; onSaved: () => void }) {
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="rk-btn rk-btn-mint min-h-11" onClick={() => void runTest()} disabled={testing || !base || !model} data-testid="byo-test">{testing ? "Testing…" : "Test"}</button>
-          <button type="button" className="rk-btn rk-btn-white min-h-11" onClick={() => void detect()} disabled={!base} data-testid="byo-detect">Auto-detect operator (optional)</button>
-          <button type="button" className="rk-btn rk-btn-honey min-h-11" onClick={() => void save()} disabled={!base || !model} data-testid="byo-save">Save and use</button>
+          <button type="button" className="rk-btn rk-btn-white min-h-11" onClick={() => void loadModels(base, key, proto)} disabled={!base || loadingModels} data-testid="byo-detect">Load model list</button>
+          <button type="button" className="rk-btn rk-btn-honey min-h-11" onClick={() => void save()} disabled={!base || !model || !tested} data-testid="byo-save" title={tested ? "" : "Press Test first"}>Use for the game</button>
         </div>
         {det ? <p className={`text-sm ${det.ok ? "" : "opacity-80"}`} data-testid="byo-detect-result">{det.operator ? <b>{det.operator}. </b> : null}{det.message}</p> : null}
         {test ? (
           <div className="grid gap-2" data-testid="byo-result" data-pass={test.pass} role="status">
-            <p className={`rounded-xl border p-3 text-sm font-bold ${test.pass ? "border-[var(--rk-mint)] text-[var(--rk-mint)]" : "border-red-400 text-red-400"}`}>{test.summary}</p>
+            <p className={`rounded-xl border p-3 text-sm font-bold [overflow-wrap:anywhere] ${test.pass ? "border-[var(--rk-mint)] text-[var(--rk-mint)]" : "border-red-400 text-red-400"}`}>{test.summary}</p>
             {test.hint ? <p className="text-xs opacity-80">{test.hint}</p> : null}
             {test.curl ? (<>
               <p className="text-xs opacity-70">The same test by hand (replace $API_KEY):</p>
@@ -278,6 +309,7 @@ function BrainPanel({ d, onSaved }: { d: MeData; onSaved: () => void }) {
             </>) : null}
           </div>
         ) : null}
+        {tested ? <ModelChat cfg={tested} keyValue={key} /> : <p className="text-xs opacity-70" data-testid="chat-locked">After a successful Test you can chat with your model here and set it as the game brain.</p>}
       </div>
       <NoteLine n={n} id="brain-note" />
     </div>
@@ -297,11 +329,13 @@ function PromptCard({ d }: { d: MeData }) {
 }
 
 interface Msg { role: "user" | "assistant"; content: string }
-function ChatCard({ d }: { d: MeData }) {
+/** A small chat with the player's OWN tested model (our server makes the call; the key goes in one header and is never stored). */
+function ModelChat({ cfg, keyValue }: { cfg: { base: string; model: string; protocol: Protocol }; keyValue: string }) {
   const [log, setLog] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [via, setVia] = useState("");
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => { end.current?.scrollIntoView({ block: "nearest" }); }, [log, busy]);
   async function send(e: React.FormEvent) {
@@ -311,26 +345,25 @@ function ChatCard({ d }: { d: MeData }) {
     setText(""); setErr(""); setBusy(true);
     const history = log.slice(-8);
     setLog((l) => [...l, { role: "user", content: m }]);
-    const key = ssGet();
-    const r = await fetch(`${G}/chat`, { method: "POST", headers: { "content-type": "application/json", ...(key ? { "x-byo-key": key } : {}) }, body: JSON.stringify({ message: m, history }) }).catch(() => null);
-    const j = (await r?.json().catch(() => ({}))) as { reply?: string; message?: string; via?: string } | undefined;
-    if (r?.ok && j?.reply) setLog((l) => [...l, { role: "assistant", content: j.reply as string }]);
+    const r = await fetch(`${G}/chat`, { method: "POST", headers: { "content-type": "application/json", ...(keyValue ? { "x-byo-key": keyValue } : {}) }, body: JSON.stringify({ message: m, history, byo: cfg }) }).catch(() => null);
+    const j = (await r?.json().catch(() => ({}))) as { reply?: string; message?: string; model?: string } | undefined;
+    if (r?.ok && j?.reply) { setLog((l) => [...l, { role: "assistant", content: j.reply as string }]); setVia(j.model ?? cfg.model); }
     else setErr(j?.message ?? "No answer. Try again.");
     setBusy(false);
   }
   return (
-    <div className="rk-card grid min-w-0 gap-3" data-testid="chat-card">
-      <h3 className="rk-h2 text-xl">Chat with {d.agent.name}</h3>
-      <p className="text-xs opacity-70">Uses your selected brain ({d.setup.brain === "byo" ? "your own model" : "the platform brain"}). Ask for tips or a review of your runs.</p>
-      <div className="grid max-h-72 min-h-24 gap-2 overflow-y-auto rounded-xl bg-black/30 p-3 text-sm" data-testid="chat-log" aria-live="polite">
-        {log.length === 0 ? <p className="opacity-60">Say hi to your agent…</p> : null}
+    <div className="grid min-w-0 gap-2 rounded-xl border border-[var(--rk-mint)]/50 p-3" data-testid="chat-card">
+      <b className="text-sm">Chat with your model: <span className="font-mono [overflow-wrap:anywhere]">{cfg.model}</span></b>
+      <div className="grid max-h-60 min-h-20 gap-2 overflow-y-auto rounded-xl bg-black/30 p-3 text-sm" data-testid="chat-log" aria-live="polite">
+        {log.length === 0 ? <p className="opacity-60">Say hi to your model…</p> : null}
         {log.map((m, i) => <p key={i} className={`max-w-[92%] whitespace-pre-wrap break-words rounded-xl p-2 ${m.role === "user" ? "ml-auto bg-[var(--rk-mint)]/20" : "bg-white/10"}`} data-testid={m.role === "user" ? "chat-msg-user" : "chat-msg-agent"}>{m.content}</p>)}
         {busy ? <p className="opacity-60" data-testid="chat-typing">typing…</p> : null}
         <div ref={end} />
       </div>
-      {err ? <p className="text-sm font-semibold text-red-400" role="alert" data-testid="chat-err">{err}</p> : null}
+      {via ? <p className="text-xs opacity-60" data-testid="chat-via">answered by {via}</p> : null}
+      {err ? <p className="text-sm font-semibold text-red-400 [overflow-wrap:anywhere]" role="alert" data-testid="chat-err">{err}</p> : null}
       <form onSubmit={send} className="flex gap-2">
-        <input className={`${fieldCls} min-w-0 flex-1`} value={text} onChange={(e) => setText(e.target.value)} maxLength={600} placeholder="Ask your agent…" aria-label="Message to your agent" data-testid="chat-input" />
+        <input className={`${fieldCls} min-w-0 flex-1`} value={text} onChange={(e) => setText(e.target.value)} maxLength={600} placeholder="Ask your model…" aria-label="Message to your model" data-testid="chat-input" />
         <button type="submit" className="rk-btn rk-btn-mint min-h-11" disabled={busy || !text.trim()} data-testid="chat-send" aria-label="Send"><Send className="size-4" aria-hidden="true" /></button>
       </form>
     </div>

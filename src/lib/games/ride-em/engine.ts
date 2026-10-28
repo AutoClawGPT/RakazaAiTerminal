@@ -104,10 +104,9 @@ export function verifyRun(args: { seed: number; mode: string; config: Record<str
   if (inputLog.length > MAX_LOG_CHARS) return { ok: false, code: "bad_input_log", message: "inputLog is too long." };
   let events: [number, number, number][];
   try { events = Replay.decode(inputLog); } catch (e) { return { ok: false, code: "bad_input_log", message: "inputLog cannot be decoded: " + (e instanceof Error ? e.message : "bad data") }; }
-  if (!events.length) return { ok: false, code: "bad_input_log", message: "inputLog has no inputs." };
   const rate = checkInputRate(events);
   if (rate) return { ok: false, code: "impossible_input_rate", message: "Impossible input rate: " + rate + "." };
-  if (events[events.length - 1][0] > MAX_RUN_SECONDS * TICK_HZ) return { ok: false, code: "run_too_long", message: `A run can last at most ${MAX_RUN_SECONDS / 60} minutes of play.` };
+  if (events.length && events[events.length - 1][0] > MAX_RUN_SECONDS * TICK_HZ) return { ok: false, code: "run_too_long", message: `A run can last at most ${MAX_RUN_SECONDS / 60} minutes of play.` };
   let r: ReplayResult;
   try { r = Replay.replay(seed, events, { ...config, __validated: true }, { maxTicks: MAX_RUN_SECONDS * TICK_HZ }); } catch { return { ok: false, code: "replay_failed", message: "The replay failed." }; }
   if (!r.over) return { ok: false, code: "run_not_finished", message: "The run did not end: the third hit or an END input must come before the 30 minute cap." };

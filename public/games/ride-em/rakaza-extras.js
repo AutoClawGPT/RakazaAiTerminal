@@ -100,12 +100,6 @@
       share.id = 'share-button'; share.className = 'gold'; share.textContent = 'SHARE CARD';
       grid.insertBefore(share, grid.children[1] || null);
       share.onclick = () => openShare(run);
-      if (run.daily) {
-        const lb = document.createElement('button');
-        lb.id = 'daily-board-button'; lb.textContent = 'DAILY BOARD';
-        lb.onclick = () => window.__rzMeta && window.__rzMeta.openBoard('daily');
-        grid.insertBefore(lb, grid.children[2] || null);
-      }
     }
     A().setupButtons();
   };
@@ -181,12 +175,10 @@
       </div>
       <div class="menu-grid">
         <button class="primary wide" id="daily-go">START DAILY RUN</button>
-        <button id="daily-board">DAILY BOARD</button>
         <button id="daily-back">BACK</button>
       </div>
       <div class="footer"><span>${info.limit ? info.limit + ' daily plays per UTC day. AI runs are free but not ranked.' : 'Unlimited plays in this build. Your best-run ghost races you.'}</span></div>`);
     $('daily-go').onclick = () => a.startGame('manual', { daily: true, seed: D.seed() });
-    $('daily-board').onclick = () => window.__rzMeta && window.__rzMeta.openBoard('daily');
     $('daily-back').onclick = a.title;
   };
 

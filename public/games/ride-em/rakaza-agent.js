@@ -105,12 +105,44 @@
     last = payload;
     let submitRes = null;
     if (current.autoSubmit && !current.submitted) { current.submitted = true; try { submitRes = await submit(payload); } catch (x) { submitRes = { ok: false, reason: 'submit failed' }; } }
+    try { // the game-over card says what really happened on the server
+      const el = document.getElementById('rz-rank');
+      if (el && submitRes) {
+        const rk = submitRes.rank && (submitRes.rank.h24 || submitRes.rank.all);
+        el.innerHTML = submitRes.ok === false || submitRes.accepted === false ? 'Run not recorded (' + esc(submitRes.reason || submitRes.message || submitRes.error || 'rejected') + ')'
+          : (rk ? 'Rank <b>#' + rk + '</b> on the live board · score posted' : 'Score posted to the live board');
+      }
+    } catch (x) { /* display only */ }
     const out = { payload, submit: submitRes };
     window.dispatchEvent(new CustomEvent('rakaza-agent-result', { detail: out }));
     listeners.slice().forEach((fn) => { try { fn(out); } catch (x) { /* listener errors never break the game */ } });
     try { if (window.parent !== window) window.parent.postMessage({ type: 'rakaza-run-result', protocol: PROTOCOL, payload, submit: submitRes }, location.origin && location.origin !== 'null' ? location.origin : '*'); } catch (x) { /* ignore */ }
     if (window.__rzAgentUI) window.__rzAgentUI(out);
   });
+
+  // --------------------------------------------------------------- the in-game PLAY / AI PILOT buttons are real ranked runs for a signed-in agent
+  // Signed in (host posted a session) + server backend + plays left + a ranked mode: the button is routed through start() so the run is
+  // registered with the server at once, replayed and scored on game over, and shows on the live board. Otherwise it stays a free practice run.
+  const Hk = (window.RakazaHooks = window.RakazaHooks || {});
+  const prevBefore = Hk.beforeStart;
+  let bypass = false;
+  const simModeOf = (opts) => (opts && opts.daily ? 'daily' : (((window.__rzMeta && window.__rzMeta.meta) || {}).mode || 'classic'));
+  Hk.beforeStart = (mode, opts) => {
+    opts = opts || {};
+    const s = API.session;
+    const routable = !bypass && !opts.agentRun && cfg.apiBase && s.signedIn && s.agentId && (mode === 'manual' || mode === 'ai')
+      && s.playsLeft !== 0 && (!!opts.daily || (RC.MODES[simModeOf(opts)] && !RC.MODES[simModeOf(opts)].unranked));
+    if (!routable) return prevBefore ? prevBefore(mode, opts) : true;
+    const A = $A();
+    const simMode = simModeOf(opts);
+    start({ mode: simMode, controller: mode === 'manual' ? 'human' : 'pilot', autoSubmit: true, handle: s.handle, agentId: s.agentId }).then((r) => {
+      if (r && r.ok) return;
+      // could not register a ranked run (no plays left, server unreachable): fall back to a free practice run, and say so
+      if (A && A.toast) A.toast(r && r.error === 'no_plays_left' ? 'Ranked plays used up for today (UTC): practice run, not on the board.' : 'Could not register a ranked run: practice run.');
+      bypass = true; try { A.startGame(mode, opts); } finally { bypass = false; }
+    });
+    return false;
+  };
 
   // --------------------------------------------------------------- postMessage RPC (parent window or opener only)
   window.addEventListener('message', async (ev) => {

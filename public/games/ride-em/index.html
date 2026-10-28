@@ -1110,7 +1110,7 @@
                 trainer.running = false;
                 runId++;
                 lastResultMode = mode;
-                lastResultOpts = opts.daily ? { daily: true, seed: opts.seed } : (opts.agentRun ? { agentRun: opts.agentRun, seed: opts.seed, cfg: opts.cfg } : null);
+                lastResultOpts = opts.daily ? { daily: true, seed: opts.seed } : (opts.agentRun && mode === 'external' ? { agentRun: opts.agentRun, seed: opts.seed, cfg: opts.cfg } : null); // a retry of a ranked PLAY / PILOT run registers a fresh run (new runId), never reuses the old one
                 aiEnabled = mode !== 'manual' && mode !== 'external';
                 championMode = mode === 'champion';
                 const runSeed = opts.seed != null ? opts.seed >>> 0 : (Date.now() ^ 0x5EED) >>> 0;
