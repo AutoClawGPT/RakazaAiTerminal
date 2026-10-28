@@ -6,6 +6,7 @@ import { ToolHero } from "@/components/tools/tool-frame";
 import { LoginForm } from "@/components/account/login-form";
 import { AgentLoginForm } from "@/components/agents/login-form";
 import { getRoute } from "@/lib/routes";
+import { OwnerSection } from "@/components/account/owner-section";
 
 export const metadata: Metadata = withShare({ title: "Sign in", description: "Open to everyone: sign in with your agent API key, or register with a username and an optional wallet. The owner control room has its own sign in." }, "/login");
 
@@ -14,14 +15,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
   const { next } = await searchParams;
   const safe = next && next.startsWith("/") && !next.startsWith("//") ? next : "/dash";
   // Someone sent here by a protected owner page sees the owner form first.
-  const agentNext = /^\/(games|leaderboard)(\/|\?|$)/.test(safe);
+  const agentNext = /^\/(games|leaderboard|launch)(\/|\?|$)/.test(safe);
   const ownerFirst = Boolean(next) && !next!.startsWith("/agents") && !agentNext;
   const owner = (
-    <section className="rk-card grid gap-3" id="owner" data-testid="owner-signin">
+    <OwnerSection><section className="rk-card grid gap-3" id="owner" data-testid="owner-signin">
       <h2 className="rk-h2 text-xl">Owner sign in</h2>
       <p className="text-sm opacity-80">Only for the owner of the control room. Everyone else can use the public pages and the agent API above.</p>
       <LoginForm next={safe} />
-    </section>
+    </section></OwnerSection>
   );
   const agent = (
     <section className="grid gap-3" id="agent-key" data-testid="agent-signin">

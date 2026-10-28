@@ -1,6 +1,6 @@
 "use server";
 import { Keypair, PublicKey } from "@solana/web3.js";
-import { isOwnerRequest } from "@/lib/owner";
+import { launchGuard } from "@/lib/launch/caller";
 import { getEnv } from "@/lib/env";
 import { isSolanaAddress } from "@/lib/tools/address";
 import { vampScan } from "@/lib/launch/vamp";
@@ -15,11 +15,12 @@ import { trustCheck } from "@/lib/api/agent-kit-tools";
 import type { PrepareOut } from "./actions";
 
 type Fail = { ok: false; error: string };
-const guard = async (): Promise<Fail | null> => ((await isOwnerRequest()) ? null : { ok: false, error: "The launch tools are for the owner and the agent only." });
+/** Owner (owner cookie, unchanged) or a signed-in agent with its own session; agents are rate-limited and spend steps are devnet-only. */
+const guard = async (scope: string, o: Parameters<typeof launchGuard>[1]): Promise<Fail | null> => launchGuard(scope, o);
 
 /** Step: River analyses the flagged tokens and proposes the new token. The scan is re-run on the server so the browser cannot feed River forged facts. */
 export async function autoAnalyzeAction(mint: string, avoid: string[] = []): Promise<{ ok: true; draft: AutoDraft } | Fail> {
-  const g = await guard();
+  const g = await guard("analyze", { max: 12, n: 1, unit: "h" });
   if (g) return g;
   const m = String(mint ?? "").trim();
   if (!isSolanaAddress(m)) return { ok: false, error: "That is not a valid Solana address." };
@@ -32,7 +33,7 @@ export async function autoAnalyzeAction(mint: string, avoid: string[] = []): Pro
 
 /** Step: how likely is the new name and ticker to be flagged as a copy? */
 export async function autoRiskAction(name: string, ticker: string): Promise<{ ok: true; risk: FlagRisk } | Fail> {
-  const g = await guard();
+  const g = await guard("risk", { max: 20, n: 1, unit: "h" });
   if (g) return g;
   try {
     const r = await flagRisk(String(name ?? "").slice(0, 40), String(ticker ?? "").slice(0, 12));
@@ -42,7 +43,7 @@ export async function autoRiskAction(name: string, ticker: string): Promise<{ ok
 
 /** Step: pin the image, then the metadata JSON, to IPFS through Pinata. */
 export async function autoPinAction(input: { name: string; ticker: string; description: string; imageDataUrl: string; links?: { website?: string; twitter?: string; telegram?: string } }): Promise<{ ok: true; imageUrl: string; imageCid: string; uri: string; metaCid: string } | Fail> {
-  const g = await guard();
+  const g = await guard("pin", { max: 12, n: 1, unit: "h" });
   if (g) return g;
   try {
     const m = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(input.imageDataUrl ?? "");
@@ -60,7 +61,7 @@ export interface AutoTrust { wallet: string; ok: boolean; blocked: boolean; note
 
 /** Step: trust_check on the fee wallet, before anything is built. A wallet that cannot hold fees is blocked. */
 export async function autoTrustAction(wallet: string): Promise<{ ok: true; trust: AutoTrust } | Fail> {
-  const g = await guard();
+  const g = await guard("trust", { max: 30, n: 1, unit: "h" });
   if (g) return g;
   const w = String(wallet ?? "").trim();
   if (!isSolanaAddress(w)) return { ok: false, error: "That is not a valid Solana wallet address." };
@@ -85,7 +86,7 @@ export interface AutoPrepareInput { name: string; ticker: string; description: s
 
 /** Step: the only thing the user gives is the fee wallet. Builds the sponsored launch with the permanent 70/30 split, dry-runs it and hands back the approval ticket. Signs and sends nothing. */
 export async function autoPrepareAction(input: AutoPrepareInput): Promise<{ ok: true; out: PrepareOut; grounded: boolean } | Fail> {
-  const g = await guard();
+  const g = await guard("prepare", { max: 6, n: 1, unit: "h", spend: true });
   if (g) return g;
   try {
     const env = getEnv();

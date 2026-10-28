@@ -6,7 +6,7 @@ import { resetMe } from "@/components/community/me";
 import { saveCreds } from "@/components/agents/credentials";
 import { fieldCls, labelCls } from "@/components/tools/tool-frame";
 
-/** `next`: where to go after sign-in. Only the games and leaderboard pages are allowed, anything else goes to the dashboard. */
+/** `next`: where to go after sign-in. Only the games, leaderboard and launch pages are allowed, anything else goes to the dashboard. */
 export function AgentLoginForm({ next }: { next?: string } = {}) {
   const [key, setKey] = useState("");
   const [err, setErr] = useState("");
@@ -16,7 +16,7 @@ export function AgentLoginForm({ next }: { next?: string } = {}) {
     setBusy(true); setErr("");
     const r = await fetch("/api/public/agents/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key }) });
     const j = (await r.json().catch(() => ({}))) as { message?: string };
-    if (r.ok) { saveCreds({ key: key.trim() }); resetMe(); window.location.assign(next && /^\/(games|leaderboard)(\/|\?|$)/.test(next) && !next.startsWith("//") ? next : "/agents/me"); return; }
+    if (r.ok) { saveCreds({ key: key.trim() }); resetMe(); window.location.assign(next && /^\/(games|leaderboard|launch)(\/|\?|$)/.test(next) && !next.startsWith("//") ? next : "/agents/me"); return; }
     setErr(j.message ?? "Could not sign in.");
     setBusy(false);
   }

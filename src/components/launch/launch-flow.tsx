@@ -83,9 +83,11 @@ export interface LaunchFlowProps {
   /** Self: the agent only starts once this is true (a wallet is connected). */
   canRun?: boolean;
   runHint?: string;
+  /** Sponsored: pre-fill the fee wallet (for example the wallet on the signed-in agent profile). The user can change it. */
+  initialWallet?: string;
 }
 
-export function LaunchFlow({ variant, api, treasury, network, executeBlockedReason = "", stage, canRun = true, runHint = "" }: LaunchFlowProps) {
+export function LaunchFlow({ variant, api, treasury, network, executeBlockedReason = "", stage, canRun = true, runHint = "", initialWallet = "" }: LaunchFlowProps) {
   const self = variant === "self";
   const STEPS = self ? SELF_STEPS : SPONSORED_STEPS;
   const [ca, setCa] = useState("");
@@ -96,7 +98,7 @@ export function LaunchFlow({ variant, api, treasury, network, executeBlockedReas
   const [tries, setTries] = useState<string[]>([]);
   const [image, setImage] = useState("");
   const [pinned, setPinned] = useState<{ imageUrl: string; uri: string } | null>(null);
-  const [wallet, setWallet] = useState("");
+  const [wallet, setWallet] = useState(initialWallet);
   const [devSol, setDevSol] = useState("0");
   const [ground, setGround] = useState("");
   const [groundAddr, setGroundAddr] = useState("");

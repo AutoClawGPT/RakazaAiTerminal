@@ -2,6 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { isProtectedPath } from "@/lib/routes";
 import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
+import { AGENT_COOKIE, verifyAgentSession } from "@/lib/agents/session";
 
 /**
  * Default-deny gate (Next 16 `proxy`, Node runtime).
@@ -46,6 +47,14 @@ function ownerSessionOk(req: NextRequest): boolean {
   return verifySession(req.cookies.get(SESSION_COOKIE)?.value, process.env.SESSION_SECRET);
 }
 
+/** A valid signed agent web-session cookie (same secret rule as the agent API). Only used to let a signed-in agent reach /launch; the page and every action check again. */
+function agentSessionOk(req: NextRequest): boolean {
+  const s = process.env.SESSION_SECRET;
+  const d = process.env.DATABASE_URL;
+  const secret = s && s.length >= 32 ? s : d ? createHash("sha256").update("agent-session-fallback:" + d).digest("hex") : undefined;
+  return verifyAgentSession(req.cookies.get(AGENT_COOKIE)?.value, secret) !== null;
+}
+
 /** Routes that any registered agent key may call. The route itself checks the key (database lookup). */
 const AGENT_API = ["/api/v1/", "/mcp"];
 function hasBearer(req: NextRequest): boolean {
@@ -85,7 +94,9 @@ export function proxy(req: NextRequest) {
   }
 
   if (isProtectedPath(pathname)) {
+    // A signed-in agent opens /launch with its own session (no owner prompt): the URL stays /launch and the public agent view is served. The owner dashboard page and every owner action still need the owner cookie.
     if (ownerSessionOk(req) || bearerOk(req)) return NextResponse.next();
+    if (pathname === "/launch" && agentSessionOk(req)) return NextResponse.rewrite(new URL("/agent-launch", req.url));
     const hostName = (req.headers.get("host") ?? "").split(":")[0].toLowerCase();
     const loopback = hostName === "localhost" || hostName === "127.0.0.1" || hostName === "[::1]";
     const preview = process.env.NODE_ENV !== "production" && process.env.DEV_PREVIEW_OWNER_PAGES === "true" && loopback;

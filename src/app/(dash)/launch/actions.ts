@@ -1,23 +1,25 @@
 "use server";
-import { isOwnerRequest } from "@/lib/owner";
+import { launchGuard } from "@/lib/launch/caller";
 import { fetchToken, type TokenInfo } from "@/lib/launch/token-fetch";
 import { optimizeToken, type Draft } from "@/lib/launch/optimize";
 import { generateImage } from "@/lib/pollinations";
 
 type Fail = { ok: false; error: string };
 
-async function guard(): Promise<Fail | null> {
-  return (await isOwnerRequest()) ? null : { ok: false, error: "The launch tools are for the owner and the agent only." };
+/** Owner (owner cookie, unchanged) or a signed-in agent with its own session; agents are rate-limited and spend steps are devnet-only. */
+type GuardOpts = Parameters<typeof launchGuard>[1];
+async function guard(scope = "misc", o: GuardOpts = { max: 20, n: 1, unit: "h" }): Promise<Fail | null> {
+  return launchGuard(scope, o);
 }
 
 export async function scanTokenAction(mint: string): Promise<{ ok: true; token: TokenInfo } | Fail> {
-  const g = await guard();
+  const g = await guard("scan", { max: 20, n: 1, unit: "h" });
   if (g) return g;
   try { return await fetchToken(String(mint ?? "")); } catch { return { ok: false, error: "The token lookup failed. Try again in a moment." }; }
 }
 
 export async function draftAction(token: TokenInfo): Promise<{ ok: true; draft: Draft } | Fail> {
-  const g = await guard();
+  const g = await guard("draft", { max: 12, n: 1, unit: "h" });
   if (g) return g;
   if (!token || typeof token.mint !== "string") return { ok: false, error: "Scan a token first." };
   // Re-fetch on the server so the browser cannot feed the brain forged facts.
@@ -29,7 +31,7 @@ export async function draftAction(token: TokenInfo): Promise<{ ok: true; draft: 
 }
 
 export async function imageAction(prompt: string): Promise<{ ok: true; dataUrl: string; ms: number } | Fail> {
-  const g = await guard();
+  const g = await guard("image", { max: 12, n: 1, unit: "h" });
   if (g) return g;
   const p = String(prompt ?? "").trim();
   if (p.length < 5) return { ok: false, error: "Write an image prompt first." };
@@ -55,7 +57,7 @@ export interface PrepareOut { plan: LaunchPlan; ticket: string; sealedMint: stri
 
 /** Pins the image and metadata, builds the two transactions, simulates the first, and hands back an approval ticket. Signs and sends nothing. */
 export async function prepareLaunchAction(input: PrepareInput): Promise<{ ok: true; out: PrepareOut } | Fail> {
-  const g = await guard();
+  const g = await guard("prepare", { max: 6, n: 1, unit: "h", spend: true });
   if (g) return g;
   try {
     const env = getEnv();
@@ -87,7 +89,7 @@ export async function prepareLaunchAction(input: PrepareInput): Promise<{ ok: tr
 
 /** The one button that moves money. Needs EXECUTE_ENABLED, the ticket from prepare, and the caps. */
 export async function launchAction(plan: LaunchPlan, ticket: string, sealedMint: string): Promise<{ ok: true; result: ExecResult } | Fail> {
-  const g = await guard();
+  const g = await guard("launch", { max: 3, n: 1, unit: "h", spend: true });
   if (g) return g;
   try {
     if (!isExecuteEnabled()) return { ok: false, error: "Launching is switched off (EXECUTE_ENABLED is not true)." };
@@ -99,7 +101,7 @@ export async function launchAction(plan: LaunchPlan, ticket: string, sealedMint:
 }
 
 export async function retrySplitAction(plan: LaunchPlan, ticket: string): Promise<{ ok: true; result: ExecResult } | Fail> {
-  const g = await guard();
+  const g = await guard("retry", { max: 6, n: 1, unit: "h", spend: true });
   if (g) return g;
   try { return { ok: true, result: await resumeSplit(plan, ticket) }; } catch (e) { return { ok: false, error: e instanceof Error ? e.message : "Blocked." }; }
 }

@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { useSession } from "@/components/chrome/use-session";
 import { studioGenerateAction, type StudioResult } from "@/app/(site)/studio/create/actions";
 
 const MODES = [
@@ -16,6 +17,7 @@ export function StudioCreate() {
   const [big, setBig] = useState(false);
   const [res, setRes] = useState<StudioResult | null>(null);
   const [pending, start] = useTransition();
+  const sess = useSession();
   return (
     <div className="mt-6 border-t-2 border-[var(--rk-line)] pt-5" data-testid="studio-create">
       <h3 className="rk-h2 text-xl">Make an image (FLUX Schnell)</h3>
@@ -31,7 +33,7 @@ export function StudioCreate() {
         <button type="button" className="rk-btn rk-btn-honey rk-btn-sm" disabled={pending || prompt.trim().length < 5} onClick={() => start(async () => setRes(await studioGenerateAction({ prompt, mode, size: big ? "1024x1024" : "512x512" })))}>
           {pending ? "Drawing…" : "Generate"}
         </button>
-        <span className="text-xs text-muted-foreground">Owner only. <Link href="/login" className="underline">Sign in</Link></span>
+        <span className="text-xs text-muted-foreground" data-testid="studio-owner-hint">{sess.owner ? "Owner session active." : sess.me ? <>Image generation is owner-only. You are signed in as @{sess.me.handle}. Your agent tools are in <Link href="/agents/me" className="underline">My agent</Link>.</> : <>Owner only. <Link href="/login" className="underline">Sign in</Link></>}</span>
       </div>
       <p aria-live="polite" className="mt-2 text-sm" data-testid="studio-result">{res ? (res.ok ? `Made in ${(res.ms / 1000).toFixed(1)}s with ${res.model}.` : res.error) : ""}</p>
       {res?.ok ? (

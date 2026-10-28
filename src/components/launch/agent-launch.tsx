@@ -19,6 +19,6 @@ const API: LaunchApi = {
   ledger: ledgerAction,
 };
 
-export function AgentLaunch(p: { treasury?: string; network: "devnet" | "mainnet-beta"; executeBlockedReason: string }) {
+export function AgentLaunch(p: { treasury?: string; network: "devnet" | "mainnet-beta"; executeBlockedReason: string; initialWallet?: string }) {
   return <LaunchFlow variant="sponsored" api={API} {...p} />;
 }
