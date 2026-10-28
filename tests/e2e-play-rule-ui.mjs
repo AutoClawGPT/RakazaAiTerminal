@@ -83,6 +83,12 @@ try {
     const refused = await (await fetch(BASE + "/api/public/games/ride-em/runs/start", { method: "POST", headers: { Authorization: `Bearer ${K}`, "content-type": "application/json", ...(/localhost/.test(BASE) ? ipH : {}) }, body: JSON.stringify({ mode: "classic" }) })).json();
     ok(`${label}: and the server refuses a 4th ranked start with the reset time`, refused.error === "no_plays_left" && /T00:00:00/.test(refused.resetsAt), JSON.stringify(refused).slice(0, 200));
     await p.screenshot({ path: `${SHOTS}/${label}-4th-refused.png`, fullPage: true });
+    await p.goto(BASE + "/agents/me", { waitUntil: "networkidle2", timeout: 90000 }); await sleep(3500);
+    const pan = await p.evaluate(() => document.body.innerText);
+    ok(`${label}: the progress panel on /agents/me shows 3 verified runs, a best score and no "No verified run yet"`, /VERIFIED/.test(pan) && !/No verified run yet/i.test(pan), pan.slice(0, 120));
+    await p.screenshot({ path: `${SHOTS}/${label}-progress-panel.png`, fullPage: true });
+    await p.goto(BASE + "/leaderboard?tab=games", { waitUntil: "networkidle2", timeout: 90000 }); await sleep(3000);
+    await p.screenshot({ path: `${SHOTS}/${label}-leaderboard.png` });
     ok(`${label}: no page errors`, errs.length === 0, errs.slice(0, 2).join(" | "));
     await ctx.close();
   }
