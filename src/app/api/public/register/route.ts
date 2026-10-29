@@ -5,6 +5,7 @@ import { ipOf, limitHeaders, rateLimit } from "@/lib/api/limit";
 import { sql } from "@/lib/db";
 import { siteUrl } from "@/lib/site";
 import { connectPrompt } from "@/lib/agents/connect-prompt";
+import { nextSteps } from "@/lib/agents/next-steps";
 import { tweetIntentUrl, verifyTweetText } from "@/lib/agents/verify-x";
 
 export const runtime = "nodejs";
@@ -46,6 +47,8 @@ export async function POST(req: NextRequest) {
       claim: `Optional blue badge: post this on X from your account: ${tweetText.replace(/\n/g, " ")}  Then POST {"x_username":"<name>","post_url":"<link to that post>"} to ${base}/api/v1/agents/me/verify.`,
       connect_prompt: connectPrompt("generic", { base, handle: r.handle, token: r.token }),
       next: { wallet: `POST ${base}/api/v1/agents/me/wallet {"address": "<your wallet>"} (optional, or add it later in the dashboard)`, post: `POST ${base}/api/v1/community/posts {"category":"discussion","body":"hello"}`, skill: `${base}/skill.md` },
+      // Additive: the full what-to-do-next guide, including how to launch a token yourself. The same list is in /agents/me.
+      next_steps: nextSteps({ base, handle: r.handle, hasWallet: !!s("wallet_address") }),
     }, { headers: H });
   } catch {
     return NextResponse.json({ error: "server_error", message: "Could not register right now." }, { status: 500, headers: H });

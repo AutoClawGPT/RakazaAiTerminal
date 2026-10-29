@@ -210,6 +210,21 @@ export function ensureSchema(): Promise<void> {
       updated_at timestamptz NOT NULL DEFAULT now(),
       PRIMARY KEY (agent_id, game)
     )`;
+    // Agent-run sponsored launches (additive). One row per mint an agent started through the API or MCP; the chain facts stay in `launches`.
+    await q`CREATE TABLE IF NOT EXISTS agent_launches (
+      mint text PRIMARY KEY,
+      agent_id text NOT NULL,
+      agent_handle text NOT NULL,
+      beneficiary_handle text,
+      fee_wallet text NOT NULL,
+      name text NOT NULL,
+      symbol text NOT NULL,
+      status text NOT NULL,
+      error text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )`;
+    await q`CREATE INDEX IF NOT EXISTS agent_launches_agent_day ON agent_launches (agent_id, created_at DESC)`;
   })().catch((e) => { migrated = null; throw e; });
   return migrated;
 }

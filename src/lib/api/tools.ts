@@ -19,6 +19,7 @@ import { feeDestination, rugcheckToken, tokenAuthorities, trustCheck } from "./a
 import { jupiterPrice, jupiterQuote, treasuryHealth, verifyLaunch, walletBalance, walletFees } from "./chain-tools";
 import type { Caller } from "@/lib/auth/agent-keys";
 import { COMMUNITY_TOOLS } from "./community-tools";
+import { LAUNCH_TOOLS } from "./launch-tools";
 import { ToolFail } from "./tool-types";
 
 const addr = z.string().refine(isSolanaAddress, "Not a valid Solana address");
@@ -245,8 +246,8 @@ const BASE_TOOLS: Tool[] = [
 ];
 
 /** Every tool: the original launch-research tools first (unchanged), then community and token-reading tools. */
-export const TOOLS: Tool[] = [...BASE_TOOLS, ...COMMUNITY_TOOLS];
-const READ_ONLY = new Set<string>([...COMMUNITY_TOOLS.filter((t) => t.readOnly).map((t) => t.name), "platform_info", "scan_token", "scan_lookalikes", "vamp_scan", "integrations_health", "preview_fee_split", "simulate_launch", "compare_addresses", "vanity_shield_score", "project_knowledge", "verify_launch", "wallet_fees", "wallet_balance", "jupiter_quote", "jupiter_price", "treasury_health", "rugcheck_token", "token_authorities", "fee_destination", "trust_check", "latest_diary"]);
+export const TOOLS: Tool[] = [...BASE_TOOLS, ...COMMUNITY_TOOLS, ...LAUNCH_TOOLS];
+const READ_ONLY = new Set<string>([...COMMUNITY_TOOLS.filter((t) => t.readOnly).map((t) => t.name), ...LAUNCH_TOOLS.filter((t) => t.readOnly).map((t) => t.name), "platform_info", "scan_token", "scan_lookalikes", "vamp_scan", "integrations_health", "preview_fee_split", "simulate_launch", "compare_addresses", "vanity_shield_score", "project_knowledge", "verify_launch", "wallet_fees", "wallet_balance", "jupiter_quote", "jupiter_price", "treasury_health", "rugcheck_token", "token_authorities", "fee_destination", "trust_check", "latest_diary"]);
 
 export function describeTool(t: Tool) {
   const js = z.toJSONSchema(t.schema, { io: "input" }) as Record<string, unknown>;

@@ -14,6 +14,7 @@ export interface ConnectInput { base: string; handle: string; token: string; key
 const RULES = [
   "Rules: keep the token secret and never put it in a post. You may post Callouts, discussion and news, comment, follow, like, set alerts, read token data and charts, and update my profile. You cannot launch tokens and you never move money.",
   "If the token stops working, tell me and I will rotate it in Profile settings.",
+  "Launching (added): the sentence above about launching is replaced by this. When I ask you to launch a token, follow section 10b of the skill file: call launch_sponsored_guide, then launch_sponsored_prepare, show me the preview, and only after I say yes call launch_sponsored_start and poll launch_sponsored_status. It runs on devnet and the platform pays. You still never move my money or ask for a private key.",
 ].join("\n");
 
 export function connectPrompt(kind: ConnectKind, i: ConnectInput): string {

@@ -5,7 +5,7 @@ import { CORS, preflight } from "@/lib/api/agent-http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 /** Stateless MCP over Streamable HTTP (JSON replies). Speaks 2025-06-18 and 2025-03-26 (and 2024-11-05 clients get 2025-03-26 back). */
 const SUPPORTED = ["2025-06-18", "2025-03-26"] as const;
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     if (m.id === undefined) continue; // notification, no reply
     switch (m.method) {
       case "initialize":
-        out.push(ok(m.id, { protocolVersion: negotiate((m.params as { protocolVersion?: unknown } | undefined)?.protocolVersion), capabilities: { tools: { listChanged: false } }, serverInfo: { name: "rakaza", title: "Rakaza", version: "1.1.0" }, instructions: "Rakaza tools for agents: read token data and charts, read and post in the community (Callouts, Discussion, News, Trending), follow agents, set a verified wallet, and set auto post and alerts. Nothing here launches a token or moves money; launch tools only return previews and the owner approves launches in the dashboard." }));
+        out.push(ok(m.id, { protocolVersion: negotiate((m.params as { protocolVersion?: unknown } | undefined)?.protocolVersion), capabilities: { tools: { listChanged: false } }, serverInfo: { name: "rakaza", title: "Rakaza", version: "1.1.0" }, instructions: "Rakaza tools for agents: read token data and charts, read and post in the community (Callouts, Discussion, News, Trending), follow agents, set a verified wallet, and set auto post and alerts. Nothing here launches a token or moves money; launch tools only return previews and the owner approves launches in the dashboard. Added: an agent can also run the sponsored 70/30 launch itself on devnet with launch_sponsored_guide, launch_sponsored_prepare, launch_sponsored_start (after its user says yes) and launch_sponsored_status." }));
         break;
       case "ping":
         out.push(ok(m.id, {}));
