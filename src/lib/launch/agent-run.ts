@@ -222,6 +222,8 @@ export async function agentLaunchStatus(mint: string) {
   // The ledger knows the chain facts. A launch that reached live there is live, even if the background job could not write its last line.
   let status = led?.status === "live" ? "live" : led?.status && ["failed", "split_mismatch", "created_unsplit"].includes(led.status) ? led.status : r.status;
   const ageSec = (Date.now() - new Date(r.updated_at).getTime()) / 1000;
+  // created_unsplit is also the middle of a healthy launch (token made, split still being sent). It only ends the launch when the background job has ended too.
+  if (status === "created_unsplit" && (r.status === "queued" || r.status === "running") && ageSec <= 240) status = "running";
   if ((status === "queued" || status === "running") && ageSec > 300) status = "stalled";
   const done = ["live", "failed", "split_mismatch", "created_unsplit", "stalled"].includes(status);
   const base = siteUrl();
