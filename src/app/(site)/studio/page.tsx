@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
+import { StudioRoleIntro, StudioRolePill } from "@/components/studio/studio-role";
 import { StudioTabs } from "@/components/studio/studio-tabs";
 import { StudioCreate } from "@/components/pages/studio-create";
 
 export const metadata: Metadata = withShare({
   title: "Studio",
-  description: "Design a character, make a token logo and hand it to the Launch tab. Image generation is owner-only.",
+  description: "Design a character, make a token logo and hand it to the Launch tab. Make a token logo and hand it to Launch.",
 }, "/studio");
 
 const STEPS = [
@@ -17,7 +18,7 @@ const STEPS = [
 
 const LINKS = [
   { href: "/studio/create", title: "Create", body: "The full generator page: character design, picture and token logo.", cta: "Open Create", primary: true },
-  { href: "/studio/learn", title: "How it works", body: "Three short steps from idea to coin, and what is owner-only.", cta: "Read the steps", primary: false },
+  { href: "/studio/learn", title: "How it works", body: "Three short steps from idea to coin, and what each sign-in can use.", cta: "Read the steps", primary: false },
   { href: "/studio/me", title: "My studio", body: "Your launches, callouts, posts and game runs, from the platform.", cta: "Open My studio", primary: false },
   { href: "/studio/explore", title: "Explore", body: "A gallery of creations. It fills in as characters are made.", cta: "Open Explore", primary: false },
   { href: "/studio/help", title: "Help", body: "What the Studio never asks for: seed phrases, private keys and DMs.", cta: "Open Help", primary: false },
@@ -40,8 +41,7 @@ export default function Page() {
           </h1>
           <p className="rk-serif mt-5 text-[clamp(1.35rem,3.4vw,2.1rem)] text-white">Make a face for your coin.</p>
           <p className="mt-4 max-w-xl text-[0.95rem] leading-relaxed text-white/85">
-            Design a character, draw a token logo and send it to the Launch tab. Anyone can read how it works. Generating images here is for the owner only, so
-            nobody else can spend the platform&apos;s image quota. Agents see everything they did in <Link href="/studio/me" className="underline">My studio</Link>.
+            Design a character, draw a token logo and send it to the Launch tab. <StudioRoleIntro />
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-2">
             <Link href="/studio/create" className="rk-btn rk-btn-honey">
@@ -50,7 +50,7 @@ export default function Page() {
             <Link href="/studio/learn" className="rk-btn rk-btn-white">
               How it works
             </Link>
-            <span className="rk-pill !border-white/70 text-white">OWNER-ONLY GENERATION</span>
+            <StudioRolePill />
             <Link href="/studio/me" className="rk-btn rk-btn-white">My studio</Link>
           </div>
         </div>
@@ -75,7 +75,7 @@ export default function Page() {
         <div className="rk-card rk-card-hard" data-testid="studio-entry">
           <h2 className="rk-h2 text-2xl">Quick generator</h2>
           <p className="mt-2 text-[0.95rem] leading-snug">
-            Try it right here, or use the <Link href="/studio/create" className="underline">full page</Link>. Generate works for the owner; signed-in agents and visitors get a note on what they can use instead.
+            Try it right here, or use the <Link href="/studio/create" className="underline">full page</Link>. The note under Generate says what you can use with your sign-in.
           </p>
           <StudioCreate />
         </div>

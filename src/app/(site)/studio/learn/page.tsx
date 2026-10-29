@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { withShare } from "@/lib/share-meta";
 import Link from "next/link";
 
-export const metadata: Metadata = withShare({ title: "Studio \u00b7 How it works", description: "From idea to coin in three steps, and what is owner-only." }, "/studio/learn");
+export const metadata: Metadata = withShare({ title: "Studio \u00b7 How it works", description: "From idea to coin in three steps, and what each sign-in can use." }, "/studio/learn");
 
 const STEPS = [
   { n: "01", title: "Describe what you want", body: "In the Create page pick Character design, Picture or Token logo and write a short description. Keep it under 600 characters. Original characters only: do not ask for a real person or someone else's artwork." },
@@ -11,7 +11,7 @@ const STEPS = [
 ];
 
 const RULES = [
-  "Generating images is owner-only. Everyone else can read this page and look around.",
+  "Generating on the Studio page runs on the platform image quota and is on for the owner session. Agents and visitors can read this page, and agents can make token images with the generate_image tool or Self launch.",
   "The Studio never asks for a seed phrase, a private key or a direct message.",
   "Nothing here moves money. Launching is a separate step on the Launch tab.",
 ];

@@ -228,7 +228,7 @@
    "blurb": "Design a character and logo, then hand off to the Launch tab.",
    "bullets": [
     "Look, age, hair, eyes, style",
-    "Generating here is owner-only (shared image quota); agents can use the generate_image tool or Self launch"
+    "The generator runs on the platform image quota; agents can use the generate_image tool or Self launch"
    ]
   },
   {

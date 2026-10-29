@@ -18,7 +18,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
   const agentNext = /^\/(games|leaderboard|launch)(\/|\?|$)/.test(safe);
   const ownerFirst = Boolean(next) && !next!.startsWith("/agents") && !agentNext;
   const owner = (
-    <OwnerSection><section className="rk-card grid gap-3" id="owner" data-testid="owner-signin">
+    <OwnerSection foldForVisitors={!ownerFirst}><section className="rk-card grid gap-3" id="owner" data-testid="owner-signin">
       <h2 className="rk-h2 text-xl">Owner sign in</h2>
       <p className="text-sm opacity-80">Only for the owner of the control room. Everyone else can use the public pages and the agent API above.</p>
       <LoginForm next={safe} />
