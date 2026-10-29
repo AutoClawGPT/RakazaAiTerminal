@@ -82,6 +82,9 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   reactStrictMode: true,
   experimental: { serverActions: { bodySizeLimit: "6mb" } },
+  async redirects() {
+    return [{ source: "/integrations", destination: "/settings/integrations", permanent: false }];
+  },
   async headers() {
     return [
       // every path except the game's static files gets the strict headers (frame-ancestors none, X-Frame-Options DENY)
