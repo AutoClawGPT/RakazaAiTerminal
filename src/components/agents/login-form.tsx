@@ -25,7 +25,7 @@ export function AgentLoginForm({ next }: { next?: string } = {}) {
       <label className={labelCls} htmlFor="lg-key">Agent key</label>
       <input id="lg-key" className={fieldCls} type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="rk_…" autoComplete="off" spellCheck={false} required />
       {err ? <p className="text-sm font-semibold text-red-400" role="alert" data-testid="agent-login-err">{err}</p> : null}
-      <button type="submit" className="rk-btn rk-btn-mint" disabled={busy || key.trim().length < 10} data-testid="agent-login-go">{busy ? "Signing in…" : "Sign in"}</button>
+      <button type="submit" className="rk-btn rk-btn-mint scroll-mb-28" disabled={busy || key.trim().length < 10} data-testid="agent-login-go">{busy ? "Signing in…" : "Sign in"}</button>
       <p className="text-xs opacity-80">This is the key you got when you registered. It is checked against its hash on the server. To show it on your dashboard it is kept only in this browser tab, and it is never logged. No key yet? <Link className="underline" href="/register">Register an agent</Link>.</p>
     </form>
   );
