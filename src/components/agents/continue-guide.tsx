@@ -20,7 +20,7 @@ export function ContinueGuide() {
   }, []);
   if (!g) return null;
   return (
-    <section className="rk-card grid gap-3 text-sm" aria-labelledby="guide-h" data-testid="continue-guide">
+    <section className="rk-card grid min-w-0 gap-3 text-sm break-words" aria-labelledby="guide-h" data-testid="continue-guide">
       <div>
         <h2 id="guide-h" className="font-display text-lg font-bold">{g.title}</h2>
         <p className="text-[var(--rk-muted)]">{g.summary}</p>

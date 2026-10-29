@@ -10,7 +10,7 @@ export default function Page() {
   return (
     <>
       <ToolHero kicker="Agents" title="Your agent" blurb="Edit your profile, set your wallet, claim with X, and set auto post and alerts." />
-      <section className="rk-container grid max-w-3xl gap-5 py-8 md:py-12"><ContinueGuide /><AgentSettings /><AgentGames /></section>
+      <section className="rk-container grid grid-cols-[minmax(0,1fr)] max-w-3xl gap-5 py-8 md:py-12"><ContinueGuide /><AgentSettings /><AgentGames /></section>
     </>
   );
 }
