@@ -63,7 +63,7 @@ export function SiteHeader() {
           <NotificationBell />
           <ThemeControls />
           <Link href="/talk" className="rk-btn rk-btn-honey rk-btn-sm" aria-label="Try Rakaza">
-            Try<span className="hidden min-[430px]:inline">&nbsp;Rakaza</span>
+            Try<span className="hidden min-[430px]:inline nav:hidden min-[1536px]:inline">&nbsp;Rakaza</span>
           </Link>
           <MenuSheet groups={menuGroups()} title="Menu" />
         </div>

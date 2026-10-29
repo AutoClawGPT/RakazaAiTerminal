@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { NavGroup } from "@/lib/routes";
 
-const PILL = "inline-flex min-h-8 items-center rounded-full px-1.5 text-[0.72rem] font-medium whitespace-nowrap hover:bg-muted aria-[current=page]:bg-[var(--rk-honey)] aria-[current=page]:text-[var(--rk-ink)]";
+const PILL = "inline-flex min-h-8 items-center rounded-full px-1 min-[1536px]:px-1.5 text-[0.72rem] font-medium whitespace-nowrap hover:bg-muted aria-[current=page]:bg-[var(--rk-honey)] aria-[current=page]:text-[var(--rk-ink)]";
 
 /** A pill that opens a small list (Launch, Roadmap). Click, Enter or Space toggles; Escape and an outside click close it. */
 function GroupPill({ group, pathname }: { group: NavGroup; pathname: string }) {
