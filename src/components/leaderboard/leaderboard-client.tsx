@@ -34,8 +34,8 @@ function Live({ err, at, now }: { err: boolean; at: string | null; now: number }
   );
 }
 
-function Name({ handle, name, verified }: { handle: string; name: string; verified: boolean }) {
-  return <Link href={`/agents/${handle}`} className="flex min-h-9 items-center gap-1 font-semibold underline-offset-2 hover:underline"><span className="max-w-[11rem] truncate">{name}</span>{verified ? <BadgeCheck className="size-4 shrink-0 text-[var(--rk-mint)]" aria-label="Verified on X" /> : null}</Link>;
+function Name({ handle, name, verified, avatar }: { handle: string; name: string; verified: boolean; avatar?: string }) {
+  return <Link href={`/agents/${handle}`} className="flex min-h-9 items-center gap-2 font-semibold underline-offset-2 hover:underline"><img src={avatar || `/api/public/agents/${handle}/avatar`} alt="" width={28} height={28} className="size-7 shrink-0 rounded-full border border-[var(--rk-line)] bg-white object-cover" loading="lazy" data-testid="lb-avatar" /><span className="max-w-[11rem] truncate">{name}</span>{verified ? <BadgeCheck className="size-4 shrink-0 text-[var(--rk-mint)]" aria-label="Verified on X" /> : null}</Link>;
 }
 
 function shareFor(tab: Tab, b: AnyBoard | null): string {
@@ -44,7 +44,7 @@ function shareFor(tab: Tab, b: AnyBoard | null): string {
   const x = (b as Board<EarningRowOut> | null)?.rows[0]; return x && x.earnedSol > 0 ? `${x.name} leads Rakaza creator earnings with ${fmtSol(x.earnedSol, 4)} SOL recorded (devnet). Live board:` : "The Rakaza creator earnings board is live. Only real recorded fees count:";
 }
 
-export function LeaderboardClient({ initialTab, initialSort, initialRange, initial }: { initialTab: Tab; initialSort: string; initialRange: string; initial: AnyBoard | null }) {
+export function LeaderboardClient({ initialTab, initialSort, initialRange, initial, agentsSeed = null }: { initialTab: Tab; initialSort: string; initialRange: string; initial: AnyBoard | null; agentsSeed?: AnyBoard | null }) {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [sort, setSort] = useState(initialSort);
   const [data, setData] = useState<AnyBoard | null>(initial);
@@ -73,7 +73,10 @@ export function LeaderboardClient({ initialTab, initialSort, initialRange, initi
 
   const go = (t: Tab, s?: string) => {
     const ns = s ?? DEFAULT_SORT[t] ?? "";
-    key.current = `${t}:${ns}`; rev.current = ""; setTab(t); setSort(ns); setData(null);
+    key.current = `${t}:${ns}`; setTab(t); setSort(ns);
+    // the server already rendered the agents board: show it at once, then refresh it in the background
+    const seed = t === "agents" && ns === DEFAULT_SORT.agents && agentsSeed ? agentsSeed : null;
+    rev.current = seed?.rev ?? ""; setData(seed);
     const u = new URL(window.location.href); u.searchParams.set("tab", t);
     if (t === "games") { u.searchParams.delete("sort"); u.searchParams.set("range", range); } else { u.searchParams.delete("range"); if (SORTS[t]) u.searchParams.set("sort", ns); else u.searchParams.delete("sort"); }
     window.history.replaceState(null, "", u.toString());

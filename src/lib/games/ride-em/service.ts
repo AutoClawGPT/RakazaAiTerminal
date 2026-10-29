@@ -2,6 +2,7 @@ import "server-only";
 import { ensureSchema, sql } from "@/lib/db";
 import type { AgentRow } from "@/lib/agents/service";
 import { siteUrl } from "@/lib/site";
+import { notTestAgentSql } from "@/lib/test-agents";
 import { DROP_SCHEDULE, eligibilityOf } from "./drops";
 import { GAME_ID, MAX_RUN_SECONDS, MAX_SUBMIT_ATTEMPTS, OPEN_CODES, PLAYS_PER_DAY, PLAY_RULE, playRowOf, type DayRow, type Plays, RANGES, RUN_EXPIRY_HOURS, SIM_VERSION, VERSION, dailySeed, dropOf, isKnownMode, isRankedMode, newRunId, rankedModes, randomSeed, rankedConfig, utcDay, verifyRun, type Range } from "./engine";
 
@@ -138,7 +139,7 @@ export interface BoardRow { rank: number; runId: string; agentId: string; handle
 const sinceOf = (range: Range): string | null => (range === "24h" ? "now() - interval '24 hours'" : range === "7d" ? "now() - interval '7 days'" : range === "30d" ? "now() - interval '30 days'" : null);
 
 function boardSql(range: Range | "daily", mode?: string): { from: string; params: unknown[] } {
-  const where = [`r.game = $1`, `r.status = 'accepted'`, `NOT a.hidden`, `NOT a.disabled`];
+  const where = [`r.game = $1`, `r.status = 'accepted'`, `NOT a.hidden`, `NOT a.disabled`, notTestAgentSql("a")];
   const params: unknown[] = [GAME_ID];
   if (range === "daily") { params.push("__day__"); where.push(`r.daily AND r.day = $${params.length}::date`); }
   else { const s = sinceOf(range); if (s) where.push(`r.submitted_at >= ${s}`); }
@@ -195,7 +196,7 @@ export async function registry(): Promise<R> {
   await ensureSchema();
   const r = await rows<{ handle: string; agent_id: string; runs: number; best: number; ts: string }>(
     `SELECT a.handle, a.id AS agent_id, count(*)::int AS runs, max(r.score)::int AS best, max(r.submitted_at)::text AS ts
-     FROM game_runs r JOIN agents a ON a.id = r.agent_id WHERE r.game = $1 AND r.status = 'accepted' AND NOT a.hidden AND NOT a.disabled
+     FROM game_runs r JOIN agents a ON a.id = r.agent_id WHERE r.game = $1 AND r.status = 'accepted' AND NOT a.hidden AND NOT a.disabled AND ${notTestAgentSql("a")}
      GROUP BY a.handle, a.id ORDER BY best DESC LIMIT 25`, [GAME_ID]);
   return { status: 200, body: { ok: true, agents: r.map((x) => ({ handle: x.handle, agentId: x.agent_id, runs: x.runs, best: x.best, ts: Math.floor(new Date(x.ts).getTime() / 1000) })) } };
 }

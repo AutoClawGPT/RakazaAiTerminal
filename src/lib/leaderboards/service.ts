@@ -4,6 +4,7 @@ import { ensureSchema, sql } from "@/lib/db";
 import { publicEnv } from "@/lib/public-env";
 import { PUBLIC_LAUNCH_STATUSES, siteUrl } from "@/lib/site";
 import { imageOut } from "@/lib/market/tokens";
+import { notTestAgentSql } from "@/lib/test-agents";
 
 /**
  * The platform leaderboards. Everything here is read from our own tables: nothing is invented, a table with no data is empty and a total with no
@@ -18,7 +19,7 @@ export type LaunchSort = (typeof LAUNCH_SORTS)[number];
 
 export interface AgentRowOut { rank: number; handle: string; name: string; verified: boolean; launches: number; volumeSol: number; volume24hSol: number; followers: number; avatar: string }
 export interface LaunchRowOut { rank: number; mint: string; name: string; symbol: string; image: string | null; mcapSol: number | null; volume24hSol: number; trades24h: number; progressPct: number; graduated: boolean; createdAt: string }
-export interface EarningRowOut { rank: number; handle: string; name: string; verified: boolean; earnedSol: number; payouts: number; tokens: number; lastAt: string | null }
+export interface EarningRowOut { rank: number; handle: string; name: string; avatar?: string; verified: boolean; earnedSol: number; payouts: number; tokens: number; lastAt: string | null }
 export interface Board<T> { ok: true; tab: Tab; sort: string; network: string; rows: T[]; count: number; totals?: Record<string, number>; note?: string; rev: string; serverTime: string; url: string }
 
 const q = () => { const c = sql(); if (!c) throw new Error("DATABASE_URL is not set."); return c; };
@@ -49,7 +50,7 @@ export async function agentsBoard(o: { sort?: string; limit?: number } = {}): Pr
        FROM launches l LEFT JOIN mint_stats s ON s.mint = l.mint LEFT JOIN mv ON mv.mint = l.mint
        WHERE NOT l.hidden AND l.network = $1 AND l.status = ANY($2) AND ${OWNS}
      ) t ON true
-     WHERE NOT a.hidden AND NOT a.disabled
+     WHERE NOT a.hidden AND NOT a.disabled AND ${notTestAgentSql("a")}
      ORDER BY ${order}, a.created_at ASC LIMIT ${lim(o.limit)}`,
     [publicEnv.network, [...PUBLIC_LAUNCH_STATUSES]]);
   return finish("agents", sort, r.map((x, i) => ({ rank: i + 1, handle: x.handle, name: x.name, verified: x.verified, launches: num(x.launches), volumeSol: num(x.vol), volume24hSol: num(x.vol24), followers: num(x.followers), avatar: x.avatar_url ?? `/api/public/agents/${x.handle}/avatar` })));
@@ -73,8 +74,8 @@ export async function launchesBoard(o: { sort?: string; limit?: number } = {}): 
 /** Creator fee earnings that were really paid out and recorded (fee_payouts), per agent whose profile wallet received them. Agents with a launch and no payout yet show a real 0. */
 export async function earningsBoard(o: { limit?: number } = {}): Promise<Board<EarningRowOut>> {
   await ensureSchema();
-  const r = await rows<{ handle: string; name: string; verified: boolean; lamports: string; payouts: number; tokens: number; last_at: string | null }>(
-    `SELECT a.handle, a.name, a.verified,
+  const r = await rows<{ handle: string; name: string; verified: boolean; avatar_url: string | null; lamports: string; payouts: number; tokens: number; last_at: string | null }>(
+    `SELECT a.handle, a.name, a.verified, a.avatar_url,
        COALESCE(p.lamports, 0)::text AS lamports, COALESCE(p.payouts, 0)::int AS payouts, COALESCE(p.tokens, 0)::int AS tokens, p.last_at
      FROM agents a
      LEFT JOIN LATERAL (
@@ -82,13 +83,13 @@ export async function earningsBoard(o: { limit?: number } = {}): Promise<Board<E
        FROM fee_payouts fp JOIN launches l ON l.mint = fp.mint AND NOT l.hidden
        WHERE fp.network = $1 AND fp.wallet = a.wallet_address
      ) p ON true
-     WHERE NOT a.hidden AND NOT a.disabled AND a.wallet_address IS NOT NULL
+     WHERE NOT a.hidden AND NOT a.disabled AND ${notTestAgentSql("a")} AND a.wallet_address IS NOT NULL
        AND (p.payouts > 0 OR EXISTS (SELECT 1 FROM launches l WHERE NOT l.hidden AND l.network = $1 AND ${OWNS}))
      ORDER BY COALESCE(p.lamports, 0) DESC, a.created_at ASC LIMIT ${lim(o.limit)}`,
     [publicEnv.network]);
   const tot = await rows<{ lamports: string | null; n: number }>(
     `SELECT SUM(fp.lamports)::text AS lamports, count(*)::int AS n FROM fee_payouts fp JOIN launches l ON l.mint = fp.mint AND NOT l.hidden WHERE fp.network = $1`, [publicEnv.network]);
-  const out = r.map((x, i): EarningRowOut => ({ rank: i + 1, handle: x.handle, name: x.name, verified: x.verified, earnedSol: num(x.lamports) / 1e9, payouts: num(x.payouts), tokens: num(x.tokens), lastAt: x.last_at ? new Date(x.last_at).toISOString() : null }));
+  const out = r.map((x, i): EarningRowOut => ({ rank: i + 1, handle: x.handle, name: x.name, avatar: x.avatar_url ?? `/api/public/agents/${x.handle}/avatar`, verified: x.verified, earnedSol: num(x.lamports) / 1e9, payouts: num(x.payouts), tokens: num(x.tokens), lastAt: x.last_at ? new Date(x.last_at).toISOString() : null }));
   return finish("earnings", "earned", out, { totals: { recordedSol: num(tot[0]?.lamports) / 1e9, payouts: num(tot[0]?.n) }, note: "Only creator fees that were really paid out and recorded. Nothing is estimated." });
 }
 

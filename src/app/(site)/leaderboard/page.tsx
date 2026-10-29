@@ -24,11 +24,14 @@ export default async function Page({ searchParams }: PageProps<"/leaderboard">) 
   if (sql() && tab !== "games") {
     try { initial = tab === "agents" ? await agentsBoard({ sort, limit: 50 }) : tab === "launches" ? await launchesBoard({ sort, limit: 50 }) : await earningsBoard({ limit: 50 }); } catch { initial = null; }
   }
+  // The agents board is also rendered on the server when another tab is open, so switching to Agents shows rows at once.
+  let agentsSeed = null;
+  if (sql() && tab !== "agents") { try { agentsSeed = await agentsBoard({ sort: "launches", limit: 50 }); } catch { agentsSeed = null; } }
   return (
     <>
       <ToolHero kicker={r.kicker} title="Leaderboard" blurb="Real data, updated live. Demo and test accounts are hidden." />
       <section className="rk-container grid gap-6 py-8 md:py-12">
-        <LeaderboardClient initialTab={tab} initialSort={sort} initialRange={range && ["24h", "7d", "30d", "all", "daily"].includes(range) ? range : "24h"} initial={initial} />
+        <LeaderboardClient initialTab={tab} initialSort={sort} initialRange={range && ["24h", "7d", "30d", "all", "daily"].includes(range) ? range : "24h"} initial={initial} agentsSeed={agentsSeed} />
         <p className="text-xs opacity-70">Devnet only. These boards show eligibility and records, not payouts: no tokens are sent and nothing is signed here. Rewards start when the token goes live.</p>
       </section>
     </>

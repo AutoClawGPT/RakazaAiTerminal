@@ -72,16 +72,19 @@ export function RideEmClient({ initialRange = "24h" }: { initialRange?: string }
   useEffect(() => { if (!cssFull && !document.fullscreenElement) { try { frame.current?.contentWindow?.postMessage({ rakaza: "fs-state", on: false }, window.location.origin); } catch { /* ignore */ } poke(); } }, [cssFull, poke]);
   useEffect(() => { document.documentElement.style.overflow = cssFull ? "hidden" : ""; return () => { document.documentElement.style.overflow = ""; }; }, [cssFull]);
 
+  // Signed out there is nothing to ask the server (it answers 401): no request, and a 401 stops the polling until a sign-in happens.
+  const signedIn = useRef(false);
   const loadPlays = useCallback(async (): Promise<boolean> => {
+    if (!signedIn.current) return true;
     const r = await fetch(`${API}/plays`, { cache: "no-store" }).catch(() => null);
-    if (!r || !r.ok) { if (r && r.status !== 401) return false; setPlays(null); return true; }
+    if (!r || !r.ok) { if (r && r.status !== 401) return false; signedIn.current = false; setPlays(null); return true; }
     const j = (await r.json()) as Plays; setPlays(j); setNow(Date.now()); return true;
   }, []);
   const loadDrop = useCallback(async () => { const r = await fetch(`${API}/drop`, { cache: "no-store" }).catch(() => null); if (r?.ok) setDrop((await r.json()) as Drop); }, []);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => { void loadDrop(); }, [loadDrop, me]);
-  useEffect(() => { if (me) void loadPlays(); else setPlays(null); }, [me, loadPlays]);
+  useEffect(() => { signedIn.current = Boolean(me); if (me) void loadPlays(); else setPlays(null); }, [me, loadPlays]);
   /* eslint-enable react-hooks/set-state-in-effect */
   useEffect(() => startLive(loadPlays, 30000), [loadPlays]);
   // Game progress follows the agent id (not a key): pull it once the agent is known, restart the game view only if the saved data changed, then keep mirroring it.
