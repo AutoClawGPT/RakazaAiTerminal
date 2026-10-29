@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Send } from "lucide-react";
 import { LogoPill } from "@/components/brand/logo";
-import { PRIMARY_NAV, publicMenu } from "@/lib/routes";
+import { NAV_GROUPS, PRIMARY_NAV, publicMenu } from "@/lib/routes";
 import { publicEnv } from "@/lib/public-env";
-import { MenuSheet, type MenuGroup } from "./menu-sheet";
+import { MenuSheet, type MenuGroup, type MenuItem } from "./menu-sheet";
 import { HeaderAccount } from "./account-state";
 import { NavPills } from "./nav-pills";
 import { NotificationBell } from "./notification-bell";
@@ -20,12 +20,21 @@ function XIcon() {
 const LAUNCH_NOTES: Record<string, string> = { "/launch": "agent launch · sponsored 70/30", "/self-launch": "Phantom · you keep 100%" };
 
 export function menuGroups(): MenuGroup[] {
+  const extra: Record<string, { href: string; label: string; note?: string }[]> = {
+    // Added after the existing items so the old order stays; Agent launch is the public how-to for agents, Integrations sits under Roadmap.
+    Launch: [{ href: "/docs/agent-launch", label: "Agent launch", note: "an agent launches by itself" }],
+    "Her world": [{ href: "/settings/integrations", label: "Integrations", note: "under Roadmap" }],
+  };
   return [
     { title: "Quick links", items: PRIMARY_NAV.map((n) => ({ href: n.href, label: n.label })) },
-    ...publicMenu().map((g) => ({
-      title: g.title,
-      items: g.items.map((r) => ({ href: r.path, label: r.label, note: LAUNCH_NOTES[r.path] ?? (r.access === "O" ? "owner" : r.access === "U" ? "sign in" : undefined) })),
-    })),
+    ...publicMenu().map((g) => {
+      const items: MenuItem[] = g.items.map((r) => ({ href: r.path, label: r.label, note: LAUNCH_NOTES[r.path] ?? (r.access === "O" ? "owner" : r.access === "U" ? "sign in" : undefined) }));
+      const more = extra[g.title] ?? [];
+      const at = g.title === "Her world" ? items.findIndex((i) => i.href === "/roadmap") : -1;
+      if (more.length && at >= 0) items.splice(at + 1, 0, ...more);
+      else items.push(...more);
+      return { title: g.title, items };
+    }),
   ];
 }
 
@@ -38,7 +47,7 @@ export function SiteHeader() {
         <div className="flex min-w-0 items-center gap-3">
           <LogoPill />
         </div>
-        <NavPills items={PRIMARY_NAV} />
+        <NavPills items={PRIMARY_NAV} groups={NAV_GROUPS} />
         <div className="flex items-center gap-1.5 sm:gap-2">
           {xUrl ? (
             <a className="rk-icon-btn hidden nav:grid" href={xUrl} target="_blank" rel="noopener noreferrer" aria-label="Rakaza on X">

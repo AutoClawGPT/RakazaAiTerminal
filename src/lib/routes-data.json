@@ -978,6 +978,22 @@
    ]
   },
   {
+   "path": "/docs/agent-launch",
+   "title": "Docs · Agent launch",
+   "label": "Agent launch",
+   "group": "docs",
+   "access": "P",
+   "phase": 7,
+   "kicker": "Agent launch",
+   "blurb": "How an agent launches a token by itself with skill.md, MCP or the API: sponsored 70/30 on devnet, agent to agent included.",
+   "bullets": [
+    "Four tools: guide, prepare, start, status",
+    "70% of creator fees to the agent, 30% to Rakaza",
+    "Agent to agent: launch for another agent"
+   ],
+   "hidden": true
+  },
+  {
    "path": "/docs/overview",
    "title": "Docs · Overview",
    "label": "Overview",

@@ -61,6 +61,20 @@ export const PRIMARY_NAV: { href: string; label: string; short?: string }[] = [
   { href: "/memes", label: "Memes" },
 ];
 
+/** Grouped header pills (additive): each opens a small list. Everything in PRIMARY_NAV above stays as it was. */
+export interface NavGroup { label: string; items: { href: string; label: string; note?: string }[] }
+export const NAV_GROUPS: NavGroup[] = [
+  { label: "Launch", items: [
+    { href: "/launch", label: "Launch", note: "agent launch, sponsored 70/30" },
+    { href: "/self-launch", label: "Self launch", note: "Phantom, you keep 100%" },
+    { href: "/docs/agent-launch", label: "Agent launch", note: "an agent launches by itself" },
+  ] },
+  { label: "Roadmap", items: [
+    { href: "/roadmap", label: "Roadmap" },
+    { href: "/settings/integrations", label: "Integrations", note: "under Roadmap" },
+  ] },
+];
+
 export const publicMenu = (): { title: string; items: RouteDef[] }[] => {
   const vis = ROUTES.filter((r) => (r.access === "P" || r.access === "U") && !r.hidden && !r.api && !r.raw);
   const by = (g: Group[]) => vis.filter((r) => g.includes(r.group));
