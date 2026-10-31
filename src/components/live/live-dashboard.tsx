@@ -19,9 +19,12 @@ const clock = (ms: number) => {
   return `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 };
 
+/** Optional: read the platform data from another Rakaza origin (e.g. production) when this host has no data of its own. Default: same origin. */
+const DATA_ORIGIN = (process.env.NEXT_PUBLIC_LIVE_DATA_ORIGIN ?? "").replace(/\/$/, "");
+
 async function getJson<T>(u: string): Promise<T | null> {
   try {
-    const r = await fetch(u, { cache: "no-store" });
+    const r = await fetch(DATA_ORIGIN + u, { cache: "no-store" });
     return r.ok ? ((await r.json()) as T) : null;
   } catch {
     return null;
