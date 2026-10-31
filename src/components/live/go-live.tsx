@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { attachStream, stopAudio } from "@/lib/stage/audio-bus";
+import { attachElement, attachStream, stopAudio } from "@/lib/stage/audio-bus";
 
 type Status = { owner: boolean; missing?: string[] };
 type CallLike = { hangup: () => Promise<void> | void; remoteStream$: { subscribe: (fn: (s: MediaStream | null) => void) => { unsubscribe: () => void } }; status$: { subscribe: (fn: (s: string) => void) => { unsubscribe: () => void } } };
@@ -34,6 +34,42 @@ export function GoLive() {
   const [msg, setMsg] = useState("");
   const call = useRef<CallLike | null>(null);
   const subs = useRef<{ unsubscribe: () => void }[]>([]);
+  const remote = useRef<MediaStream | null>(null);
+  const sink = useRef<HTMLAudioElement | null>(null);
+  const [chat, setChat] = useState<{ who: "you" | "rakaza"; text: string }[]>([]);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  /** Live chat: the message goes to her brain (/api/chat); she shows and speaks the reply, mouth synced, then goes back to the live call audio. */
+  async function sendChat(e: React.FormEvent) {
+    e.preventDefault();
+    const text = draft.trim().slice(0, 300);
+    if (!text || busy) return;
+    setDraft("");
+    setBusy(true);
+    const next = [...chat, { who: "you" as const, text }];
+    setChat(next);
+    try {
+      const r = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: next.slice(-8).map((m) => ({ role: m.who === "you" ? "user" : "assistant", content: m.text })) }) });
+      const j = (await r.json()) as { reply?: string; message?: string };
+      const reply = j.reply || j.message || `chat ${r.status}`;
+      setChat((c) => [...c, { who: "rakaza", text: reply }]);
+      if (j.reply) {
+        const t = await fetch("/api/voice/tts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: j.reply }) });
+        if (t.ok) {
+          const el = new Audio(URL.createObjectURL(await t.blob()));
+          attachElement(el);
+          await el.play().catch(() => {});
+          await new Promise<void>((res) => { el.onended = () => res(); el.onerror = () => res(); });
+          if (remote.current) attachStream(remote.current);
+        }
+      }
+    } catch (err) {
+      setChat((c) => [...c, { who: "rakaza", text: (err as Error).message }]);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     fetch("/api/live/status", { cache: "no-store" })
@@ -50,6 +86,8 @@ export function GoLive() {
       await call.current?.hangup();
     } catch {}
     call.current = null;
+    remote.current = null;
+    if (sink.current) sink.current.srcObject = null;
     stopAudio();
     setPhase("idle");
   }
@@ -70,6 +108,12 @@ export function GoLive() {
         c.remoteStream$.subscribe((s) => {
           if (s && s.getAudioTracks().length) {
             detach?.();
+            remote.current = s;
+            // Chrome only pulls WebRTC audio into Web Audio when the stream is also bound to a media element (muted: the analyser path plays it).
+            sink.current ??= new Audio();
+            sink.current.srcObject = s;
+            sink.current.muted = true;
+            void sink.current.play().catch(() => {});
             detach = attachStream(s);
             setPhase("live");
           }
@@ -110,6 +154,22 @@ export function GoLive() {
           {phase}
           {msg ? ` · ${msg}` : ""}
         </span>
+      </div>
+      <div className="mt-4 border-t pt-3" data-testid="live-chat">
+        <p className="text-xs font-bold">Live chat</p>
+        <ul className="mt-2 max-h-48 space-y-1 overflow-auto text-sm">
+          {chat.map((m, i) => (
+            <li key={i} data-who={m.who}>
+              <b>{m.who === "you" ? "You" : "Rakaza"}:</b> {m.text}
+            </li>
+          ))}
+        </ul>
+        <form onSubmit={(e) => void sendChat(e)} className="mt-2 flex gap-2">
+          <input value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={300} placeholder="Say something to Rakaza" aria-label="Live chat message" className="min-w-0 flex-1 rounded border px-2 py-1 text-sm" />
+          <button type="submit" className="rk-btn" disabled={busy || !draft.trim()}>
+            {busy ? "…" : "Send"}
+          </button>
+        </form>
       </div>
     </section>
   );
