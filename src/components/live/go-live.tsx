@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { attachElement, attachStream, stopAudio } from "@/lib/stage/audio-bus";
+import { attachStream, stopAudio } from "@/lib/stage/audio-bus";
+import { pushChat, setLive } from "@/lib/live/live-state";
 
 type Status = { owner: boolean; missing?: string[] };
 type CallLike = { hangup: () => Promise<void> | void; remoteStream$: { subscribe: (fn: (s: MediaStream | null) => void) => { unsubscribe: () => void } }; status$: { subscribe: (fn: (s: string) => void) => { unsubscribe: () => void } } };
@@ -36,6 +37,53 @@ export function GoLive() {
   const subs = useRef<{ unsubscribe: () => void }[]>([]);
   const remote = useRef<MediaStream | null>(null);
   const sink = useRef<HTMLAudioElement | null>(null);
+  /** One mixer: her call voice and her chat replies are summed, so a chat reply never cuts the call audio. */
+  const mix = useRef<{ ctx: AudioContext; out: MediaStreamAudioDestinationNode; callLevel: AnalyserNode } | null>(null);
+  const queue = useRef<Promise<void>>(Promise.resolve());
+
+  function mixer() {
+    if (!mix.current) {
+      const ctx = new AudioContext();
+      const callLevel = ctx.createAnalyser();
+      callLevel.fftSize = 512;
+      mix.current = { ctx, out: ctx.createMediaStreamDestination(), callLevel };
+      attachStream(mix.current.out.stream);
+    }
+    void mix.current.ctx.resume();
+    return mix.current;
+  }
+
+  /** Wait (max 8 s) until her call voice is quiet, so chat replies queue after what she is saying. */
+  async function callQuiet() {
+    const m = mix.current;
+    if (!m) return;
+    const buf = new Uint8Array(m.callLevel.fftSize);
+    let quiet = 0;
+    for (let t = 0; t < 80 && quiet < 6; t++) {
+      m.callLevel.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (const v of buf) sum += ((v - 128) / 128) ** 2;
+      quiet = Math.sqrt(sum / buf.length) < 0.02 ? quiet + 1 : 0;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }
+
+  function speak(text: string) {
+    queue.current = queue.current.then(async () => {
+      const t = await fetch("/api/voice/tts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
+      if (!t.ok) return;
+      const m = mixer();
+      await callQuiet();
+      const buf = await m.ctx.decodeAudioData(await t.arrayBuffer());
+      const src = m.ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(m.out);
+      await new Promise<void>((res) => {
+        src.onended = () => res();
+        src.start();
+      });
+    }).catch(() => {});
+  }
   const [chat, setChat] = useState<{ who: "you" | "rakaza"; text: string }[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -49,21 +97,14 @@ export function GoLive() {
     setBusy(true);
     const next = [...chat, { who: "you" as const, text }];
     setChat(next);
+    pushChat({ who: "you", text });
     try {
       const r = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: next.slice(-8).map((m) => ({ role: m.who === "you" ? "user" : "assistant", content: m.text })) }) });
       const j = (await r.json()) as { reply?: string; message?: string };
       const reply = j.reply || j.message || `chat ${r.status}`;
       setChat((c) => [...c, { who: "rakaza", text: reply }]);
-      if (j.reply) {
-        const t = await fetch("/api/voice/tts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: j.reply }) });
-        if (t.ok) {
-          const el = new Audio(URL.createObjectURL(await t.blob()));
-          attachElement(el);
-          await el.play().catch(() => {});
-          await new Promise<void>((res) => { el.onended = () => res(); el.onerror = () => res(); });
-          if (remote.current) attachStream(remote.current);
-        }
-      }
+      pushChat({ who: "rakaza", text: reply });
+      if (j.reply) speak(j.reply);
     } catch (err) {
       setChat((c) => [...c, { who: "rakaza", text: (err as Error).message }]);
     } finally {
@@ -88,6 +129,9 @@ export function GoLive() {
     call.current = null;
     remote.current = null;
     if (sink.current) sink.current.srcObject = null;
+    void mix.current?.ctx.close();
+    mix.current = null;
+    setLive(false);
     stopAudio();
     setPhase("idle");
   }
@@ -114,7 +158,12 @@ export function GoLive() {
             sink.current.srcObject = s;
             sink.current.muted = true;
             void sink.current.play().catch(() => {});
-            detach = attachStream(s);
+            const m = mixer();
+            const node = m.ctx.createMediaStreamSource(s);
+            node.connect(m.out);
+            node.connect(m.callLevel);
+            detach = () => node.disconnect();
+            setLive(true);
             setPhase("live");
           }
         }),

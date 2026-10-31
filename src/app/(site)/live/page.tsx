@@ -3,6 +3,8 @@ import { withShare } from "@/lib/share-meta";
 import { CharacterStage } from "@/components/stage/character-stage";
 import { LiveSongs } from "@/components/stage/live-songs";
 import { GoLive } from "@/components/live/go-live";
+import { LiveDashboard } from "@/components/live/live-dashboard";
+import { LiveBadge, LiveStatusText } from "@/components/live/live-badge";
 
 export const metadata: Metadata = withShare({ title: "Live" }, "/live");
 
@@ -29,9 +31,8 @@ export default function LivePage() {
           <div className="rk-hero relative aspect-[4/3] min-h-[22rem] sm:aspect-[16/10] lg:aspect-auto lg:h-full lg:min-h-[30rem]">
             <div className="rk-rays" aria-hidden="true" />
             <CharacterStage variant="panel" controls="full" className="h-full" />
-            <span className="absolute left-3 top-3 z-20 inline-flex items-center gap-1.5 rounded-full border-2 border-[var(--rk-ink)] bg-white px-3 py-1 font-mono text-[0.7rem] font-bold text-[var(--rk-ink)]">
-              <span className="size-1.5 rounded-full bg-zinc-400" aria-hidden="true" /> OFFLINE
-            </span>
+            <LiveDashboard />
+            <LiveBadge kind="stage" />
           </div>
           <LiveSongs />
         </section>
@@ -39,11 +40,8 @@ export default function LivePage() {
         <div className="grid content-start gap-6">
           <GoLive />
           <section className="rk-card rk-card-hard" aria-labelledby="live-off">
-            <span className="rk-pill !min-h-7 text-[0.7rem]">OFFLINE</span>
-            <h2 id="live-off" className="rk-h2 mt-3 text-2xl">
-              She’s not live right now.
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">Her next show will be announced on her socials once they exist. Until then she waits on the stage.</p>
+            <LiveBadge kind="pill" />
+            <LiveStatusText />
           </section>
           <section className="rk-card rk-card-hard" aria-labelledby="live-ask">
             <h2 id="live-ask" className="rk-h2 text-xl">
