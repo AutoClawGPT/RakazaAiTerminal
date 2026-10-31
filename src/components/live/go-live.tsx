@@ -10,6 +10,24 @@ type CallLike = { hangup: () => Promise<void> | void; remoteStream$: { subscribe
  * Owner-only "Go live": connects the SignalWire AI agent (her voice brain) and drives the existing VRM stage's
  * lip sync from the agent's audio via the audio bus. Renders nothing for normal visitors.
  */
+/** Quick probe: can this browser gather any server-reflexive/relay ICE candidate? */
+async function hasRoutableIce(ms = 4000): Promise<boolean> {
+  try {
+    const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+    pc.createDataChannel("probe");
+    let ok = false;
+    pc.onicecandidate = (ev) => {
+      if (ev.candidate && /\btyp (srflx|relay|prflx)\b/.test(ev.candidate.candidate)) ok = true;
+    };
+    await pc.setLocalDescription(await pc.createOffer());
+    await new Promise((r) => setTimeout(r, ms));
+    pc.close();
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 export function GoLive() {
   const [st, setSt] = useState<Status | null>(null);
   const [phase, setPhase] = useState<"idle" | "connecting" | "live" | "error">("idle");
@@ -63,7 +81,9 @@ export function GoLive() {
       );
     } catch (e) {
       setPhase("error");
-      setMsg((e as Error).message);
+      const m = (e as Error).message;
+      // "Call create timeout" with no invite sent means the browser gathered no non-host ICE candidate (UDP and TURN blocked).
+      setMsg(/timeout/i.test(m) && !(await hasRoutableIce()) ? `${m} · this network blocks WebRTC (no UDP/TURN); try another network` : m);
     }
   }
 
