@@ -111,6 +111,18 @@ export function attachElement(el: HTMLMediaElement): () => void {
   return stopAudio;
 }
 
+/** Route a remote MediaStream (the SignalWire agent's voice) through the analyser and to the speakers. */
+export function attachStream(stream: MediaStream): () => void {
+  const ctx = new AudioContext();
+  const src = ctx.createMediaStreamSource(stream);
+  const { analyser, buf } = makeAnalyser(ctx);
+  src.connect(analyser);
+  analyser.connect(ctx.destination);
+  void ctx.resume();
+  setActive({ kind: "element", ctx, analyser, buf, stop: () => void ctx.close() });
+  return stopAudio;
+}
+
 /** Silent speech-like signal, only to test the lip-sync path. Never reaches the speakers. */
 export function startDemo(): void {
   const ctx = new AudioContext();

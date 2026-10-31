@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { withShare } from "@/lib/share-meta";
 import { CharacterStage } from "@/components/stage/character-stage";
 import { LiveSongs } from "@/components/stage/live-songs";
+import { GoLive } from "@/components/live/go-live";
 
 export const metadata: Metadata = withShare({ title: "Live" }, "/live");
 
@@ -36,6 +37,7 @@ export default function LivePage() {
         </section>
 
         <div className="grid content-start gap-6">
+          <GoLive />
           <section className="rk-card rk-card-hard" aria-labelledby="live-off">
             <span className="rk-pill !min-h-7 text-[0.7rem]">OFFLINE</span>
             <h2 id="live-off" className="rk-h2 mt-3 text-2xl">

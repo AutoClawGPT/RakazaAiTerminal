@@ -21,6 +21,9 @@ const connectSrc = [
   "https://lite-api.jup.ag",
   "https://api.jup.ag",
   "https://api.dexscreener.com",
+  // SignalWire live voice (Browser SDK v4): REST + relay websocket
+  "https://*.signalwire.com",
+  "wss://*.signalwire.com",
   ...(isDev ? ["ws://localhost:*", "http://localhost:*"] : []),
 ].join(" ");
 
