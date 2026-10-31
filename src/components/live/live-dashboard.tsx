@@ -19,12 +19,10 @@ const clock = (ms: number) => {
   return `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 };
 
-/** Optional: read the platform data from another Rakaza origin (e.g. production) when this host has no data of its own. Default: same origin. */
-const DATA_ORIGIN = (process.env.NEXT_PUBLIC_LIVE_DATA_ORIGIN ?? "").replace(/\/$/, "");
 
 async function getJson<T>(u: string): Promise<T | null> {
   try {
-    const r = await fetch(DATA_ORIGIN + u, { cache: "no-store" });
+    const r = await fetch(u, { cache: "no-store" });
     return r.ok ? ((await r.json()) as T) : null;
   } catch {
     return null;
@@ -42,9 +40,9 @@ export function LiveDashboard() {
     let off = false;
     const load = async () => {
       const [t, a, p] = await Promise.all([
-        getJson<{ tokens?: Tok[] }>("/api/public/tokens?limit=5"),
-        getJson<{ rows?: Agent[] }>("/api/public/leaderboard/agents?limit=4"),
-        getJson<{ posts?: Post[] }>("/api/public/community?limit=6"),
+        getJson<{ tokens?: Tok[] }>("/api/live/feed?kind=tokens"),
+        getJson<{ rows?: Agent[] }>("/api/live/feed?kind=agents"),
+        getJson<{ posts?: Post[] }>("/api/live/feed?kind=community"),
       ]);
       if (!off) setD({ tokens: t?.tokens ?? null, agents: a?.rows ?? null, posts: p?.posts ?? null, at: Date.now() });
     };
