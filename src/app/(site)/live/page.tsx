@@ -4,6 +4,7 @@ import { CharacterStage } from "@/components/stage/character-stage";
 import { LiveSongs } from "@/components/stage/live-songs";
 import { GoLive } from "@/components/live/go-live";
 import { LiveDashboard } from "@/components/live/live-dashboard";
+import { LivePreview, LiveScene } from "@/components/live/live-scene";
 import { LiveBadge, LiveStatusText } from "@/components/live/live-badge";
 
 export const metadata: Metadata = withShare({ title: "Live" }, "/live");
@@ -16,7 +17,10 @@ const HOW = [
   "Nothing she says is financial advice. She’s an AI and she can be wrong.",
 ];
 
-export default function LivePage() {
+export default async function LivePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = await searchParams;
+  // Dev-only: ?dashboardPreview=1 shows the live dashboard look without a call (never in production).
+  const preview = process.env.NODE_ENV !== "production" && process.env.DEV_PREVIEW_OWNER_PAGES === "true" && sp.dashboardPreview === "1";
   return (
     <div className="rk-container pb-16 pt-10 md:pt-14">
       <p className="rk-kicker">Live show</p>
@@ -30,8 +34,10 @@ export default function LivePage() {
         <section className="rk-card rk-card-hard overflow-hidden !p-0" aria-label="Live stage">
           <div className="rk-hero relative aspect-[4/3] min-h-[22rem] sm:aspect-[16/10] lg:aspect-auto lg:h-full lg:min-h-[30rem]">
             <div className="rk-rays" aria-hidden="true" />
+            <LiveScene />
             <CharacterStage variant="panel" controls="full" className="h-full" />
             <LiveDashboard />
+            {preview ? <LivePreview /> : null}
             <LiveBadge kind="stage" />
           </div>
           <LiveSongs />

@@ -121,6 +121,7 @@ export function GoLive() {
   }, []);
 
   async function end() {
+    const hadCall = !!call.current;
     subs.current.forEach((s) => s.unsubscribe());
     subs.current = [];
     try {
@@ -131,7 +132,7 @@ export function GoLive() {
     if (sink.current) sink.current.srcObject = null;
     void mix.current?.ctx.close();
     mix.current = null;
-    setLive(false);
+    if (hadCall) setLive(false);
     stopAudio();
     setPhase("idle");
   }

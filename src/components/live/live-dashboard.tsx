@@ -8,7 +8,7 @@ type Agent = { rank: number; handle: string; name: string; launches: number; vol
 type Post = { id: string; body: string; author?: { name?: string } };
 type Data = { tokens: Tok[] | null; agents: Agent[] | null; posts: Post[] | null; at: number | null };
 
-const sol = (n?: number | null) => (typeof n === "number" && Number.isFinite(n) ? `${n < 10 ? n.toFixed(3) : n.toFixed(1)} SOL` : "–");
+const sol = (n?: number | null) => (typeof n === "number" && Number.isFinite(n) ? `${n < 10 ? n.toFixed(2) : n.toFixed(1)} SOL` : "–");
 const ago = (iso?: string) => {
   if (!iso) return "";
   const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
@@ -57,8 +57,8 @@ export function LiveDashboard() {
   }, [live]);
 
   if (!live) return null;
-  const panel = "rounded-lg border border-[#00ffd0]/40 bg-[#0b0420]/70 p-2 font-mono text-[0.62rem] leading-tight text-[#d9fff6] shadow-[0_0_18px_rgba(0,255,208,0.25)] backdrop-blur-sm";
-  const head = "mb-1 flex items-center justify-between text-[0.58rem] font-bold uppercase tracking-widest text-[#00ffd0]";
+  const panel = "rounded-md border border-[#00ffd0]/60 bg-[#07021a]/85 p-2 font-mono text-[0.68rem] leading-tight text-[#d9fff6] shadow-[0_0_18px_rgba(0,255,208,0.25)] backdrop-blur-sm";
+  const head = "mb-1 flex items-center justify-between border-b border-[#00ffd0]/40 pb-1 text-[0.62rem] font-bold uppercase tracking-widest text-[#00ffd0]";
   const empty = <p className="text-[#d9fff6]/50">No data yet</p>;
   const ticker = (d.posts ?? []).map((p) => p.body).filter(Boolean);
   const lastChat = chat.slice(-4);
@@ -67,24 +67,25 @@ export function LiveDashboard() {
   return (
     <div className="pointer-events-none absolute inset-0 z-10" data-testid="live-dashboard" aria-label="Live dashboard">
       <style>{`@keyframes rkTick{from{transform:translateX(0)}to{transform:translateX(-50%)}}@keyframes rkScan{0%{top:-10%}100%{top:110%}}`}</style>
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,208,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(0,255,208,0.06)_1px,transparent_1px)] bg-[size:28px_28px]" />
+      <div className="absolute inset-0 shadow-[inset_0_0_60px_rgba(0,255,208,0.25)]" />
+      <span className="absolute left-1 top-1 size-5 border-l-2 border-t-2 border-[#00ffd0]" /><span className="absolute right-1 top-1 size-5 border-r-2 border-t-2 border-[#00ffd0]" /><span className="absolute bottom-8 left-1 size-5 border-b-2 border-l-2 border-[#00ffd0]" /><span className="absolute bottom-8 right-1 size-5 border-b-2 border-r-2 border-[#00ffd0]" />
       <div className="absolute inset-x-0 h-16 bg-gradient-to-b from-transparent via-[#00ffd0]/10 to-transparent" style={{ animation: "rkScan 6s linear infinite" }} />
 
       <div className="absolute inset-x-2 top-12 flex items-center justify-between gap-2 sm:top-2 sm:left-28">
-        <div className={`${panel} flex items-center gap-2 !py-1`}>
+        <div className={`${panel} flex items-center gap-2 whitespace-nowrap !py-1`}>
           <span className="size-2 animate-pulse rounded-full bg-[#ff2d55] shadow-[0_0_8px_#ff2d55]" />
           <b className="text-[#ff2d55]">ON AIR</b>
           <span data-testid="live-clock">{since ? clock(now - since) : "00:00:00"}</span>
         </div>
-        <div className={`${panel} hidden !py-1 sm:block`}>
+        <div className={`${panel} hidden whitespace-nowrap !py-1 xl:block`}>
           RAKAZA TERMINAL · DEVNET · {new Date(now).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </div>
-        <div className={`${panel} !py-1`}>
+        <div className={`${panel} hidden whitespace-nowrap !py-1 sm:block`}>
           CHAT {chat.length} · ASKERS {users}
         </div>
       </div>
 
-      <div className={`${panel} absolute left-2 top-24 hidden w-44 sm:block md:w-52`}>
+      <div className={`${panel} absolute left-3 top-16 hidden w-60 sm:block`}>
         <div className={head}>
           <span>New launches</span>
           <span>{d.tokens?.length ?? 0}</span>
@@ -101,7 +102,7 @@ export function LiveDashboard() {
           : empty}
       </div>
 
-      <div className={`${panel} absolute right-2 top-24 hidden w-40 sm:block md:w-48`}>
+      <div className={`${panel} absolute right-3 top-16 hidden w-52 sm:block`}>
         <div className={head}>
           <span>Top agents</span>
           <span>launches</span>
@@ -121,7 +122,7 @@ export function LiveDashboard() {
           : empty}
       </div>
 
-      <div className={`${panel} absolute bottom-14 right-2 w-48 sm:w-56`} data-testid="live-chat-feed">
+      <div className={`${panel} absolute bottom-24 left-3 w-52 max-w-[70%] overflow-hidden sm:left-auto sm:right-3 sm:bottom-14 sm:w-60 sm:max-w-none`} data-testid="live-chat-feed">
         <div className={head}>
           <span>Live chat</span>
           <span>{chat.length}</span>
