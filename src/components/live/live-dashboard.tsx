@@ -122,7 +122,7 @@ export function LiveDashboard() {
           : empty}
       </div>
 
-      <div className={`${panel} absolute bottom-24 left-3 w-52 max-w-[70%] overflow-hidden sm:left-auto sm:right-3 sm:bottom-14 sm:w-60 sm:max-w-none`} data-testid="live-chat-feed">
+      <div className={`${panel} absolute bottom-[4.25rem] right-3 w-44 max-w-[60%] overflow-hidden sm:left-auto sm:right-3 sm:bottom-14 sm:w-60 sm:max-w-none`} data-testid="live-chat-feed">
         <div className={head}>
           <span>Live chat</span>
           <span>{chat.length}</span>

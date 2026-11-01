@@ -33,7 +33,7 @@ export default async function LivePage({ searchParams }: { searchParams: Promise
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <section className="rk-card rk-card-hard overflow-hidden !p-0" aria-label="Live stage">
-          <div className="rk-hero relative aspect-[4/3] min-h-[22rem] sm:aspect-[16/10] lg:aspect-auto lg:h-full lg:min-h-[30rem]">
+          <div className="rk-hero relative aspect-[3/4] min-h-[22rem] sm:aspect-[16/10] lg:aspect-auto lg:h-full lg:min-h-[30rem]">
             <div className="rk-rays" aria-hidden="true" />
             <LiveScene />
             <CharacterStage variant="desk" controls="full" className="h-full" />

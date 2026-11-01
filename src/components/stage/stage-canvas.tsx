@@ -17,6 +17,9 @@ import { getAvatar } from "@/lib/live/live-state";
 import { deskReact, liveReact } from "@/lib/stage/live-react";
 import { DeskSet } from "./desk-set";
 
+/** Live (SignalWire) reactions run only on the /live desk stage; every other stage behaves exactly as on main. */
+const LIVE_REACT_OUTSIDE_DESK = false;
+
 /**
  * Deterministic capture hook (only reachable with ?rkdebug, used by scripts/stage-videos to record the real stage
  * frame by frame): when `feed` is set the stage does not read the clock or the audio, it advances exactly one
@@ -214,13 +217,13 @@ function Avatar({ src, onReady, onFail, desk = false }: Pick<Props, "src" | "onR
         group.current,
         lookObj,
       );
-      // Sigmond-style live reactions layered on top (only while a SignalWire call drives the avatar state)
+      // Sigmond-style live reactions: /live desk stage ONLY (variant "desk"); other variants are untouched
       if (desk && !sf.playing && !ready && group.current) {
         // anchor framing: keep her centred behind the desk (no drifting sway)
         group.current.position.x = 0;
         group.current.rotation.y *= 0.3;
         deskReact(getAvatar().mode, performance.now() / 1000, level, (n) => h.getNormalizedBoneNode(n as Parameters<typeof h.getNormalizedBoneNode>[0]), (n, v) => em?.setValue(n, v));
-      } else if (!sf.playing && !ready) liveReact(getAvatar().mode, performance.now() / 1000, level, (n) => h.getNormalizedBoneNode(n as Parameters<typeof h.getNormalizedBoneNode>[0]), (n, v) => em?.setValue(n, v));
+      } else if (LIVE_REACT_OUTSIDE_DESK && !sf.playing && !ready) liveReact(getAvatar().mode, performance.now() / 1000, level, (n) => h.getNormalizedBoneNode(n as Parameters<typeof h.getNormalizedBoneNode>[0]), (n, v) => em?.setValue(n, v));
     }
     // 18+ club: neon accent lights fade in and flash on the beat
     const wB = anim.current.wBold;
