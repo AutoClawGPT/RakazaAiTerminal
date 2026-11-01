@@ -4,6 +4,7 @@ import { CharacterStage } from "@/components/stage/character-stage";
 import { LiveSongs } from "@/components/stage/live-songs";
 import { GoLive } from "@/components/live/go-live";
 import { LiveDashboard } from "@/components/live/live-dashboard";
+import { LiveCaption } from "@/components/live/live-caption";
 import { LivePreview, LiveScene } from "@/components/live/live-scene";
 import { LiveBadge, LiveStatusText } from "@/components/live/live-badge";
 
@@ -37,6 +38,7 @@ export default async function LivePage({ searchParams }: { searchParams: Promise
             <LiveScene />
             <CharacterStage variant="panel" controls="full" className="h-full" />
             <LiveDashboard />
+            <LiveCaption />
             {preview ? <LivePreview /> : null}
             <LiveBadge kind="stage" />
           </div>

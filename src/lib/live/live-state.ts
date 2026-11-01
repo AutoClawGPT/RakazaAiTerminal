@@ -26,3 +26,42 @@ export function useLive(): LiveState {
     () => SERVER,
   );
 }
+
+/* ── Sigmond-style avatar state + Live Wire (additive) ───────────────────────────── */
+export type AvatarMode = "idle" | "listening" | "thinking" | "talking";
+export type WireEvent = { src: "sdk" | "agent" | "tool" | "browser"; type: string; text: string; at: number };
+export type AvatarState = { mode: AvatarMode; since: number; caption: string; wire: WireEvent[] };
+
+let av: AvatarState = { mode: "idle", since: 0, caption: "", wire: [] };
+const avSubs = new Set<() => void>();
+const avEmit = () => avSubs.forEach((f) => f());
+const AV_SERVER: AvatarState = { mode: "idle", since: 0, caption: "", wire: [] };
+
+/** Read once per frame by the 3D stage (no React). */
+export function getAvatar(): AvatarState {
+  return av;
+}
+export function setAvatarMode(mode: AvatarMode) {
+  if (av.mode === mode) return;
+  av = { ...av, mode, since: Date.now() };
+  pushWire({ src: "browser", type: `state.${mode}`, text: mode === "listening" ? "user speaking" : mode === "thinking" ? "AI processing" : mode === "talking" ? "agent speaking" : "idle" });
+}
+export function setCaption(caption: string) {
+  av = { ...av, caption };
+  avEmit();
+}
+export function pushWire(e: Omit<WireEvent, "at">) {
+  av = { ...av, wire: [...av.wire, { ...e, at: Date.now() }].slice(-40) };
+  avEmit();
+}
+export function resetAvatar() {
+  av = { mode: "idle", since: Date.now(), caption: "", wire: [] };
+  avEmit();
+}
+export function useAvatar(): AvatarState {
+  return useSyncExternalStore(
+    (f) => (avSubs.add(f), () => void avSubs.delete(f)),
+    () => av,
+    () => AV_SERVER,
+  );
+}

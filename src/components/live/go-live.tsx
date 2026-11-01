@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { attachStream, stopAudio } from "@/lib/stage/audio-bus";
-import { pushChat, setLive } from "@/lib/live/live-state";
+import { pushChat, setLive, pushWire, resetAvatar, setAvatarMode, setCaption, getAvatar } from "@/lib/live/live-state";
 
 type Status = { owner: boolean; missing?: string[] };
-type CallLike = { hangup: () => Promise<void> | void; remoteStream$: { subscribe: (fn: (s: MediaStream | null) => void) => { unsubscribe: () => void } }; status$: { subscribe: (fn: (s: string) => void) => { unsubscribe: () => void } } };
+type CallLike = { hangup: () => Promise<void> | void; remoteStream$: { subscribe: (fn: (s: MediaStream | null) => void) => { unsubscribe: () => void } }; status$: { subscribe: (fn: (s: string) => void) => { unsubscribe: () => void } }; subscribe?: (ev: string) => { subscribe: (fn: (e: unknown) => void) => { unsubscribe: () => void } } };
 
 /**
  * Owner-only "Go live": connects the SignalWire AI agent (her voice brain) and drives the existing VRM stage's
@@ -29,6 +29,27 @@ async function hasRoutableIce(ms = 4000): Promise<boolean> {
   }
 }
 
+/** RMS 0..1 of an analyser right now. */
+function rms(a: AnalyserNode, buf: Uint8Array<ArrayBuffer>) {
+  a.getByteTimeDomainData(buf);
+  let sum = 0;
+  for (const v of buf) sum += ((v - 128) / 128) ** 2;
+  return Math.sqrt(sum / buf.length);
+}
+const CAPTION: Record<string, string> = { listening: "Listening…", thinking: "Thinking…", talking: "", idle: "" };
+
+/** Turn a SignalWire user_event (from SWML user_event / SWAIG actions) into a Live Wire line and a caption. */
+function onUserEvent(raw: unknown) {
+  const r = raw as { params?: { event?: Record<string, unknown> } & Record<string, unknown>; event?: Record<string, unknown> };
+  const e = (r?.params?.event ?? r?.event ?? r?.params ?? r) as Record<string, unknown> | undefined;
+  if (!e || typeof e.type !== "string") return;
+  if (e.type === "tool_result") {
+    const line = e.tool === "get_top_agents" ? `Top agent: ${e.name} (${e.launches} launches)` : `Newest launch: ${e.name} (${e.symbol})`;
+    pushWire({ src: "tool", type: String(e.tool), text: line });
+    setCaption(line);
+  } else pushWire({ src: "agent", type: e.type, text: JSON.stringify(e).slice(0, 120) });
+}
+
 export function GoLive() {
   const [st, setSt] = useState<Status | null>(null);
   const [phase, setPhase] = useState<"idle" | "connecting" | "live" | "error">("idle");
@@ -40,6 +61,44 @@ export function GoLive() {
   /** One mixer: her call voice and her chat replies are summed, so a chat reply never cuts the call audio. */
   const mix = useRef<{ ctx: AudioContext; out: MediaStreamAudioDestinationNode; callLevel: AnalyserNode } | null>(null);
   const queue = useRef<Promise<void>>(Promise.resolve());
+  /** Sigmond-style state loop: mic level = listening, gap after the user stops = thinking, her voice = talking. */
+  const loop = useRef<{ timer: ReturnType<typeof setInterval>; mic: MediaStream | null } | null>(null);
+
+  async function startStateLoop() {
+    const m = mixer();
+    let mic: MediaStream | null = null;
+    let micA: AnalyserNode | null = null;
+    try {
+      mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micA = m.ctx.createAnalyser();
+      micA.fftSize = 512;
+      m.ctx.createMediaStreamSource(mic).connect(micA);
+    } catch {
+      pushWire({ src: "browser", type: "mic.unavailable", text: "no mic level; listening state off" });
+    }
+    const bufC = new Uint8Array(new ArrayBuffer(512));
+    const bufM = new Uint8Array(new ArrayBuffer(512));
+    let userAt = 0, herAt = 0, userTalked = false;
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const her = rms(m.callLevel, bufC) > 0.02;
+      const user = micA ? rms(micA, bufM) > 0.03 : false;
+      if (her) herAt = now;
+      if (user) { userAt = now; userTalked = true; }
+      let mode: "idle" | "listening" | "thinking" | "talking" = "idle";
+      if (now - herAt < 350) { mode = "talking"; userTalked = false; }
+      else if (now - userAt < 500) mode = "listening";
+      else if (userTalked && now - userAt < 8000) mode = "thinking";
+      if (mode !== getAvatar().mode) {
+        setAvatarMode(mode);
+        const cap = getAvatar().caption;
+        const toolLine = /^(Top agent|Newest launch)/.test(cap);
+        if (mode === "talking") setCaption(toolLine ? cap : "Rakaza is speaking");
+        else if (mode !== "idle" || !toolLine) setCaption(CAPTION[mode] ?? "");
+      }
+    }, 100);
+    loop.current = { timer, mic };
+  }
 
   function mixer() {
     if (!mix.current) {
@@ -122,6 +181,11 @@ export function GoLive() {
 
   async function end() {
     const hadCall = !!call.current;
+    if (loop.current) {
+      clearInterval(loop.current.timer);
+      loop.current.mic?.getTracks().forEach((t) => t.stop());
+      loop.current = null;
+    }
     subs.current.forEach((s) => s.unsubscribe());
     subs.current = [];
     try {
@@ -132,7 +196,10 @@ export function GoLive() {
     if (sink.current) sink.current.srcObject = null;
     void mix.current?.ctx.close();
     mix.current = null;
-    if (hadCall) setLive(false);
+    if (hadCall) {
+      setLive(false);
+      resetAvatar();
+    }
     stopAudio();
     setPhase("idle");
   }
@@ -148,6 +215,10 @@ export function GoLive() {
       const client = new SignalWire(new StaticCredentialProvider({ token: j.token }));
       const c = (await client.dial(j.address, { audio: true, video: false, receiveAudio: true, receiveVideo: false })) as unknown as CallLike;
       call.current = c;
+      resetAvatar();
+      pushWire({ src: "sdk", type: "call.dial", text: "dialing Rakaza agent" });
+      const ue = c.subscribe?.("user_event");
+      if (ue) subs.current.push(ue.subscribe(onUserEvent));
       let detach: (() => void) | null = null;
       subs.current.push(
         c.remoteStream$.subscribe((s) => {
@@ -166,10 +237,13 @@ export function GoLive() {
             detach = () => node.disconnect();
             setLive(true);
             setPhase("live");
+            pushWire({ src: "sdk", type: "remoteStream", text: "agent audio attached" });
+            if (!loop.current) void startStateLoop();
           }
         }),
         c.status$.subscribe((s) => {
           setMsg(s);
+          pushWire({ src: "sdk", type: `status.${s}`, text: s });
           if (s === "disconnected" || s === "destroyed" || s === "failed") void end();
         }),
       );

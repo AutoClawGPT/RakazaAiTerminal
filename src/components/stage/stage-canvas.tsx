@@ -13,6 +13,8 @@ import { startDemo, stopAudio } from "@/lib/stage/audio-bus";
 import { getSongState, songFrame } from "@/lib/stage/song-player";
 import { getPrep } from "@/lib/stage/song-prep";
 import { newAnimState, stepRig, type AnimState } from "@/lib/stage/rig-anim";
+import { getAvatar } from "@/lib/live/live-state";
+import { liveReact } from "@/lib/stage/live-react";
 
 /**
  * Deterministic capture hook (only reachable with ?rkdebug, used by scripts/stage-videos to record the real stage
@@ -209,6 +211,8 @@ function Avatar({ src, onReady, onFail }: Pick<Props, "src" | "onReady" | "onFai
         group.current,
         lookObj,
       );
+      // Sigmond-style live reactions layered on top (only while a SignalWire call drives the avatar state)
+      if (!sf.playing && !ready) liveReact(getAvatar().mode, performance.now() / 1000, level, (n) => h.getNormalizedBoneNode(n as Parameters<typeof h.getNormalizedBoneNode>[0]), (n, v) => em?.setValue(n, v));
     }
     // 18+ club: neon accent lights fade in and flash on the beat
     const wB = anim.current.wBold;
