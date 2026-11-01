@@ -14,7 +14,8 @@ import { getSongState, songFrame } from "@/lib/stage/song-player";
 import { getPrep } from "@/lib/stage/song-prep";
 import { newAnimState, stepRig, type AnimState } from "@/lib/stage/rig-anim";
 import { getAvatar } from "@/lib/live/live-state";
-import { liveReact } from "@/lib/stage/live-react";
+import { deskReact, liveReact } from "@/lib/stage/live-react";
+import { DeskSet } from "./desk-set";
 
 /**
  * Deterministic capture hook (only reachable with ?rkdebug, used by scripts/stage-videos to record the real stage
@@ -24,7 +25,7 @@ import { liveReact } from "@/lib/stage/live-react";
 type CaptureFeed = { pending: boolean; dt: number; beat: number; bpm: number; energy: number; level: number; low: number; mid: number; high: number };
 type CaptureHook = { feed: CaptureFeed | null; seq: number; camera: THREE.Camera; scene: THREE.Scene; gl: THREE.WebGLRenderer; controls: { target: THREE.Vector3; update: () => void } | null };
 
-export type StageVariant = "hero" | "bust" | "panel";
+export type StageVariant = "hero" | "bust" | "panel" | "desk";
 export type StageHandle = { zoom: (dir: 1 | -1) => void; reset: () => void };
 
 type Props = {
@@ -44,6 +45,8 @@ const CAM: Record<StageVariant, { cy: number; h: number; w: number; fov: number 
   hero: { cy: 0.84, h: 1.66, w: 1.15, fov: 26 },
   bust: { cy: 1.3, h: 0.66, w: 0.66, fov: 28 },
   panel: { cy: 0.9, h: 1.74, w: 1.2, fov: 26 },
+  /** news-anchor framing behind the desk: waist up */
+  desk: { cy: 1.2, h: 0.9, w: 1.5, fov: 26 },
 };
 
 function fitDistance(v: StageVariant, aspect: number) {
@@ -87,7 +90,7 @@ function SceneLights() {
   );
 }
 
-function Avatar({ src, onReady, onFail }: Pick<Props, "src" | "onReady" | "onFail">) {
+function Avatar({ src, onReady, onFail, desk = false }: Pick<Props, "src" | "onReady" | "onFail"> & { desk?: boolean }) {
   const group = useRef<THREE.Group>(null);
   const vrmRef = useRef<VRM | null>(null);
   const [lookObj] = useState(() => new THREE.Object3D());
@@ -212,7 +215,12 @@ function Avatar({ src, onReady, onFail }: Pick<Props, "src" | "onReady" | "onFai
         lookObj,
       );
       // Sigmond-style live reactions layered on top (only while a SignalWire call drives the avatar state)
-      if (!sf.playing && !ready) liveReact(getAvatar().mode, performance.now() / 1000, level, (n) => h.getNormalizedBoneNode(n as Parameters<typeof h.getNormalizedBoneNode>[0]), (n, v) => em?.setValue(n, v));
+      if (desk && !sf.playing && !ready && group.current) {
+        // anchor framing: keep her centred behind the desk (no drifting sway)
+        group.current.position.x = 0;
+        group.current.rotation.y *= 0.3;
+        deskReact(getAvatar().mode, performance.now() / 1000, level, (n) => h.getNormalizedBoneNode(n as Parameters<typeof h.getNormalizedBoneNode>[0]), (n, v) => em?.setValue(n, v));
+      } else if (!sf.playing && !ready) liveReact(getAvatar().mode, performance.now() / 1000, level, (n) => h.getNormalizedBoneNode(n as Parameters<typeof h.getNormalizedBoneNode>[0]), (n, v) => em?.setValue(n, v));
     }
     // 18+ club: neon accent lights fade in and flash on the beat
     const wB = anim.current.wBold;
@@ -341,7 +349,8 @@ export default function StageCanvas(props: Props) {
       aria-hidden="true"
     >
       <SceneLights />
-      <Avatar src={src} onReady={onReady} onFail={onFail} />
+      <Avatar src={src} onReady={onReady} onFail={onFail} desk={variant === "desk"} />
+      {variant === "desk" ? <DeskSet /> : null}
       <Rig variant={variant} wheelZoom={props.wheelZoom} handleRef={props.handleRef} />
     </Canvas>
   );

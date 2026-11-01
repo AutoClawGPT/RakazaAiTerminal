@@ -36,7 +36,7 @@ export default async function LivePage({ searchParams }: { searchParams: Promise
           <div className="rk-hero relative aspect-[4/3] min-h-[22rem] sm:aspect-[16/10] lg:aspect-auto lg:h-full lg:min-h-[30rem]">
             <div className="rk-rays" aria-hidden="true" />
             <LiveScene />
-            <CharacterStage variant="panel" controls="full" className="h-full" />
+            <CharacterStage variant="desk" controls="full" className="h-full" />
             <LiveDashboard />
             <LiveCaption />
             {preview ? <LivePreview /> : null}
