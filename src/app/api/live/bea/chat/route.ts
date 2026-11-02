@@ -17,6 +17,8 @@ export async function POST(req: Request) {
     if (!r.ok) return NextResponse.json({ error: `bea ${r.status}` }, { status: 502 });
     return NextResponse.json({ reply: j.response?.content ?? "", mood: j.response?.mood ?? "neutral" });
   } catch (e) {
+    // BEA already has the message; when she is busy streaming she answers on air later, so a slow reply is not a failure
+    if ((e as Error).name === "TimeoutError") return NextResponse.json({ reply: "", queued: true });
     return NextResponse.json({ error: (e as Error).message }, { status: 502 });
   }
 }

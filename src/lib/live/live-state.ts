@@ -65,3 +65,19 @@ export function useAvatar(): AvatarState {
     () => AV_SERVER,
   );
 }
+
+/* ── which brain drives the live stage (BEA shows its own avatar stage) ───────────── */
+let brain: "sw" | "bea" = "sw";
+const brSubs = new Set<() => void>();
+export function setBrain(b: "sw" | "bea") {
+  if (brain === b) return;
+  brain = b;
+  brSubs.forEach((f) => f());
+}
+export function useBrain(): "sw" | "bea" {
+  return useSyncExternalStore(
+    (f) => (brSubs.add(f), () => void brSubs.delete(f)),
+    () => brain,
+    () => "sw" as const,
+  );
+}

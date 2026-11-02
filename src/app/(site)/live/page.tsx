@@ -5,6 +5,7 @@ import { LiveSongs } from "@/components/stage/live-songs";
 import { GoLive } from "@/components/live/go-live";
 import { LiveDashboard } from "@/components/live/live-dashboard";
 import { LiveCaption } from "@/components/live/live-caption";
+import { BeaStageSwitch } from "@/components/live/bea-stage";
 import { LivePreview, LiveScene } from "@/components/live/live-scene";
 import { LiveBadge, LiveStatusText } from "@/components/live/live-badge";
 
@@ -36,7 +37,9 @@ export default async function LivePage({ searchParams }: { searchParams: Promise
           <div className="rk-hero relative aspect-[3/4] min-h-[22rem] sm:aspect-[16/10] lg:aspect-auto lg:h-full lg:min-h-[30rem]">
             <div className="rk-rays" aria-hidden="true" />
             <LiveScene />
-            <CharacterStage variant="desk" controls="full" className="h-full" />
+            <BeaStageSwitch>
+              <CharacterStage variant="desk" controls="full" className="h-full" />
+            </BeaStageSwitch>
             <LiveDashboard />
             <LiveCaption />
             {preview ? <LivePreview /> : null}

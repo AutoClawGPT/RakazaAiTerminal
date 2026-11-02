@@ -64,6 +64,22 @@ const gameCsp = [
   ...(isDev ? [] : ["upgrade-insecure-requests"]),
 ].join("; ");
 
+/** /live (BEA mode) frames BEA's own stage page through our owner-only proxy at /api/live/bea/stage, so that path alone may be framed by this site. */
+const beaStageCsp = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "media-src 'self' blob: data:",
+  "font-src 'self' data:",
+  "connect-src 'self' blob: data:",
+  "worker-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'none'",
+  "frame-ancestors 'self'",
+].join("; ");
+
 const securityHeaders = [
   { key: "Content-Security-Policy", value: csp },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -91,7 +107,17 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       // every path except the game's static files gets the strict headers (frame-ancestors none, X-Frame-Options DENY)
-      { source: "/:path((?!games/ride-em/).*)", headers: securityHeaders },
+      { source: "/:path((?!games/ride-em/|api/live/bea/stage).*)", headers: securityHeaders },
+      {
+        source: "/api/live/bea/stage/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: beaStageCsp },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Referrer-Policy", value: "same-origin" },
+          { key: "Permissions-Policy", value: "microphone=(), camera=(), geolocation=(), payment=()" },
+        ],
+      },
       {
         source: "/games/ride-em/:file+",
         headers: [

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { attachElement, attachStream, stopAudio } from "@/lib/stage/audio-bus";
-import { pushChat, setLive, pushWire, resetAvatar, setAvatarMode, setCaption, getAvatar } from "@/lib/live/live-state";
+import { pushChat, setLive, pushWire, resetAvatar, setAvatarMode, setCaption, getAvatar, setBrain } from "@/lib/live/live-state";
 
 type Status = { owner: boolean; missing?: string[] };
 type CallLike = { hangup: () => Promise<void> | void; remoteStream$: { subscribe: (fn: (s: MediaStream | null) => void) => { unsubscribe: () => void } }; status$: { subscribe: (fn: (s: string) => void) => { unsubscribe: () => void } }; subscribe?: (ev: string) => { subscribe: (fn: (e: unknown) => void) => { unsubscribe: () => void } } };
@@ -164,8 +164,8 @@ export function GoLive() {
       try {
         if (getAvatar().mode !== "talking") setAvatarMode("thinking");
         const r = await fetch("/api/live/bea/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: text }) });
-        const j = (await r.json()) as { reply?: string; mood?: string; error?: string };
-        const reply = (j.reply ?? "").replace(/<[^>]*>/g, "").trim() || (j.error ? `(${j.error})` : "(she answered out loud on stream)");
+        const j = (await r.json()) as { reply?: string; mood?: string; error?: string; queued?: boolean };
+        const reply = (j.reply ?? "").replace(/<[^>]*>/g, "").trim() || (j.error ? `(${j.error})` : j.queued ? "(got it, she'll answer out loud on stream)" : "(she answered out loud on stream)");
         setChat((c) => [...c, { who: "rakaza", text: reply }]);
         pushChat({ who: "rakaza", text: reply });
         if (j.mood) pushWire({ src: "agent", type: "mood", text: j.mood });
@@ -213,6 +213,7 @@ export function GoLive() {
     const es = new EventSource("/api/live/bea/stream");
     beaRun.current = { es, el };
     es.onopen = () => {
+      setBrain("bea");
       setLive(true);
       setPhase("live");
       setMsg("BEA");
@@ -253,6 +254,7 @@ export function GoLive() {
       beaRun.current.el.src = "";
       beaRun.current = null;
       setLive(false);
+      setBrain("sw");
       resetAvatar();
     }
     const hadCall = !!call.current;
