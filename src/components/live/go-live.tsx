@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { attachStream, stopAudio } from "@/lib/stage/audio-bus";
+import { attachElement, attachStream, stopAudio } from "@/lib/stage/audio-bus";
 import { pushChat, setLive, pushWire, resetAvatar, setAvatarMode, setCaption, getAvatar } from "@/lib/live/live-state";
 
 type Status = { owner: boolean; missing?: string[] };
@@ -52,6 +52,9 @@ function onUserEvent(raw: unknown) {
 
 export function GoLive() {
   const [st, setSt] = useState<Status | null>(null);
+  /** BEA brain (owner's EC2) is preferred when configured; SignalWire stays as the fallback. */
+  const [bea, setBea] = useState(false);
+  const beaRun = useRef<{ es: EventSource; el: HTMLAudioElement } | null>(null);
   const [phase, setPhase] = useState<"idle" | "connecting" | "live" | "error">("idle");
   const [msg, setMsg] = useState("");
   const call = useRef<CallLike | null>(null);
@@ -157,6 +160,22 @@ export function GoLive() {
     const next = [...chat, { who: "you" as const, text }];
     setChat(next);
     pushChat({ who: "you", text });
+    if (beaRun.current) {
+      try {
+        if (getAvatar().mode !== "talking") setAvatarMode("thinking");
+        const r = await fetch("/api/live/bea/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: text }) });
+        const j = (await r.json()) as { reply?: string; mood?: string; error?: string };
+        const reply = (j.reply ?? "").replace(/<[^>]*>/g, "").trim() || (j.error ? `(${j.error})` : "(she answered out loud on stream)");
+        setChat((c) => [...c, { who: "rakaza", text: reply }]);
+        pushChat({ who: "rakaza", text: reply });
+        if (j.mood) pushWire({ src: "agent", type: "mood", text: j.mood });
+      } catch (err) {
+        setChat((c) => [...c, { who: "rakaza", text: (err as Error).message }]);
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     try {
       const r = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: next.slice(-8).map((m) => ({ role: m.who === "you" ? "user" : "assistant", content: m.text })) }) });
       const j = (await r.json()) as { reply?: string; message?: string };
@@ -176,10 +195,66 @@ export function GoLive() {
       .then((r) => r.json())
       .then((j: Status) => setSt(j))
       .catch(() => setSt({ owner: false }));
+    fetch("/api/live/bea/status", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j: { bea?: boolean }) => setBea(!!j.bea))
+      .catch(() => {});
     return () => void end();
   }, []);
 
+  /** BEA mode: her state, mood and captions come from BEA /stage/stream; her voice is the /listen stream, which also drives lip sync. */
+  async function startBea() {
+    setPhase("connecting");
+    setMsg("");
+    resetAvatar();
+    const el = new Audio("/api/live/bea/listen");
+    el.preload = "none";
+    attachElement(el);
+    const es = new EventSource("/api/live/bea/stream");
+    beaRun.current = { es, el };
+    es.onopen = () => {
+      setLive(true);
+      setPhase("live");
+      setMsg("BEA");
+      pushWire({ src: "sdk", type: "bea.stream", text: "BEA stage stream connected" });
+    };
+    let mood = "";
+    es.onmessage = (ev) => {
+      let d: { state?: string; mood?: string; caption?: string };
+      try {
+        d = JSON.parse(ev.data);
+      } catch {
+        return;
+      }
+      if (d.state) setAvatarMode(d.state === "talking" ? "talking" : d.state === "thinking" ? "thinking" : d.state === "listening" ? "listening" : "idle");
+      // Empty caption patches between sentences would flicker; keep the last line while she is still talking.
+      if (typeof d.caption === "string") {
+        const cap = d.caption.replace(/<[^>]*>/g, "").trim();
+        if (cap) setCaption(cap);
+        else if (getAvatar().mode !== "talking") setCaption(getAvatar().mode === "thinking" ? "Thinking…" : "");
+      }
+      if (d.mood && d.mood !== mood) {
+        mood = d.mood;
+        pushWire({ src: "agent", type: "mood", text: d.mood });
+      }
+    };
+    es.onerror = () => pushWire({ src: "browser", type: "bea.reconnect", text: "stage stream reconnecting" });
+    try {
+      await el.play();
+    } catch (e) {
+      setMsg(`voice: ${(e as Error).message}`);
+    }
+  }
+
   async function end() {
+    if (beaRun.current) {
+      beaRun.current.es.close();
+      beaRun.current.el.pause();
+      beaRun.current.el.src = "";
+      beaRun.current = null;
+      setLive(false);
+      resetAvatar();
+    }
     const hadCall = !!call.current;
     if (loop.current) {
       clearInterval(loop.current.timer);
@@ -260,19 +335,26 @@ export function GoLive() {
     <section className="rk-card rk-card-hard" aria-labelledby="live-owner" data-testid="go-live">
       <span className="rk-pill !min-h-7 text-[0.7rem]">OWNER ONLY</span>
       <h2 id="live-owner" className="rk-h2 mt-3 text-xl">
-        Go live (SignalWire voice)
+        {bea ? "Go live (BEA brain)" : "Go live (SignalWire voice)"}
       </h2>
-      <p className="mt-2 text-sm text-muted-foreground">Connects her SignalWire AI voice. Talk into your mic; she answers and her mouth moves with her voice.</p>
-      {st.missing?.length ? <p className="mt-2 font-mono text-xs text-amber-600">Setup needed: {st.missing.join(", ")}</p> : null}
+      <p className="mt-2 text-sm text-muted-foreground">{bea ? "Connects her BEA brain on your EC2. Type in Live chat; she answers out loud and her mouth moves with her voice." : "Connects her SignalWire AI voice. Talk into your mic; she answers and her mouth moves with her voice."}</p>
+      {!bea && st.missing?.length ? <p className="mt-2 font-mono text-xs text-amber-600">Setup needed: {st.missing.join(", ")}</p> : null}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {phase === "live" || phase === "connecting" ? (
           <button type="button" className="rk-btn" onClick={() => void end()}>
             End live
           </button>
         ) : (
-          <button type="button" className="rk-btn rk-btn-honey" onClick={() => void start()} disabled={!!st.missing?.length}>
-            Go live
-          </button>
+          <>
+            <button type="button" className="rk-btn rk-btn-honey" onClick={() => void (bea ? startBea() : start())} disabled={!bea && !!st.missing?.length}>
+              Go live
+            </button>
+            {bea && !st.missing?.length ? (
+              <button type="button" className="rk-btn" onClick={() => void start()}>
+                SignalWire fallback
+              </button>
+            ) : null}
+          </>
         )}
         <span className="font-mono text-xs" data-testid="go-live-state">
           {phase}
