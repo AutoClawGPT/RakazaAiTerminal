@@ -5,7 +5,7 @@ import { LiveSongs } from "@/components/stage/live-songs";
 import { GoLive } from "@/components/live/go-live";
 import { LiveDashboard } from "@/components/live/live-dashboard";
 import { LiveCaption } from "@/components/live/live-caption";
-import { BeaStageSwitch } from "@/components/live/bea-stage";
+import { BeaPublicChat, BeaStageSwitch } from "@/components/live/bea-stage";
 import { LivePreview, LiveScene } from "@/components/live/live-scene";
 import { LiveBadge, LiveStatusText } from "@/components/live/live-badge";
 
@@ -50,6 +50,7 @@ export default async function LivePage({ searchParams }: { searchParams: Promise
 
         <div className="grid content-start gap-6">
           <GoLive />
+          <BeaPublicChat />
           <section className="rk-card rk-card-hard" aria-labelledby="live-off">
             <LiveBadge kind="pill" />
             <LiveStatusText />

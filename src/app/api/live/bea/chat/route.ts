@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { isOwnerRequest } from "@/lib/owner";
+import { allow, clientIp } from "@/lib/rate";
 import { beaConfig, beaFetch } from "@/lib/live/bea";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-/** Live chat to BEA /chat. Owner only. */
+/** Live chat to BEA /chat. Public (read-only), rate-limited per IP; token stays server-side. */
 export async function POST(req: Request) {
-  if (!(await isOwnerRequest())) return NextResponse.json({ error: "owner only" }, { status: 401 });
+  if (!(await allow("chat", await clientIp(), 20, 1, "m"))) return NextResponse.json({ error: "slow_down", message: "Too many messages, give me a second." }, { status: 429 });
   if (!beaConfig()) return NextResponse.json({ error: "BEA not configured" }, { status: 503 });
   const { message } = (await req.json().catch(() => ({}))) as { message?: string };
   const text = String(message ?? "").trim().slice(0, 300);

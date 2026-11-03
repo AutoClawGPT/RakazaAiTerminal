@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { attachElement, attachStream, stopAudio } from "@/lib/stage/audio-bus";
-import { pushChat, setLive, pushWire, resetAvatar, setAvatarMode, setCaption, getAvatar, setBrain } from "@/lib/live/live-state";
+import { pushChat, setLive, pushWire, resetAvatar, setAvatarMode, setCaption, getAvatar, setBrain, useBrain } from "@/lib/live/live-state";
 
 type Status = { owner: boolean; missing?: string[] };
 type CallLike = { hangup: () => Promise<void> | void; remoteStream$: { subscribe: (fn: (s: MediaStream | null) => void) => { unsubscribe: () => void } }; status$: { subscribe: (fn: (s: string) => void) => { unsubscribe: () => void } }; subscribe?: (ev: string) => { subscribe: (fn: (e: unknown) => void) => { unsubscribe: () => void } } };
@@ -54,6 +54,7 @@ export function GoLive() {
   const [st, setSt] = useState<Status | null>(null);
   /** BEA brain (owner's EC2) is preferred when configured; SignalWire stays as the fallback. */
   const [bea, setBea] = useState(false);
+  const brainNow = useBrain();
   const beaRun = useRef<{ es: EventSource; el: HTMLAudioElement } | null>(null);
   const [phase, setPhase] = useState<"idle" | "connecting" | "live" | "error">("idle");
   const [msg, setMsg] = useState("");
@@ -333,6 +334,16 @@ export function GoLive() {
   }
 
   if (!st?.owner) return null;
+  // BEA up: she is on air for every visitor automatically (stage, voice, public chat below); no owner Go live needed.
+  if (bea && brainNow === "bea")
+    return (
+      <section className="rk-card rk-card-hard" aria-labelledby="live-owner" data-testid="go-live">
+        <span className="rk-pill !min-h-7 text-[0.7rem]">OWNER ONLY</span>
+        <h2 id="live-owner" className="rk-h2 mt-3 text-xl">On air (BEA brain)</h2>
+        <p className="mt-2 text-sm text-muted-foreground">BEA on your EC2 is reachable, so every visitor sees her live stage, hears her voice and chats with her. Persona and settings stay in the BEA dashboard.</p>
+        <span className="mt-2 block font-mono text-xs" data-testid="go-live-state">live · BEA (public)</span>
+      </section>
+    );
   return (
     <section className="rk-card rk-card-hard" aria-labelledby="live-owner" data-testid="go-live">
       <span className="rk-pill !min-h-7 text-[0.7rem]">OWNER ONLY</span>

@@ -1,10 +1,10 @@
-import { isOwnerRequest } from "@/lib/owner";
+import { allow, clientIp } from "@/lib/rate";
 import { beaConfig, beaFetch } from "@/lib/live/bea";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-/** BEA's /listen relay accepts one listener, so this server reads it once and fans the mp3 out to every owner tab. */
+/** BEA's /listen relay accepts one listener, so this server reads it once and fans the mp3 out to every viewer tab on this instance. */
 type Hub = { subs: Set<ReadableStreamDefaultController<Uint8Array>>; running: boolean };
 const g = globalThis as unknown as { __beaListen?: Hub };
 const hub: Hub = (g.__beaListen ??= { subs: new Set(), running: false });
@@ -36,9 +36,9 @@ async function pump() {
   }
 }
 
-/** Passthrough of BEA /listen (her live voice, mp3). Owner only. */
+/** Passthrough of BEA /listen (her live voice, mp3). Public (read-only), rate-limited per IP; token stays server-side. */
 export async function GET(req: Request) {
-  if (!(await isOwnerRequest())) return new Response("owner only", { status: 401 });
+  if (!(await allow("bea-listen", await clientIp(), 20, 1, "m"))) return new Response("slow down", { status: 429 });
   if (!beaConfig()) return new Response("BEA not configured", { status: 503 });
   let me: ReadableStreamDefaultController<Uint8Array> | null = null;
   const body = new ReadableStream<Uint8Array>({

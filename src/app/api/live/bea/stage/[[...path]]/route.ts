@@ -1,4 +1,4 @@
-import { isOwnerRequest } from "@/lib/owner";
+import { allow, clientIp } from "@/lib/rate";
 import { beaConfig, beaFetch } from "@/lib/live/bea";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ const rewrite = (t: string) =>
     .replaceAll('"/"+', `"${P}/"+`);
 
 export async function GET(req: Request, ctx: { params: Promise<{ path?: string[] }> }) {
-  if (!(await isOwnerRequest())) return new Response("owner only", { status: 401 });
+  if (!(await allow("bea-stage", await clientIp(), 400, 1, "m"))) return new Response("slow down", { status: 429 });
   if (!beaConfig()) return new Response("BEA not configured", { status: 503 });
   const parts = (await ctx.params).path ?? [];
   if (parts.some((p) => p === ".." || p.includes("/"))) return new Response("bad path", { status: 400 });

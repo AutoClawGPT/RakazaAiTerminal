@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { isOwnerRequest } from "@/lib/owner";
-import { beaConfig } from "@/lib/live/bea";
+import { beaUp } from "@/lib/live/bea";
 
 export const dynamic = "force-dynamic";
-/** Booleans only: is BEA configured for /live. */
+/** Booleans only: is BEA configured and reachable (public, so every visitor gets her live stage). */
 export async function GET() {
-  if (!(await isOwnerRequest())) return NextResponse.json({ owner: false });
-  return NextResponse.json({ owner: true, bea: !!beaConfig() }, { headers: { "Cache-Control": "no-store" } });
+  const [owner, bea] = await Promise.all([isOwnerRequest(), beaUp()]);
+  return NextResponse.json({ owner, bea }, { headers: { "Cache-Control": "no-store" } });
 }
