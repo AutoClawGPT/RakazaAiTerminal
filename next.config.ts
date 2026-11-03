@@ -36,6 +36,8 @@ const csp = [
   "font-src 'self' data:",
   `connect-src ${connectSrc} blob: data:`,
   "worker-src 'self' blob:",
+  // /live: BEA's real kit live stream watch page (her own HLS player) is framed on the stage
+  "frame-src 'self' https://live.13-62-148-110.sslip.io",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
