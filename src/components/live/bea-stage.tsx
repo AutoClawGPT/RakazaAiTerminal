@@ -12,7 +12,6 @@ const BEA_WATCH = "https://live.13-62-148-110.sslip.io/";
 export function BeaStageSwitch({ children }: { children: ReactNode }) {
   const { live } = useLive();
   const bea = useBrain() === "bea" && live;
-  const [hint, setHint] = useState(true);
 
   useEffect(() => {
     let dead = false;
@@ -40,15 +39,9 @@ export function BeaStageSwitch({ children }: { children: ReactNode }) {
           src={BEA_WATCH}
           title="Oni-Chan live (BEA real stream)"
           data-testid="bea-stage"
-          className="absolute inset-0 z-[1] h-full w-full border-0 bg-black"
+          className="absolute inset-0 z-[60] h-full w-full border-0 bg-black"
           allow="autoplay; fullscreen"
-          onPointerDown={() => setHint(false)}
         />
-      ) : null}
-      {bea && hint ? (
-        <button type="button" onClick={() => setHint(false)} data-testid="bea-unmute" className="rk-btn rk-btn-honey absolute left-1/2 top-3 z-30 -translate-x-1/2 !min-h-8 text-xs">
-          🔊 Tap the speaker on the player to hear her
-        </button>
       ) : null}
     </>
   );
