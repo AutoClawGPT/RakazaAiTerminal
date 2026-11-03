@@ -4,74 +4,50 @@
  * BEA dashboard) instead of our VRM desk, hears her /listen voice, gets her captions/state, and the public chat goes to BEA.
  * If BEA is down, nothing changes: the offline VRM view stays.
  */
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { getAvatar, pushChat, pushWire, setAvatarMode, setBrain, setCaption, setLive, useBrain, useLive } from "@/lib/live/live-state";
+import { useEffect, useState, type ReactNode } from "react";
+import { pushChat, setBrain, setLive, useBrain, useLive } from "@/lib/live/live-state";
+
+const BEA_WATCH = "https://live.13-62-148-110.sslip.io/";
 
 export function BeaStageSwitch({ children }: { children: ReactNode }) {
   const { live } = useLive();
   const bea = useBrain() === "bea" && live;
-  const [muted, setMuted] = useState(true);
-  const el = useRef<HTMLAudioElement | null>(null);
+  const [hint, setHint] = useState(true);
 
   useEffect(() => {
-    let es: EventSource | null = null;
-    let fails = 0;
     let dead = false;
-    fetch("/api/live/bea/status", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((j: { bea?: boolean }) => {
-        if (dead || !j.bea) return;
-        setBrain("bea");
-        setLive(true);
-        es = new EventSource("/api/live/bea/stream");
-        es.onopen = () => (fails = 0);
-        es.onmessage = (ev) => {
-          let d: { state?: string; mood?: string; caption?: string };
-          try { d = JSON.parse(ev.data); } catch { return; }
-          if (d.state) setAvatarMode(d.state === "talking" ? "talking" : d.state === "thinking" ? "thinking" : d.state === "listening" ? "listening" : "idle");
-          if (typeof d.caption === "string") {
-            const cap = d.caption.replace(/<[^>]*>/g, "").trim();
-            if (cap) setCaption(cap);
-            else if (getAvatar().mode !== "talking") setCaption("");
-          }
-          if (d.mood) pushWire({ src: "agent", type: "mood", text: d.mood });
-        };
-        es.onerror = () => {
-          // BEA went away: after a few failed reconnects fall back to the offline view
-          if (++fails >= 4) {
-            es?.close();
-            el.current?.pause();
-            setLive(false);
-            setBrain("sw");
-          }
-        };
-        const a = new Audio("/api/live/bea/listen");
-        a.preload = "none";
-        el.current = a;
-        a.play().then(() => setMuted(false)).catch(() => setMuted(true));
-      })
-      .catch(() => {});
-    return () => {
-      dead = true;
-      es?.close();
-      if (el.current) { el.current.pause(); el.current.src = ""; }
-    };
+    let on = false;
+    let t: ReturnType<typeof setInterval> | null = null;
+    const check = () =>
+      fetch("/api/live/bea/status", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((j: { bea?: boolean }) => {
+          if (dead) return;
+          if (j.bea && !on) { on = true; setBrain("bea"); setLive(true); }
+          else if (!j.bea && on) { on = false; setLive(false); setBrain("sw"); }
+        })
+        .catch(() => {});
+    void check();
+    t = setInterval(check, 60000);
+    return () => { dead = true; if (t) clearInterval(t); };
   }, []);
-
-  function unmute() {
-    const a = el.current;
-    if (!a) return;
-    if (!a.src) a.src = "/api/live/bea/listen";
-    void a.play().then(() => setMuted(false)).catch(() => {});
-  }
 
   return (
     <>
       <div style={{ display: bea ? "none" : "contents" }}>{children}</div>
-      {bea ? <iframe src="/api/live/bea/stage" title="Rakaza live stage (BEA)" data-testid="bea-stage" className="absolute inset-0 z-[1] h-full w-full border-0 bg-transparent" allow="autoplay" style={{ colorScheme: "normal" }} /> : null}
-      {bea && muted ? (
-        <button type="button" onClick={unmute} data-testid="bea-unmute" className="rk-btn rk-btn-honey absolute left-1/2 top-3 z-30 -translate-x-1/2 !min-h-8 text-xs">
-          🔊 Tap to hear her
+      {bea ? (
+        <iframe
+          src={BEA_WATCH}
+          title="Oni-Chan live (BEA real stream)"
+          data-testid="bea-stage"
+          className="absolute inset-0 z-[1] h-full w-full border-0 bg-black"
+          allow="autoplay; fullscreen"
+          onPointerDown={() => setHint(false)}
+        />
+      ) : null}
+      {bea && hint ? (
+        <button type="button" onClick={() => setHint(false)} data-testid="bea-unmute" className="rk-btn rk-btn-honey absolute left-1/2 top-3 z-30 -translate-x-1/2 !min-h-8 text-xs">
+          🔊 Tap the speaker on the player to hear her
         </button>
       ) : null}
     </>

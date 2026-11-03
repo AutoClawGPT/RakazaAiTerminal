@@ -1,23 +1,26 @@
 import "server-only";
-/** Project BEA (owner's EC2) proxy helpers. The token stays server-side; nothing secret reaches the browser. */
-export function beaConfig(): { url: string; token: string } | null {
-  const url = process.env.BEA_URL?.trim().replace(/\/$/, "");
-  const token = process.env.BEA_PROXY_TOKEN?.trim();
-  return url && token ? { url, token } : null;
+/**
+ * Project BEA (owner's EC2), set up exactly as the oni-chan-bea-stream-kit: nginx serves her real live stream
+ * (Minecraft + her avatar + her voice, the same feed that goes to Restream/TikTok) at live.<ip>.sslip.io, and her
+ * dashboard API at <ip>.sslip.io. No token, no proxying of the video through Vercel.
+ */
+export const BEA_API = (process.env.BEA_PUBLIC_URL?.trim() || "https://13-62-148-110.sslip.io").replace(/\/$/, "");
+export const BEA_LIVE = (process.env.BEA_LIVE_URL?.trim() || "https://live.13-62-148-110.sslip.io").replace(/\/$/, "");
+export function beaConfig(): { url: string } | null {
+  return BEA_API ? { url: BEA_API } : null;
 }
 export function beaFetch(path: string, init: RequestInit = {}) {
-  const c = beaConfig();
-  if (!c) throw new Error("BEA not configured");
-  return fetch(`${c.url}${path}`, { ...init, cache: "no-store", headers: { ...(init.headers as Record<string, string>), "X-Rakaza-Token": c.token } });
+  return fetch(`${BEA_API}${path}`, { ...init, cache: "no-store" });
 }
 
-/** Cached (15 s) reachability check so /live can fall back to the offline view when the EC2 is down. */
+/** Cached (15 s): is her live HLS stream on air (playlist reachable with segments)? */
 const g = globalThis as unknown as { __beaUp?: { at: number; up: boolean } };
 export async function beaUp(): Promise<boolean> {
-  if (!beaConfig()) return false;
   const c = g.__beaUp;
   if (c && Date.now() - c.at < 15000) return c.up;
-  const up = await beaFetch("/stage", { signal: AbortSignal.timeout(4000) }).then((r) => { void r.body?.cancel(); return r.ok; }).catch(() => false);
+  const up = await fetch(`${BEA_LIVE}/stream.m3u8`, { cache: "no-store", signal: AbortSignal.timeout(4000) })
+    .then(async (r) => r.ok && (await r.text()).includes("#EXTINF"))
+    .catch(() => false);
   g.__beaUp = { at: Date.now(), up };
   return up;
 }

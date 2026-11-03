@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { attachElement, attachStream, stopAudio } from "@/lib/stage/audio-bus";
+import { attachStream, stopAudio } from "@/lib/stage/audio-bus";
 import { pushChat, setLive, pushWire, resetAvatar, setAvatarMode, setCaption, getAvatar, setBrain, useBrain } from "@/lib/live/live-state";
 
 type Status = { owner: boolean; missing?: string[] };
@@ -55,7 +55,7 @@ export function GoLive() {
   /** BEA brain (owner's EC2) is preferred when configured; SignalWire stays as the fallback. */
   const [bea, setBea] = useState(false);
   const brainNow = useBrain();
-  const beaRun = useRef<{ es: EventSource; el: HTMLAudioElement } | null>(null);
+  const beaRun = useRef<{ es: EventSource | null; el: HTMLAudioElement | null } | null>(null);
   const [phase, setPhase] = useState<"idle" | "connecting" | "live" | "error">("idle");
   const [msg, setMsg] = useState("");
   const call = useRef<CallLike | null>(null);
@@ -208,51 +208,19 @@ export function GoLive() {
     setPhase("connecting");
     setMsg("");
     resetAvatar();
-    const el = new Audio("/api/live/bea/listen");
-    el.preload = "none";
-    attachElement(el);
-    const es = new EventSource("/api/live/bea/stream");
-    beaRun.current = { es, el };
-    es.onopen = () => {
-      setBrain("bea");
-      setLive(true);
-      setPhase("live");
-      setMsg("BEA");
-      pushWire({ src: "sdk", type: "bea.stream", text: "BEA stage stream connected" });
-    };
-    let mood = "";
-    es.onmessage = (ev) => {
-      let d: { state?: string; mood?: string; caption?: string };
-      try {
-        d = JSON.parse(ev.data);
-      } catch {
-        return;
-      }
-      if (d.state) setAvatarMode(d.state === "talking" ? "talking" : d.state === "thinking" ? "thinking" : d.state === "listening" ? "listening" : "idle");
-      // Empty caption patches between sentences would flicker; keep the last line while she is still talking.
-      if (typeof d.caption === "string") {
-        const cap = d.caption.replace(/<[^>]*>/g, "").trim();
-        if (cap) setCaption(cap);
-        else if (getAvatar().mode !== "talking") setCaption(getAvatar().mode === "thinking" ? "Thinking…" : "");
-      }
-      if (d.mood && d.mood !== mood) {
-        mood = d.mood;
-        pushWire({ src: "agent", type: "mood", text: d.mood });
-      }
-    };
-    es.onerror = () => pushWire({ src: "browser", type: "bea.reconnect", text: "stage stream reconnecting" });
-    try {
-      await el.play();
-    } catch (e) {
-      setMsg(`voice: ${(e as Error).message}`);
-    }
+    // Her real live (kit HLS stream: avatar + voice + Minecraft) is shown by BeaStageSwitch; nothing proxied here.
+    beaRun.current = { es: null, el: null };
+    setBrain("bea");
+    setLive(true);
+    setPhase("live");
+    setMsg("BEA");
+    pushWire({ src: "sdk", type: "bea.stream", text: "BEA real live stream on" });
   }
 
   async function end() {
     if (beaRun.current) {
-      beaRun.current.es.close();
-      beaRun.current.el.pause();
-      beaRun.current.el.src = "";
+      beaRun.current.es?.close();
+      beaRun.current.el?.pause();
       beaRun.current = null;
       setLive(false);
       setBrain("sw");
